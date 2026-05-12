@@ -1,6 +1,6 @@
 {
   "name": "rove",
-  "version": "0.0.0-alpha.8",
+  "version": "0.0.0-alpha.9",
   "private": true,
   "description": "Rove — agentic UX evaluation for the agent-readable web. Explore. Observe. Report.",
   "homepage": "https://github.com/agiterra/rove",
@@ -17,8 +17,8 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "dashboard": "pnpm --filter @agiterra/rove-dashboard dev",
-    "cli": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js",
-    "daemon": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js daemon",
+    "cli": "pnpm --filter @agiterra/rove-cli build && bash scripts/run-cli.sh",
+    "daemon": "pnpm --filter @agiterra/rove-cli build && bash scripts/run-cli.sh daemon",
     "sync:agent-guides": "node scripts/sync-agent-guides.mjs"
   },
   "engines": {

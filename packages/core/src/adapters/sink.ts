@@ -52,6 +52,13 @@ export interface SinkInput {
   commitSha?: string;
   /** Git branch at run time, if discoverable. */
   branch?: string;
+  /**
+   * Walk kind. Defaults to "flow" for back-compat. Set to "change_review"
+   * when running `rove change-review`; the SupabaseSink then persists
+   * payload.change_review (design_contract + deltas + routes) into the
+   * matching columns on `runs`.
+   */
+  kind?: "flow" | "change_review";
 }
 
 export interface SinkResult {

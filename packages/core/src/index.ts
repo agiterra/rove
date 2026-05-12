@@ -6,6 +6,10 @@ export {
   type BuildWalkPromptInput,
   type McpToolPrefix,
 } from "./prompt.js";
+export {
+  buildChangeReviewPrompt,
+  type BuildChangeReviewPromptInput,
+} from "./change-review-prompt.js";
 export { discoverFlows, parseFlowFile } from "./flows.js";
 export {
   parseFindings,
@@ -13,8 +17,12 @@ export {
   type ParseFindingsErrorReason,
 } from "./parse-findings.js";
 export {
+  CHANGE_DELTA_KINDS,
   FINDING_SEVERITIES,
   SURPRISE_KINDS,
+  changeDeltaSchema,
+  changeReviewSchema,
+  designContractSchema,
   findingSchema,
   findingScreenshotSchema,
   findingsPayloadSchema,
@@ -23,6 +31,10 @@ export {
   walkPlanSchema,
   walkPlanStepSchema,
   type AgentRuntime,
+  type ChangeDelta,
+  type ChangeDeltaKind,
+  type ChangeReview,
+  type DesignContract,
   type Finding,
   type FindingScreenshot,
   type FindingsPayload,

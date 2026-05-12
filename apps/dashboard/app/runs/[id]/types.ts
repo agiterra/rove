@@ -60,6 +60,37 @@ export interface RunStep {
   duration_ms: number | null;
 }
 
+export type WalkKind = "flow" | "change_review";
+
+export type ChangeDeltaKind =
+  | "change.navigation_mismatch"
+  | "change.intent_mismatch"
+  | "change.design_incoherence"
+  | "change.pattern_drift"
+  | "change.primary_action_confusion"
+  | "change.copy_mismatch";
+
+export interface ChangeDelta {
+  kind: ChangeDeltaKind;
+  expected: string;
+  observed: string;
+  why_it_matters: string;
+  step_index?: number;
+  severity?: "critical" | "major" | "minor" | "nit";
+}
+
+export interface DesignContract {
+  layout_pattern?: string;
+  primary_action_pattern?: string;
+  form_pattern?: string;
+  success_pattern?: string;
+  navigation_pattern?: string;
+  density?: string;
+  tone?: string;
+  notes?: string;
+  derived_from?: Record<string, string>;
+}
+
 export interface RunDetail {
   id: string;
   project_id: string;
@@ -82,6 +113,11 @@ export interface RunDetail {
   largest_expectation_gap: string | null;
   persona_success_confidence: number | null;
   metrics: TrajectoryMetrics | null;
+  kind: WalkKind;
+  changed_routes: string[] | null;
+  reference_routes: string[] | null;
+  design_contract: DesignContract | null;
+  deltas: ChangeDelta[] | null;
 }
 
 export interface RunFinding {

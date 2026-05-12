@@ -8,33 +8,46 @@ import type { RunDetail, RunFinding } from "./types";
 export function Hero({ run, findingCount }: { run: RunDetail; findingCount: number }) {
   const surpriseCount = run.surprises?.length ?? 0;
   return (
-    <div className="surface p-6 md:p-8">
-      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-faint)] mb-2">
-        run
-      </p>
-      <div className="flex items-baseline gap-3 flex-wrap">
+    <div className="surface-elevated px-7 py-8 md:px-10 md:py-10">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="eyebrow-lg">run · flow</p>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-faint)] font-mono">
+          <span>{run.dispatcher}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-baseline gap-3 flex-wrap">
         <Link
           href={`/flows/${encodeURIComponent(run.flow_id)}`}
-          className="font-mono text-xl md:text-2xl text-[var(--color-accent)] hover:opacity-90 break-all"
+          className="font-mono text-lg md:text-xl text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors break-all"
         >
           {run.flow_id}
         </Link>
-        <span className="text-[var(--color-text-faint)]">·</span>
+        <span className="text-[var(--color-text-faint)] text-base">▸</span>
         <span className="font-mono text-sm text-[var(--color-text-muted)]">{run.persona_id}</span>
-        <span className="text-[var(--color-text-faint)]">·</span>
-        <span className="text-xs text-[var(--color-text-faint)]">{run.dispatcher}</span>
       </div>
 
-      <div className="mt-5 flex items-baseline gap-4 flex-wrap">
+      <div className="mt-10">
         <GoalStatement value={run.goal_reached} />
-        <StepDelta predicted={run.predicted_step_count} actual={run.actual_step_count} />
-        {surpriseCount > 0 ? (
-          <Pill tone="amber" label={`${surpriseCount} surprise${surpriseCount === 1 ? "" : "s"}`} />
-        ) : null}
-        <Pill tone="neutral" label={`${findingCount} finding${findingCount === 1 ? "" : "s"}`} />
       </div>
+      <div className="divider-grad mt-6 mb-5 max-w-md" />
+      <StatRow
+        items={[
+          stepDeltaItem(run.predicted_step_count, run.actual_step_count),
+          surpriseCount > 0
+            ? { label: `${surpriseCount} surprise${surpriseCount === 1 ? "" : "s"}`, tone: "amber" as const }
+            : null,
+          { label: `${findingCount} finding${findingCount === 1 ? "" : "s"}`, tone: "neutral" as const },
+        ]}
+      />
 
-      <div className="mt-5 flex items-center gap-3 text-[11px] text-[var(--color-text-faint)] font-mono flex-wrap">
+      {run.summary ? (
+        <p className="mt-7 text-sm text-[var(--color-text)] leading-relaxed max-w-3xl">
+          {run.summary}
+        </p>
+      ) : null}
+
+      <div className="mt-7 flex items-center gap-3 text-[11px] text-[var(--color-text-faint)] font-mono flex-wrap">
         <span>{run.branch ?? "no branch"}</span>
         <span>·</span>
         <span>{shortSha(run.commit_sha)}</span>
@@ -47,7 +60,7 @@ export function Hero({ run, findingCount }: { run: RunDetail; findingCount: numb
               href={run.walked_url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-[var(--color-accent)]"
+              className="inline-flex items-center gap-1 hover:text-[var(--color-accent)] transition-colors"
             >
               {prettyUrl(run.walked_url)}
               <ExternalLink className="w-3 h-3" />
@@ -55,12 +68,6 @@ export function Hero({ run, findingCount }: { run: RunDetail; findingCount: numb
           </>
         ) : null}
       </div>
-
-      {run.summary ? (
-        <p className="mt-5 text-sm text-[var(--color-text)] leading-relaxed max-w-3xl">
-          {run.summary}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -163,57 +170,82 @@ export function FindingsSection({ runId, findings }: { runId: string; findings: 
 function GoalStatement({ value }: { value: boolean | null }) {
   if (value === true) {
     return (
-      <span
-        className="text-2xl md:text-3xl font-semibold"
-        style={{ color: "var(--color-accent)" }}
-      >
-        Goal reached ✓
-      </span>
+      <h2 className="text-[40px] md:text-[56px] font-semibold tracking-tight leading-[1.05] text-[var(--color-accent)] glow-accent">
+        Goal reached{" "}✓
+      </h2>
     );
   }
   if (value === false) {
     return (
-      <span
-        className="text-2xl md:text-3xl font-semibold"
-        style={{ color: "var(--color-severity-critical)" }}
-      >
-        Goal not reached ✗
-      </span>
+      <h2 className="text-[40px] md:text-[56px] font-semibold tracking-tight leading-[1.05] text-[var(--color-severity-critical)] glow-rose">
+        Goal not reached{" "}✗
+      </h2>
     );
   }
   return (
-    <span className="text-xl text-[var(--color-text-muted)] italic">Outcome not recorded</span>
+    <p className="text-2xl text-[var(--color-text-muted)] italic">Outcome not recorded</p>
   );
 }
 
-function StepDelta({ predicted, actual }: { predicted: number | null; actual: number | null }) {
+interface StatItem {
+  label: React.ReactNode;
+  tone: Tone;
+}
+
+function StatRow({ items }: { items: Array<StatItem | null> }) {
+  const visible = items.filter((i): i is StatItem => i !== null);
+  return (
+    <div className="flex items-baseline gap-x-5 gap-y-2 flex-wrap text-sm">
+      {visible.map((item, i) => (
+        <span key={i} className="inline-flex items-baseline gap-1.5" style={{ color: toneColor(item.tone) }}>
+          {i > 0 ? (
+            <span className="text-[var(--color-text-faint)] mr-3" aria-hidden="true">
+              ·
+            </span>
+          ) : null}
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function stepDeltaItem(predicted: number | null, actual: number | null): StatItem | null {
   if (predicted === null && actual === null) return null;
   if (predicted !== null && actual !== null) {
     const delta = actual - predicted;
     const tone: Tone = delta <= 0 ? "good" : delta <= predicted * 0.5 ? "amber" : "rose";
-    const arrow = delta === 0 ? "·" : delta > 0 ? "↑" : "↓";
-    return (
-      <span className="inline-flex items-baseline gap-2 text-sm">
-        <span className="text-[var(--color-text-muted)]">steps</span>
-        <span className="font-semibold tabular-nums text-[var(--color-text)]">{actual}</span>
-        <span className="text-[var(--color-text-faint)]">/</span>
-        <span className="font-semibold tabular-nums text-[var(--color-text-faint)]">
-          {predicted}
-        </span>
-        <span className="text-xs font-medium" style={{ color: toneColor(tone) }}>
-          {arrow} {Math.abs(delta)}
-        </span>
-      </span>
-    );
+    const arrow = delta === 0 ? null : delta > 0 ? "↑" : "↓";
+    return {
+      tone,
+      label: (
+        <>
+          <span className="font-semibold tabular-nums text-[var(--color-text)]">{actual}</span>
+          <span className="text-[var(--color-text-faint)]">/</span>
+          <span className="font-semibold tabular-nums text-[var(--color-text-faint)]">
+            {predicted}
+          </span>
+          <span className="ml-1 text-[var(--color-text-muted)]">steps</span>
+          {arrow ? (
+            <span className="ml-1 text-xs font-medium" style={{ color: toneColor(tone) }}>
+              {arrow} {Math.abs(delta)}
+            </span>
+          ) : null}
+        </>
+      ),
+    };
   }
   const single = actual ?? predicted!;
   const label = actual !== null ? "steps taken" : "steps planned";
-  return (
-    <span className="inline-flex items-baseline gap-1 text-sm">
-      <span className="font-semibold tabular-nums">{single}</span>
-      <span className="text-[var(--color-text-muted)]">{label}</span>
-    </span>
-  );
+  return {
+    tone: "neutral",
+    label: (
+      <>
+        <span className="font-semibold tabular-nums">{single}</span>
+        <span className="ml-1 text-[var(--color-text-muted)]">{label}</span>
+      </>
+    ),
+  };
 }
 
 function ConfidenceBar({ value }: { value: number }) {
@@ -257,22 +289,6 @@ function SectionEmpty({ title, message }: { title: string; message: string }) {
 }
 
 type Tone = "good" | "amber" | "rose" | "neutral";
-
-function Pill({ tone, label }: { tone: Tone; label: string }) {
-  const color = toneColor(tone);
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wider font-medium"
-      style={{
-        color,
-        borderColor: `color-mix(in srgb, ${color} 35%, transparent)`,
-        background: `color-mix(in srgb, ${color} 10%, transparent)`,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
 
 function toneColor(tone: Tone): string {
   switch (tone) {

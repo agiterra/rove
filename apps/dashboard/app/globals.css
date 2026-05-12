@@ -94,8 +94,114 @@ select {
   border: 1px solid var(--color-border);
   border-radius: 14px;
 }
+/*
+ * Page-1 hero panel. Soft inner top highlight + brand-tinted outer
+ * shadow puts it half a plane above .surface without ever feeling
+ * Material-y. Reserve for "this is the thing on the page" panels.
+ */
+.surface-elevated {
+  background:
+    linear-gradient(180deg, rgba(63, 201, 203, 0.04) 0%, transparent 40%),
+    var(--color-panel);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 24px 64px -32px rgba(16, 44, 87, 0.55),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
 .hairline {
   border-color: var(--color-border);
+}
+
+/*
+ * The uppercase, wide-tracked label that appears as an eyebrow above
+ * section headers and inside chips. Centralized so it isn't reinvented
+ * in five places with subtly different sizes.
+ */
+.eyebrow {
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-weight: 500;
+}
+.eyebrow-lg {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  font-weight: 500;
+}
+
+/*
+ * Outcome glow rings. Used on the hero's goal-reached / goal-not-reached
+ * statement so it reads at 20ft, not 6". Intensity tuned to feel
+ * confident without being marketing-loud.
+ */
+.glow-accent {
+  text-shadow:
+    0 0 24px rgba(63, 201, 203, 0.45),
+    0 0 56px rgba(63, 201, 203, 0.22);
+}
+.glow-rose {
+  text-shadow:
+    0 0 24px rgba(244, 63, 94, 0.45),
+    0 0 56px rgba(244, 63, 94, 0.22);
+}
+
+/* A 1px line that fades from a brand-tinted center. Cleaner than a solid hr. */
+.divider-grad {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-accent) 40%, transparent) 50%,
+    transparent 100%
+  );
+}
+
+/*
+ * Composable kinetic hover for list rows + cards. Adds a 1px lift +
+ * surface brightening. Keep transitions short; this is a dashboard,
+ * not a presentation.
+ */
+.kinetic-hover {
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.kinetic-hover:hover {
+  transform: translateY(-1px);
+  background-color: color-mix(in srgb, var(--color-panel-2) 80%, transparent);
+}
+
+/*
+ * Aurora — atmospheric brand wash for the top of a hero page. Layered
+ * on top of the global radial body bg so it intensifies near a specific
+ * section without affecting the rest of the layout.
+ */
+.aurora {
+  position: relative;
+}
+.aurora::before {
+  content: "";
+  position: absolute;
+  inset: -10% -20% auto -20%;
+  height: 60vh;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(63, 201, 203, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 10%, rgba(110, 168, 255, 0.07) 0%, transparent 55%);
+  z-index: 0;
+}
+.aurora > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Brand gradient utility — useful for the signin hero, run-walk button, etc. */

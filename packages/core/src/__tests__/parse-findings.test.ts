@@ -171,6 +171,79 @@ describe("parseFindings", () => {
     expect(result.reason).toBe("schema_mismatch");
   });
 
+  it("parses a change_review payload with design_contract and deltas", () => {
+    const payload = {
+      flow_id: "change_review:/flows/new",
+      persona_id: "first_time_user",
+      summary: "Reviewed /flows/new against /flows.",
+      change_review: {
+        changed_routes: ["/flows/new"],
+        reference_routes: ["/flows"],
+        design_contract: {
+          layout_pattern: "app shell with left nav",
+          primary_action_pattern: "top-right filled button",
+          derived_from: {
+            layout_pattern: "/flows",
+            primary_action_pattern: "/flows",
+          },
+        },
+        deltas: [
+          {
+            kind: "change.primary_action_confusion" as const,
+            expected: "Top-right filled 'Save' button",
+            observed: "Centered Submit link",
+            why_it_matters: "First-time users scan top-right.",
+            step_index: 2,
+            severity: "major" as const,
+          },
+        ],
+      },
+      reflection: { goal_reached: false, confidence_persona_would_succeed: 0.3 },
+      findings: [
+        {
+          id: "f1",
+          severity: "major" as const,
+          title: "Primary save action subordinate",
+          description: "—",
+          step_index: 2,
+          heuristic: "change.primary_action_confusion",
+        },
+      ],
+    };
+    const result = parseFindings(wrap(payload));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.change_review?.changed_routes).toEqual(["/flows/new"]);
+    expect(result.data.change_review?.deltas).toHaveLength(1);
+    expect(result.data.change_review?.deltas[0].kind).toBe("change.primary_action_confusion");
+    expect(result.data.change_review?.design_contract.layout_pattern).toContain("app shell");
+  });
+
+  it("rejects a change_review with an unknown delta kind", () => {
+    const payload = {
+      flow_id: "change_review:/x",
+      persona_id: "first_time_user",
+      change_review: {
+        changed_routes: ["/x"],
+        reference_routes: [],
+        design_contract: {},
+        deltas: [
+          {
+            kind: "change.something_made_up",
+            expected: "x",
+            observed: "y",
+            why_it_matters: "z",
+          },
+        ],
+      },
+      findings: [],
+    };
+    const result = parseFindings(wrap(payload));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("schema_mismatch");
+  });
+
   it("defaults surprises to empty array when omitted", () => {
     const result = parseFindings(wrap(VALID_PAYLOAD));
     expect(result.ok).toBe(true);

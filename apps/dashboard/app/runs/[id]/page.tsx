@@ -6,6 +6,7 @@ import { createReadClient } from "../../../lib/supabase/server";
 import { resolveProjectId } from "../../../lib/project-context";
 import { Hero, PlanSection, ReflectionSection, FindingsSection } from "./parts";
 import { TrajectorySection } from "./trajectory";
+import { ChangeReviewHero, DeltasSection, DesignContractSection } from "./change-review";
 import type { RunDetail, RunFinding, RunStep } from "./types";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ interface PageProps {
 }
 
 const RUN_COLUMNS =
-  "id, project_id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, walked_url, summary, goal_reached, plan, surprises, predicted_step_count, actual_step_count, largest_expectation_gap, persona_success_confidence, metrics";
+  "id, project_id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, walked_url, summary, goal_reached, plan, surprises, predicted_step_count, actual_step_count, largest_expectation_gap, persona_success_confidence, metrics, kind, changed_routes, reference_routes, design_contract, deltas";
 
 const RUN_STEP_COLUMNS =
   "step_index, direction, tool_name, args, result_summary, aria_snapshot, url_after, duration_ms";
@@ -60,20 +61,33 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
   const steps = (stepsRes.data ?? []) as unknown as RunStep[];
 
   return (
-    <div className="space-y-6">
+    <div className="aurora space-y-6">
       <Link
         href="/runs"
-        className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+        className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
       >
         <ChevronLeft className="w-3.5 h-3.5" />
         all runs
       </Link>
 
-      <Hero run={run} findingCount={findings.length} />
-      <PlanSection run={run} />
-      <TrajectorySection steps={steps} metrics={run.metrics} />
-      <ReflectionSection run={run} />
-      <FindingsSection runId={run.id} findings={findings} />
+      {run.kind === "change_review" ? (
+        <>
+          <ChangeReviewHero run={run} />
+          <DesignContractSection contract={run.design_contract} />
+          <DeltasSection deltas={run.deltas} />
+          <TrajectorySection steps={steps} metrics={run.metrics} />
+          <ReflectionSection run={run} />
+          <FindingsSection runId={run.id} findings={findings} />
+        </>
+      ) : (
+        <>
+          <Hero run={run} findingCount={findings.length} />
+          <PlanSection run={run} />
+          <TrajectorySection steps={steps} metrics={run.metrics} />
+          <ReflectionSection run={run} />
+          <FindingsSection runId={run.id} findings={findings} />
+        </>
+      )}
     </div>
   );
 }

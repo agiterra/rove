@@ -19,6 +19,8 @@ export interface CreateRunInput {
   commitSha?: string;
   branch?: string;
   startedAt: Date;
+  /** Defaults to "flow" — set "change_review" for `rove change-review` runs. */
+  kind?: "flow" | "change_review";
 }
 
 export class SupabaseStore {
@@ -73,6 +75,7 @@ export class SupabaseStore {
       artifacts_storage_prefix: `runs/${input.runId}`,
       started_at: input.startedAt.toISOString(),
       status: "running",
+      kind: input.kind ?? "flow",
     });
     if (error) throw new Error(`createRun(${input.runId}): ${error.message}`);
   }
@@ -91,6 +94,11 @@ export class SupabaseStore {
     actualStepCount?: number;
     largestExpectationGap?: string;
     personaSuccessConfidence?: number;
+    // Change-review fields (§0 item #5) — null on flow walks.
+    changedRoutes?: string[];
+    referenceRoutes?: string[];
+    designContract?: unknown;
+    deltas?: unknown;
   }): Promise<void> {
     const { error } = await this.db
       .from("runs")
@@ -107,6 +115,10 @@ export class SupabaseStore {
         actual_step_count: input.actualStepCount ?? null,
         largest_expectation_gap: input.largestExpectationGap ?? null,
         persona_success_confidence: input.personaSuccessConfidence ?? null,
+        changed_routes: input.changedRoutes ?? null,
+        reference_routes: input.referenceRoutes ?? null,
+        design_contract: input.designContract ?? null,
+        deltas: input.deltas ?? null,
       })
       .eq("id", input.runId);
     if (error) throw new Error(`completeRun(${input.runId}): ${error.message}`);

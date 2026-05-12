@@ -70,56 +70,56 @@ export default async function RunsPage({ searchParams }: PageProps) {
       ) : (
         <div className="surface overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="text-left text-[10px] uppercase tracking-[0.12em] text-[var(--color-text-faint)] bg-[var(--color-panel-2)]/60">
+            <thead className="bg-[var(--color-panel-2)]/40">
               <tr>
-                <th className="px-5 py-3 font-medium">Flow / persona</th>
-                <th className="px-5 py-3 font-medium">By</th>
-                <th className="px-5 py-3 font-medium">Branch · SHA</th>
-                <th className="px-5 py-3 font-medium text-center">Goal</th>
-                <th className="px-5 py-3 font-medium text-right">Findings</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium text-right">When</th>
+                <th className="px-6 py-3.5 text-left eyebrow">Flow · persona</th>
+                <th className="px-6 py-3.5 text-left eyebrow">By</th>
+                <th className="px-6 py-3.5 text-left eyebrow">Branch · SHA</th>
+                <th className="px-6 py-3.5 text-center eyebrow">Goal</th>
+                <th className="px-6 py-3.5 text-right eyebrow">Findings</th>
+                <th className="px-6 py-3.5 text-left eyebrow">Status</th>
+                <th className="px-6 py-3.5 text-right eyebrow">When</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
               {runs.map((r) => {
                 const count = r.findings?.[0]?.count ?? 0;
                 return (
-                  <tr key={r.id} className="hover:bg-[var(--color-panel-2)]/60 transition-colors">
-                    <td className="px-5 py-3.5">
+                  <tr key={r.id} className="kinetic-hover">
+                    <td className="px-6 py-4">
                       <Link
                         href={`/runs/${r.id}`}
                         className="font-mono text-[13px] text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors"
                       >
                         {r.flow_id}
                       </Link>
-                      <div className="text-[11px] text-[var(--color-text-faint)] mt-0.5">
+                      <div className="text-[11px] text-[var(--color-text-faint)] mt-1">
                         {r.persona_id} · {r.dispatcher}
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-[var(--color-text-muted)] text-[13px]">
+                    <td className="px-6 py-4 text-[var(--color-text-muted)] text-[13px]">
                       {r.initiator_label ?? "—"}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-[11px] text-[var(--color-text-faint)]">
+                    <td className="px-6 py-4 font-mono text-[11px] text-[var(--color-text-faint)]">
                       {r.branch ?? "—"}
                       <span className="mx-1.5">·</span>
                       {shortSha(r.commit_sha)}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-6 py-4 text-center">
                       <GoalGlyph value={r.goal_reached} />
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-6 py-4 text-right">
                       <Link
                         href={`/findings?run=${r.id}`}
-                        className="tabular-nums text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors"
+                        className="tabular-nums text-[15px] font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors"
                       >
                         {count}
                       </Link>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-6 py-4">
                       <StatusPill status={r.status} />
                     </td>
-                    <td className="px-5 py-3.5 text-right text-[var(--color-text-faint)] text-[11px]">
+                    <td className="px-6 py-4 text-right text-[var(--color-text-faint)] text-[11px]">
                       {relativeTime(r.started_at)}
                     </td>
                   </tr>
@@ -138,7 +138,12 @@ function GoalGlyph({ value }: { value: boolean | null }) {
     return (
       <span
         title="Goal reached"
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-300 text-[12px] font-bold border border-emerald-500/30"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[13px] font-bold"
+        style={{
+          color: "var(--color-accent)",
+          background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--color-accent) 40%, transparent)",
+        }}
       >
         ✓
       </span>
@@ -148,7 +153,12 @@ function GoalGlyph({ value }: { value: boolean | null }) {
     return (
       <span
         title="Goal not reached"
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/10 text-rose-300 text-[12px] font-bold border border-rose-500/30"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[13px] font-bold"
+        style={{
+          color: "var(--color-severity-critical)",
+          background: "color-mix(in srgb, var(--color-severity-critical) 12%, transparent)",
+          border: "1px solid color-mix(in srgb, var(--color-severity-critical) 40%, transparent)",
+        }}
       >
         ✗
       </span>

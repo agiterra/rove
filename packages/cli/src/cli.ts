@@ -4,6 +4,7 @@ import { runListCommand } from "./commands/list.js";
 import { runPersonasCommand } from "./commands/personas.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runRunCommand } from "./commands/run.js";
+import { runChangeReviewCommand } from "./commands/change-review.js";
 import { runIngestCommand } from "./commands/ingest.js";
 import { runAuthSetupCommand } from "./commands/auth-setup.js";
 import { runCleanupResolvedCommand } from "./commands/cleanup-resolved.js";
@@ -23,6 +24,11 @@ import {
 function parseAuthRole(s: string): AuthRole {
   if (s === "dispatcher" || s === "admin" || s === "technician") return s;
   throw new Error(`Unknown role: ${s}. Use one of: dispatcher, admin, technician`);
+}
+
+/** Commander option-collector for repeated flags (e.g. `--changed-route a --changed-route b`). */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 const program = new Command();
@@ -132,6 +138,71 @@ program
         ghMinSeverity: rawOpts.ghMinSeverity as ReturnType<typeof parseSeverity> | undefined,
         ghDryRun: rawOpts.ghDryRun as boolean,
         authenticated: (rawOpts.auth as boolean | undefined) ?? true,
+      }),
+    );
+  });
+
+program
+  .command("change-review")
+  .description("Walk a changed route under a local design contract inferred from neighbors (§0 #5).")
+  .requiredOption(
+    "--changed-route <path>",
+    "Route under review. Repeat for multiple routes.",
+    collect,
+    [],
+  )
+  .option(
+    "--reference-route <path>",
+    "Neighboring route the reviewer inspects to infer the design contract. Repeat. Defaults to the parent path of each changed route.",
+    collect,
+    [],
+  )
+  .requiredOption("--goal <text>", "The persona's stated goal at the changed route.")
+  .option(
+    "--persona <id>",
+    "Persona id (defaults to first_time_user)",
+    "first_time_user",
+  )
+  .option("--notes <text>", "Per-run notes appended to the prompt")
+  .option(
+    "--target-url <url>",
+    "Origin to walk (defaults to rove.config.ts defaultTargetUrl / ROVE_TARGET_URL env)",
+  )
+  .option("--dry-run", "Print the prompt and exit without dispatching", false)
+  .option("--max-budget-usd <n>", "Dispatcher budget cap in dollars", parseFloat, 5)
+  .option(
+    "--timeout-seconds <n>",
+    "Wall-clock timeout for the dispatcher",
+    (s) => parseInt(s, 10),
+    900,
+  )
+  .option(
+    "--dispatcher <id>",
+    "Dispatcher: claude-code | codex",
+    parseDispatcherId,
+    DEFAULT_DISPATCHER,
+  )
+  .option(
+    "--sinks <ids>",
+    "Comma-separated sinks: markdown,github-issues,supabase",
+    parseSinkIds,
+    DEFAULT_SINKS,
+  )
+  .action(async (rawOpts: Record<string, unknown>) => {
+    const ws = await resolveWorkspace();
+    process.exit(
+      await runChangeReviewCommand(ws, {
+        changedRoutes: rawOpts.changedRoute as string[],
+        referenceRoutes: rawOpts.referenceRoute as string[],
+        goal: rawOpts.goal as string,
+        personaId: rawOpts.persona as string,
+        notes: rawOpts.notes as string | undefined,
+        targetUrl: rawOpts.targetUrl as string | undefined,
+        dryRun: rawOpts.dryRun as boolean,
+        maxBudgetUsd: rawOpts.maxBudgetUsd as number,
+        timeoutSeconds: rawOpts.timeoutSeconds as number,
+        dispatcher: rawOpts.dispatcher as ReturnType<typeof parseDispatcherId>,
+        sinks: rawOpts.sinks as ReturnType<typeof parseSinkIds>,
       }),
     );
   });

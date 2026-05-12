@@ -88,6 +88,7 @@ export class SupabaseSink implements SinkAdapter {
         commitSha: input.commitSha,
         branch: input.branch,
         startedAt: input.startedAt,
+        kind: input.kind ?? "flow",
       });
     } catch (err) {
       return failure(this.id, err);
@@ -107,7 +108,7 @@ export class SupabaseSink implements SinkAdapter {
     }
 
     try {
-      const { plan, surprises, reflection } = input.payload;
+      const { plan, surprises, reflection, change_review: changeReview } = input.payload;
       await this.store.completeRun({
         runId: input.runId,
         finishedAt: input.finishedAt,
@@ -122,6 +123,10 @@ export class SupabaseSink implements SinkAdapter {
         actualStepCount: reflection?.actual_step_count,
         largestExpectationGap: reflection?.largest_expectation_gap,
         personaSuccessConfidence: reflection?.confidence_persona_would_succeed,
+        changedRoutes: changeReview?.changed_routes,
+        referenceRoutes: changeReview?.reference_routes,
+        designContract: changeReview?.design_contract,
+        deltas: changeReview?.deltas && changeReview.deltas.length > 0 ? changeReview.deltas : undefined,
       });
 
       // Persist trajectory after the run row exists (step rows FK to runs.id).

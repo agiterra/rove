@@ -146,6 +146,58 @@ export const reflectionSchema = z.object({
   confidence_persona_would_succeed: z.number().min(0).max(1).optional(),
 });
 
+// ── Change-review (§0 item #5) ───────────────────────────────────────────────
+
+/**
+ * The "local design contract" the reviewer infers from a handful of
+ * reference routes before judging a changed route. Free-form strings —
+ * we don't want to over-constrain the shape, since "primary action
+ * pattern" looks different in different app cultures.
+ */
+export const designContractSchema = z.object({
+  layout_pattern: z.string().optional(),
+  primary_action_pattern: z.string().optional(),
+  form_pattern: z.string().optional(),
+  success_pattern: z.string().optional(),
+  navigation_pattern: z.string().optional(),
+  density: z.string().optional(),
+  tone: z.string().optional(),
+  /** Free-form notes the reviewer wants to preserve. */
+  notes: z.string().optional(),
+  /**
+   * Per-key provenance — which reference route the line was derived from.
+   * Stored so the dashboard can show "this row came from /clients/:id".
+   */
+  derived_from: z.record(z.string(), z.string()).optional(),
+});
+
+export const CHANGE_DELTA_KINDS = [
+  "change.navigation_mismatch",
+  "change.intent_mismatch",
+  "change.design_incoherence",
+  "change.pattern_drift",
+  "change.primary_action_confusion",
+  "change.copy_mismatch",
+] as const;
+export type ChangeDeltaKind = (typeof CHANGE_DELTA_KINDS)[number];
+
+export const changeDeltaSchema = z.object({
+  kind: z.enum(CHANGE_DELTA_KINDS),
+  expected: z.string().min(1),
+  observed: z.string().min(1),
+  why_it_matters: z.string().min(1),
+  step_index: z.number().int().nonnegative().optional(),
+  /** Severity hint — the sink maps these to finding rows. */
+  severity: z.enum(FINDING_SEVERITIES).default("major"),
+});
+
+export const changeReviewSchema = z.object({
+  changed_routes: z.array(z.string().min(1)).min(1),
+  reference_routes: z.array(z.string()).default([]),
+  design_contract: designContractSchema,
+  deltas: z.array(changeDeltaSchema).default([]),
+});
+
 export const findingsPayloadSchema = z.object({
   flow_id: z.string().min(1),
   persona_id: z.string().min(1),
@@ -155,6 +207,13 @@ export const findingsPayloadSchema = z.object({
   plan: walkPlanSchema.optional(),
   surprises: z.array(surpriseSchema).default([]),
   reflection: reflectionSchema.optional(),
+  /**
+   * Present only on `change_review` walks (kind set by the CLI). The agent
+   * inlines its inferred design contract + the deltas it observed against
+   * it. Each delta is also auto-promoted into a `findings[]` row by the
+   * prompt so the existing finding lifecycle just works.
+   */
+  change_review: changeReviewSchema.optional(),
 });
 
 export type FindingScreenshot = z.infer<typeof findingScreenshotSchema>;
@@ -163,4 +222,7 @@ export type WalkPlanStep = z.infer<typeof walkPlanStepSchema>;
 export type WalkPlan = z.infer<typeof walkPlanSchema>;
 export type Surprise = z.infer<typeof surpriseSchema>;
 export type Reflection = z.infer<typeof reflectionSchema>;
+export type DesignContract = z.infer<typeof designContractSchema>;
+export type ChangeDelta = z.infer<typeof changeDeltaSchema>;
+export type ChangeReview = z.infer<typeof changeReviewSchema>;
 export type FindingsPayload = z.infer<typeof findingsPayloadSchema>;
