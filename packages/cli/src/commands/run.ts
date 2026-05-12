@@ -46,7 +46,12 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   if (!persona) return 1;
 
   let authProfilePath: string | undefined;
-  if (opts.authenticated) {
+  // Agent personas walk anonymously by default — the whole point of the
+  // agent-readiness rubric is "is this app usable by a fresh agent with
+  // no session context?" Pre-authenticating a Claude / Operator agent
+  // hides exactly the issues we want to surface.
+  const effectivelyAuthenticated = opts.authenticated && persona.category !== "agent";
+  if (effectivelyAuthenticated) {
     const role = roleForPersonaCategory(persona.category);
     const candidate = userDataDir(role);
     if (existsSync(candidate)) {
