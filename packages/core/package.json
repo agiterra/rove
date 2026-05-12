@@ -1,8 +1,12 @@
 {
-  "name": "@rove/core",
+  "name": "@agiterra/rove-core",
   "version": "0.0.0-alpha.1",
-  "private": true,
   "description": "Rove core — types, schemas, prompts shared between the CLI, daemon, and dashboard.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agiterra/rove.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist"
   ],
@@ -20,6 +24,10 @@
       "import": "./dist/authoring-schemas.js",
       "default": "./dist/authoring-schemas.js"
     }
+  },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

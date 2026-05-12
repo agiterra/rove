@@ -2,8 +2,13 @@ import Link from "next/link";
 import { createReadClient } from "../../lib/supabase/server";
 import { relativeTime, shortSha } from "../../lib/format";
 import { EmptyState, PageHeader } from "../../components/page-header";
+import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams: Promise<{ p?: string }>;
+}
 
 interface RunRow {
   id: string;
@@ -19,13 +24,16 @@ interface RunRow {
   findings: { count: number }[];
 }
 
-export default async function RunsPage() {
+export default async function RunsPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const projectId = await resolveProjectId(sp);
   const supabase = await createReadClient();
   const { data, error } = await supabase
     .from("runs")
     .select(
       "id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, findings(count)",
     )
+    .eq("project_id", projectId)
     .order("started_at", { ascending: false })
     .limit(50);
 
@@ -70,10 +78,7 @@ export default async function RunsPage() {
               {runs.map((r) => {
                 const count = r.findings?.[0]?.count ?? 0;
                 return (
-                  <tr
-                    key={r.id}
-                    className="hover:bg-[var(--color-panel-2)]/60 transition-colors"
-                  >
+                  <tr key={r.id} className="hover:bg-[var(--color-panel-2)]/60 transition-colors">
                     <td className="px-5 py-3.5">
                       <Link
                         href={`/flows/${encodeURIComponent(r.flow_id)}`}

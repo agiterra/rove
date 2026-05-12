@@ -1,8 +1,8 @@
 import { access, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { discoverFlows } from "@rove/core";
-import type { PreflightCheck } from "@rove/core";
+import { discoverFlows } from "@agiterra/rove-core";
+import type { PreflightCheck } from "@agiterra/rove-core";
 import { ClaudeCodeCliDispatcher } from "../dispatchers/claude-code-cli.js";
 import { userDataDir, type AuthRole } from "../auth-state.js";
 import { readEvalSupabaseEnv } from "../supabase/env.js";

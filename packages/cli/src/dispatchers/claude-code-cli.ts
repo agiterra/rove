@@ -10,7 +10,7 @@ import type {
   DispatcherPreflightResult,
   DispatcherResult,
   PreflightCheck,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 
 const execFile = promisify(execFileCb);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { FindingsPayload, SinkInput } from "@rove/core";
+import type { FindingsPayload, SinkInput } from "@agiterra/rove-core";
 import { GitHubIssuesSink } from "../sinks/github-issues.js";
 import type { DedupMatch } from "../supabase/store.js";
 import type { SupabaseStore } from "../supabase/store.js";

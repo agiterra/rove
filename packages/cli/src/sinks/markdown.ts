@@ -5,7 +5,7 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 
 /**
  * Writes a single Markdown report per run to <reportsDir>/agentic-walks/.

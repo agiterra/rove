@@ -3,7 +3,7 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 
 export type RouteToSinksInput = SinkInput;
 

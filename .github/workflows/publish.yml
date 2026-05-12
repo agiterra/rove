@@ -1,0 +1,48 @@
+name: Publish (GitHub Packages)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@agiterra"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm -r --filter ./packages/* build
+
+      - name: Publish @agiterra/rove-core
+        working-directory: packages/core
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm publish --no-git-checks --access restricted
+
+      - name: Publish @agiterra/rove-cli
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm publish --no-git-checks --access restricted

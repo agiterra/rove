@@ -14,13 +14,7 @@ export interface AgentJobRow {
   input: Record<string, unknown>;
   result: Record<string, unknown> | null;
   error: string | null;
-  status:
-    | "pending"
-    | "claimed"
-    | "running"
-    | "completed"
-    | "failed"
-    | "cancelled";
+  status: "pending" | "claimed" | "running" | "completed" | "failed" | "cancelled";
   requested_by: string | null;
   assigned_to: string | null;
   claimed_by: string | null;
@@ -48,14 +42,8 @@ export async function tryClaimJob(
   return (data as AgentJobRow | null) ?? null;
 }
 
-export async function markRunning(
-  supabase: SupabaseClient,
-  jobId: string,
-): Promise<void> {
-  const { error } = await supabase
-    .from("agent_jobs")
-    .update({ status: "running" })
-    .eq("id", jobId);
+export async function markRunning(supabase: SupabaseClient, jobId: string): Promise<void> {
+  const { error } = await supabase.from("agent_jobs").update({ status: "running" }).eq("id", jobId);
   if (error) throw new Error(`mark running ${jobId}: ${error.message}`);
 }
 
@@ -100,11 +88,13 @@ export async function listClaimableIds(
   supabase: SupabaseClient,
   identity: DaemonIdentity,
   claimMode: "all" | "requested-only",
+  projectId: string,
 ): Promise<string[]> {
   let query = supabase
     .from("agent_jobs")
     .select("id")
     .eq("status", "pending")
+    .eq("project_id", projectId)
     .order("priority", { ascending: false })
     .order("created_at", { ascending: true })
     .limit(20);

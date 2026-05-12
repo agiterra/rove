@@ -8,7 +8,7 @@ import {
   type SinkAdapter,
   type SinkInput,
   type SinkResult,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 import { getSupabaseClient } from "../supabase/client.js";
 import { computeContentHash } from "../supabase/content-hash.js";
 import { SupabaseStore } from "../supabase/store.js";
@@ -16,6 +16,8 @@ import { SupabaseStore } from "../supabase/store.js";
 const WALKS_BUCKET = "walks";
 
 export interface SupabaseSinkOptions {
+  /** Project slug — namespaces every row this sink writes. From rove.config.ts. */
+  projectId: string;
   /** Override the client (tests). Defaults to `getSupabaseClient()`. */
   client?: SupabaseClient;
   /**
@@ -51,13 +53,15 @@ export class SupabaseSink implements SinkAdapter {
   readonly label = "Supabase eval store";
 
   private readonly db: SupabaseClient;
+  private readonly projectId: string;
   /** Exposed so factories can wire the same store into GitHubIssuesSink for dedup. */
   readonly store: SupabaseStore;
   private readonly deleteLocalAfterUpload: boolean;
 
-  constructor(opts: SupabaseSinkOptions = {}) {
+  constructor(opts: SupabaseSinkOptions) {
+    this.projectId = opts.projectId;
     this.db = opts.client ?? getSupabaseClient();
-    this.store = new SupabaseStore(this.db);
+    this.store = new SupabaseStore(this.db, this.projectId);
     this.deleteLocalAfterUpload = opts.deleteLocalAfterUpload ?? true;
   }
 
@@ -140,6 +144,7 @@ export class SupabaseSink implements SinkAdapter {
       .from("findings")
       .insert({
         run_id: input.runId,
+        project_id: this.projectId,
         agent_id: finding.id,
         severity: finding.severity,
         title: finding.title,
@@ -198,6 +203,7 @@ export class SupabaseSink implements SinkAdapter {
 
       const { error: rowErr } = await this.db.from("finding_screenshots").insert({
         finding_id: findingId,
+        project_id: this.projectId,
         storage_bucket: WALKS_BUCKET,
         storage_key: storageKey,
         caption: shot.caption ?? null,

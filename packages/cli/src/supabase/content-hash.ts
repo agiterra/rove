@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Finding } from "@rove/core";
+import type { Finding } from "@agiterra/rove-core";
 
 /**
  * Deterministic hash used by Phase 8 dedup. Phase 7 stores it on every

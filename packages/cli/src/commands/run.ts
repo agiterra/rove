@@ -6,13 +6,14 @@ import {
   type FindingSeverity,
   type FlowInfo,
   type Persona,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { roleForPersonaCategory, userDataDir } from "../auth-state.js";
+import { loadRoveConfig } from "../config.js";
 import { createDispatcher, createSinks, type DispatcherId, type SinkId } from "../factories.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
 import type { ResolvedWorkspace } from "../workspace.js";
@@ -120,7 +121,8 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     return 1;
   }
 
-  const sinks = createSinks(opts.sinks, ws, {
+  const { config } = await loadRoveConfig(ws.rootDir);
+  const sinks = createSinks(opts.sinks, ws, config.projectId, {
     ghMinSeverity: opts.ghMinSeverity,
     ghDryRun: opts.ghDryRun,
   });

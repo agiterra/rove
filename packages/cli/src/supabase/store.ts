@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FlowInfo, Persona } from "@rove/core";
+import type { FlowInfo, Persona } from "@agiterra/rove-core";
 
 /**
  * SupabaseStore — upserts canonical-in-git rows (personas, flows) and
@@ -22,12 +22,16 @@ export interface CreateRunInput {
 }
 
 export class SupabaseStore {
-  constructor(private readonly db: SupabaseClient) {}
+  constructor(
+    private readonly db: SupabaseClient,
+    private readonly projectId: string,
+  ) {}
 
   async upsertPersona(p: Persona): Promise<void> {
     const { error } = await this.db.from("personas").upsert(
       {
         id: p.id,
+        project_id: this.projectId,
         label: p.label,
         description: p.description,
         category: p.category,
@@ -36,9 +40,6 @@ export class SupabaseStore {
         prompt_addendum: p.promptAddendum,
         is_built_in: p.isBuiltIn,
         icon: p.icon ?? null,
-        // Built-ins have no source YAML, so we don't stamp synced_from_yaml_at
-        // here. `rove sync` (Phase 8) does that for workspace
-        // personas with the YAML sha attached.
       },
       { onConflict: "id" },
     );
@@ -49,6 +50,7 @@ export class SupabaseStore {
     const { error } = await this.db.from("flows").upsert(
       {
         id: flow.flowId,
+        project_id: this.projectId,
         title: flow.flowId,
         goal: flow.goal,
         yaml_path: flow.filePath,
@@ -61,6 +63,7 @@ export class SupabaseStore {
   async createRun(input: CreateRunInput): Promise<void> {
     const { error } = await this.db.from("runs").insert({
       id: input.runId,
+      project_id: this.projectId,
       flow_id: input.flowId,
       persona_id: input.personaId,
       dispatcher: input.dispatcher,
@@ -178,11 +181,12 @@ export class SupabaseStore {
     await this.setFindingGithubUrl(data.id, url);
   }
 
-  /** Sync-only: upsert a workspace persona with its YAML SHA. */
+  /** Sync-only: upsert a project persona with its YAML SHA. */
   async upsertPersonaWithYaml(p: Persona, yamlSha256: string): Promise<void> {
     const { error } = await this.db.from("personas").upsert(
       {
         id: p.id,
+        project_id: this.projectId,
         label: p.label,
         description: p.description,
         category: p.category,
@@ -204,6 +208,7 @@ export class SupabaseStore {
     const { error } = await this.db.from("flows").upsert(
       {
         id: flow.flowId,
+        project_id: this.projectId,
         title: flow.flowId,
         goal: flow.goal,
         yaml_path: flow.filePath,

@@ -1,9 +1,5 @@
-import type {
-  DispatcherAdapter,
-  FindingSeverity,
-  SinkAdapter,
-} from "@rove/core";
-import { FINDING_SEVERITIES } from "@rove/core";
+import type { DispatcherAdapter, FindingSeverity, SinkAdapter } from "@agiterra/rove-core";
+import { FINDING_SEVERITIES } from "@agiterra/rove-core";
 import { ClaudeCodeCliDispatcher } from "./dispatchers/claude-code-cli.js";
 import { CodexCliDispatcher } from "./dispatchers/codex-cli.js";
 import { MarkdownSink } from "./sinks/markdown.js";
@@ -59,6 +55,7 @@ export interface SinkFactoryOptions {
 export function createSinks(
   ids: SinkId[],
   ws: ResolvedWorkspace,
+  projectId: string,
   opts: SinkFactoryOptions = {},
 ): SinkAdapter[] {
   // Force "supabase" before "github-issues" so dedup is established before
@@ -79,7 +76,7 @@ export function createSinks(
           dedupStore: supabaseSink?.store,
         });
       case "supabase":
-        supabaseSink = new SupabaseSink();
+        supabaseSink = new SupabaseSink({ projectId });
         return supabaseSink;
     }
   });

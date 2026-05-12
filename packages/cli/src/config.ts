@@ -18,11 +18,18 @@ export type SinkId = (typeof SINK_IDS)[number];
 
 export const roveConfigSchema = z.object({
   /**
-   * Workspace ID in the Rove dashboard. Assigned at `rove init`. In alpha
-   * everyone shares one workspace; this field is plumbed for the multi-
-   * tenant migration in Phase C.
+   * Project identifier in the Rove dashboard. REQUIRED. Every row the CLI
+   * writes carries this so multiple projects can share the same hosted
+   * Rove Supabase project without colliding.
+   *
+   * Must be a stable slug (lowercase, hyphens) — projects are namespaced
+   * by this string and renaming it orphans existing rows.
    */
-  workspaceId: z.string().min(1).optional(),
+  projectId: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z][a-z0-9-]*$/, "projectId must be lowercase letters/numbers/hyphens"),
   /** Repo-relative directory containing *.flow.yaml + *.personas.yaml files. */
   flowsDir: z.string().min(1).default("rove/flows"),
   /** Default origin for walks. Override with `rove run --target-url ...`. */
@@ -93,17 +100,18 @@ function findConfigPath(from: string): string | null {
 
 /** Used by `rove init` to write the initial config + supporting files. */
 export const INIT_CONFIG_TEMPLATE = (params: {
-  workspaceId?: string;
+  projectId: string;
   flowsDir: string;
   defaultTargetUrl?: string;
   githubRepo?: string;
 }) => `// rove.config.ts — Rove's per-project config. Authored by \`rove init\`.
 // Docs: https://github.com/agiterra/rove#rove-config
 
-import type { RoveConfig } from "@rove/cli";
+import type { RoveConfig } from "@agiterra/rove-cli";
 
 export default {
-${params.workspaceId ? `  workspaceId: "${params.workspaceId}",\n` : ""}  flowsDir: "${params.flowsDir}",
+  projectId: "${params.projectId}",
+  flowsDir: "${params.flowsDir}",
 ${params.defaultTargetUrl ? `  defaultTargetUrl: "${params.defaultTargetUrl}",\n` : ""}  sinks: ["markdown", "supabase"],
 ${
   params.githubRepo

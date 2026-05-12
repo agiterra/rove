@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DaemonIdentity } from "./identity.js";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const VERSION = "0.0.0-phase11a";
+const VERSION = "0.0.0-alpha.1";
 
 export interface HeartbeatHandle {
   stop: () => void;
@@ -15,11 +15,13 @@ export interface HeartbeatHandle {
 export function startHeartbeat(
   supabase: SupabaseClient,
   identity: DaemonIdentity,
+  projectId: string,
 ): HeartbeatHandle {
   const beat = async () => {
     const { error } = await supabase.from("daemon_heartbeats").upsert(
       {
         user_id: identity.userId,
+        project_id: projectId,
         daemon_name: identity.daemonName,
         hostname: identity.hostname,
         version: VERSION,

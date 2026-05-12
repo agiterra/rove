@@ -1,5 +1,5 @@
 /**
- * Public type-level exports for consumers of @rove/cli. The actual CLI
+ * Public type-level exports for consumers of @agiterra/rove-cli. The actual CLI
  * lives at ./cli.ts and is wired to the `rove` bin script.
  */
 export {

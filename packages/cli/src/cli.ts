@@ -34,7 +34,10 @@ program
 program
   .command("init")
   .description("Bootstrap Rove in this project (writes rove.config.ts + flows dir + .env example)")
-  .option("--workspace-id <id>", "Pre-fill workspaceId from your Rove dashboard")
+  .option(
+    "--project-id <slug>",
+    "Stable slug to namespace this project's data in the Rove store. Defaults to the cwd's basename.",
+  )
   .option("--flows-dir <path>", "Where flow YAMLs live, repo-relative", "rove/flows")
   .option("--target-url <url>", "Default origin to walk (e.g. http://localhost:3000)")
   .option("--github-repo <owner/repo>", "Enables the github-issues sink + PR-driven walks later")
@@ -42,7 +45,7 @@ program
   .action(async (rawOpts: Record<string, unknown>) => {
     process.exit(
       await runInitCommand({
-        workspaceId: rawOpts.workspaceId as string | undefined,
+        projectId: rawOpts.projectId as string | undefined,
         flowsDir: rawOpts.flowsDir as string | undefined,
         defaultTargetUrl: rawOpts.targetUrl as string | undefined,
         githubRepo: rawOpts.githubRepo as string | undefined,

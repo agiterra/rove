@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import {
-  BUILT_IN_PERSONAS,
-  discoverFlows,
-  type FlowInfo,
-  type Persona,
-} from "@rove/core";
+import { BUILT_IN_PERSONAS, discoverFlows, type FlowInfo, type Persona } from "@agiterra/rove-core";
+import { loadRoveConfig } from "../config.js";
 import { getSupabaseClient } from "../supabase/client.js";
 import { SupabaseStore } from "../supabase/store.js";
 import type { ResolvedWorkspace } from "../workspace.js";
@@ -30,7 +26,8 @@ export interface SyncOptions {
  */
 export async function runSyncCommand(ws: ResolvedWorkspace, opts: SyncOptions): Promise<number> {
   const db = getSupabaseClient();
-  const store = new SupabaseStore(db);
+  const { config } = await loadRoveConfig(ws.rootDir);
+  const store = new SupabaseStore(db, config.projectId);
 
   const flows = await discoverFlows(ws.flowsDir);
   console.log(`Discovered ${BUILT_IN_PERSONAS.length} personas + ${flows.length} flows.`);

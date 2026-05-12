@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { FindingsPayload, SinkInput } from "@rove/core";
+import type { FindingsPayload, SinkInput } from "@agiterra/rove-core";
 import { SupabaseSink } from "../sinks/supabase.js";
 
 /**

@@ -1,7 +1,12 @@
 {
-  "name": "@rove/cli",
+  "name": "@agiterra/rove-cli",
   "version": "0.0.0-alpha.1",
   "description": "Rove CLI + daemon. Walks your app as personas and agents, files findings, integrates with the Rove dashboard.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agiterra/rove.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "rove": "./bin/rove.js"
   },
@@ -19,6 +24,10 @@
       "default": "./dist/index.js"
     }
   },
+  "publishConfig": {
+    "access": "restricted",
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
@@ -27,7 +36,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@rove/core": "workspace:*",
+    "@agiterra/rove-core": "workspace:*",
     "@supabase/supabase-js": "^2.105.4",
     "commander": "^12.1.0",
     "marked": "^14.1.4",

@@ -16,9 +16,9 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "dashboard": "pnpm --filter @rove/dashboard dev",
-    "cli": "pnpm --filter @rove/cli build && node packages/cli/bin/rove.js",
-    "daemon": "pnpm --filter @rove/cli build && node packages/cli/bin/rove.js daemon"
+    "dashboard": "pnpm --filter @agiterra/rove-dashboard dev",
+    "cli": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js",
+    "daemon": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js daemon"
   },
   "engines": {
     "node": ">=22.13.0"

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import type { FindingsPayload } from "@rove/core";
+import type { FindingsPayload } from "@agiterra/rove-core";
 import { MarkdownSink } from "../sinks/markdown.js";
 
 const PAYLOAD: FindingsPayload = {

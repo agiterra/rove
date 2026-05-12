@@ -15,7 +15,7 @@ import {
   personaDraftSchema,
   type FlowDraft,
   type PersonaDraft,
-} from "@rove/core";
+} from "@agiterra/rove-core";
 
 const FLOW_SYSTEM_PROMPT = `You produce JSON for a UX-walk flow specification.
 

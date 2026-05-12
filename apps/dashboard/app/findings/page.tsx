@@ -3,6 +3,7 @@ import { ExternalLink, Image as ImageIcon } from "lucide-react";
 import { createReadClient, createServiceRoleSupabase } from "../../lib/supabase/server";
 import { relativeTime } from "../../lib/format";
 import { EmptyState, PageHeader, SeverityBadge } from "../../components/page-header";
+import { resolveProjectId } from "../../lib/project-context";
 import { FindingDrawer } from "./drawer";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ interface SearchParams {
   run?: string;
   persona?: string;
   open?: string;
+  p?: string;
 }
 
 interface PageProps {
@@ -39,6 +41,7 @@ interface PageProps {
 
 export default async function FindingsPage({ searchParams: sp }: PageProps) {
   const searchParams = await sp;
+  const projectId = await resolveProjectId(searchParams);
   const supabase = await createReadClient();
 
   let q = supabase
@@ -46,6 +49,7 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
     .select(
       "id, run_id, severity, title, description, status, github_issue_url, first_seen_at, last_seen_at, content_hash, runs(flow_id, persona_id, branch), finding_screenshots(id, storage_key, caption)",
     )
+    .eq("project_id", projectId)
     .order("last_seen_at", { ascending: false })
     .limit(200);
 

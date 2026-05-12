@@ -1,4 +1,4 @@
-import { discoverFlows } from "@rove/core";
+import { discoverFlows } from "@agiterra/rove-core";
 import type { ResolvedWorkspace } from "../workspace.js";
 
 export async function runListCommand(ws: ResolvedWorkspace): Promise<number> {

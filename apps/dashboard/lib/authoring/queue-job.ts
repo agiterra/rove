@@ -3,10 +3,11 @@
  * subscribes to that row via Realtime and waits for the daemon to
  * complete it.
  *
- * Service-role write — Phase 11 proper will swap in per-user JWTs once
- * the daemon-pair flow exists.
+ * Service-role write — full per-user JWTs come with proper multi-tenant
+ * tenancy (Phase D).
  */
 import "server-only";
+import { resolveProjectId } from "../project-context";
 import { createServiceRoleSupabase } from "../supabase/server";
 import { requireTeamMember } from "./require-team-member";
 
@@ -21,11 +22,13 @@ export async function queueGenerationJob(
   description: string,
 ): Promise<QueuedJob> {
   const me = await requireTeamMember();
+  const projectId = await resolveProjectId();
   const supabase = createServiceRoleSupabase();
   const { data, error } = await supabase
     .from("agent_jobs")
     .insert({
       kind,
+      project_id: projectId,
       input: { description },
       requested_by: me.userId === "dev-bypass" ? null : me.userId,
       status: "pending",
@@ -47,11 +50,13 @@ export interface WalkInput {
 
 export async function queueWalkJob(input: WalkInput): Promise<QueuedJob> {
   const me = await requireTeamMember();
+  const projectId = await resolveProjectId();
   const supabase = createServiceRoleSupabase();
   const { data, error } = await supabase
     .from("agent_jobs")
     .insert({
       kind: "walk",
+      project_id: projectId,
       input,
       requested_by: me.userId === "dev-bypass" ? null : me.userId,
       status: "pending",

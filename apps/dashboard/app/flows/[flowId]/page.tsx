@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { createReadClient } from "../../../lib/supabase/server";
 import { EmptyState } from "../../../components/page-header";
+import { resolveProjectId } from "../../../lib/project-context";
 import { RunWalkButton, type PersonaOption } from "./run-walk-button";
 import { TrendChart } from "./trend-chart";
 
@@ -25,11 +26,13 @@ interface FlowRow {
 }
 interface PageProps {
   params: Promise<{ flowId: string }>;
+  searchParams: Promise<{ p?: string }>;
 }
 
-export default async function FlowDetailPage({ params }: PageProps) {
-  const { flowId } = await params;
+export default async function FlowDetailPage({ params, searchParams }: PageProps) {
+  const [{ flowId }, sp] = await Promise.all([params, searchParams]);
   const decoded = decodeURIComponent(flowId);
+  const projectId = await resolveProjectId(sp);
   const supabase = await createReadClient();
 
   const [flowRes, runsRes, personasRes] = await Promise.all([
@@ -37,14 +40,16 @@ export default async function FlowDetailPage({ params }: PageProps) {
       .from("flows")
       .select("id, title, goal, yaml_path")
       .eq("id", decoded)
+      .eq("project_id", projectId)
       .maybeSingle(),
     supabase
       .from("runs")
       .select("id, started_at, status, findings(severity)")
       .eq("flow_id", decoded)
+      .eq("project_id", projectId)
       .order("started_at", { ascending: true })
       .limit(200),
-    supabase.from("personas").select("id, label").order("id"),
+    supabase.from("personas").select("id, label").eq("project_id", projectId).order("id"),
   ]);
 
   if (runsRes.error) {
@@ -119,11 +124,7 @@ export default async function FlowDetailPage({ params }: PageProps) {
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
           <Stat label="runs" value={runs.length} />
           <Stat label="findings" value={totalFindings} />
-          <Stat
-            label="critical"
-            value={totals.critical}
-            color="var(--color-severity-critical)"
-          />
+          <Stat label="critical" value={totals.critical} color="var(--color-severity-critical)" />
           <Stat label="major" value={totals.major} color="var(--color-severity-major)" />
           <Stat label="minor" value={totals.minor} color="var(--color-severity-minor)" />
         </div>
@@ -148,15 +149,7 @@ export default async function FlowDetailPage({ params }: PageProps) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
+function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <div className="rounded-lg bg-[var(--color-bg-2)]/60 border border-[var(--color-border)] px-3 py-2.5">
       <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-faint)]">

@@ -11,12 +11,12 @@
  */
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { INIT_CONFIG_TEMPLATE, INIT_ENV_TEMPLATE } from "../config.js";
 
 export interface InitOptions {
   cwd?: string;
-  workspaceId?: string;
+  projectId?: string;
   flowsDir?: string;
   defaultTargetUrl?: string;
   githubRepo?: string;
@@ -30,6 +30,14 @@ export async function runInitCommand(opts: InitOptions = {}): Promise<number> {
   const envExamplePath = join(cwd, ".env.rove.example");
   const flowsAbsDir = join(cwd, flowsDir);
 
+  const projectId = opts.projectId ?? slugify(basename(cwd));
+  if (!/^[a-z][a-z0-9-]*$/.test(projectId)) {
+    console.error(
+      `✗ derived projectId "${projectId}" is not a valid slug. Pass --project-id <slug> explicitly.`,
+    );
+    return 1;
+  }
+
   if (existsSync(configPath) && !opts.force) {
     console.error(`✗ ${configPath} already exists. Pass --force to overwrite.`);
     return 1;
@@ -38,7 +46,7 @@ export async function runInitCommand(opts: InitOptions = {}): Promise<number> {
   await writeFile(
     configPath,
     INIT_CONFIG_TEMPLATE({
-      workspaceId: opts.workspaceId,
+      projectId,
       flowsDir,
       defaultTargetUrl: opts.defaultTargetUrl,
       githubRepo: opts.githubRepo,
@@ -55,20 +63,31 @@ export async function runInitCommand(opts: InitOptions = {}): Promise<number> {
 
   console.log("✓ Rove initialized.");
   console.log("");
+  console.log(`  projectId: ${projectId}`);
+  console.log("");
   console.log("Wrote:");
-  console.log(`  rove.config.ts         (your project's Rove config)`);
-  console.log(`  ${flowsDir}/.gitkeep    (your flow YAMLs go here)`);
-  console.log(`  .env.rove.example      (secrets you'll need)`);
+  console.log(`  rove.config.ts`);
+  console.log(`  ${flowsDir}/.gitkeep`);
+  console.log(`  .env.rove.example`);
   console.log("");
   console.log("Next:");
-  console.log("  1. Sign into the Rove dashboard and create or join a workspace.");
-  console.log("  2. Copy .env.rove.example → .env.rove and fill in the values.");
   console.log(
-    "  3. Author your first flow:  rove flow new   (or drop a *.flow.yaml in the flows dir).",
+    "  1. Copy .env.rove.example → .env.rove and fill in the Supabase + GH-handle values.",
   );
   console.log(
-    "  4. Start the daemon on a machine that has your local Claude session:  rove daemon",
+    "  2. Author your first flow:  drop a *.flow.yaml in the flows dir (or use the dashboard wizard).",
+  );
+  console.log(
+    "  3. Start the daemon on a machine that has your local Claude session:  rove daemon",
   );
   console.log("");
   return 0;
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
 }

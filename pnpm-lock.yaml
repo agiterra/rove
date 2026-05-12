@@ -80,7 +80,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@rove/core':
+      '@agiterra/rove-core':
         specifier: workspace:*
         version: link:../core
       '@supabase/supabase-js':

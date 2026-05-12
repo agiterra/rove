@@ -1,7 +1,8 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { findingsPayloadSchema, type FindingSeverity } from "@rove/core";
+import { findingsPayloadSchema, type FindingSeverity } from "@agiterra/rove-core";
+import { loadRoveConfig } from "../config.js";
 import { createSinks, type SinkId } from "../factories.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
 import type { ResolvedWorkspace } from "../workspace.js";
@@ -49,7 +50,8 @@ export async function runIngestCommand(
   const screenshotsDir = join(ws.reportsDir, "agentic-walks", runId, "screenshots");
   await mkdir(screenshotsDir, { recursive: true });
 
-  const sinks = createSinks(opts.sinks, ws, {
+  const { config } = await loadRoveConfig(ws.rootDir);
+  const sinks = createSinks(opts.sinks, ws, config.projectId, {
     ghMinSeverity: opts.ghMinSeverity,
     ghDryRun: opts.ghDryRun,
   });

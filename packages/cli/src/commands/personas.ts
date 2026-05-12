@@ -1,4 +1,4 @@
-import { BUILT_IN_PERSONAS } from "@rove/core";
+import { BUILT_IN_PERSONAS } from "@agiterra/rove-core";
 
 export function runPersonasCommand(): number {
   for (const p of BUILT_IN_PERSONAS) {

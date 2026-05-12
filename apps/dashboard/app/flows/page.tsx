@@ -1,11 +1,8 @@
 import Link from "next/link";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { createReadClient } from "../../lib/supabase/server";
-import {
-  EmptyState,
-  PageHeader,
-  PrimaryButtonLink,
-} from "../../components/page-header";
+import { EmptyState, PageHeader, PrimaryButtonLink } from "../../components/page-header";
+import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +13,21 @@ interface FlowRow {
   synced_from_yaml_at: string | null;
 }
 
-export default async function FlowsIndexPage() {
+interface PageProps {
+  searchParams: Promise<{ p?: string }>;
+}
+
+export default async function FlowsIndexPage({ searchParams }: PageProps) {
+  const sp = await searchParams;
+  const projectId = await resolveProjectId(sp);
   const supabase = await createReadClient();
   const [{ data: flowsData, error }, { data: runsData }] = await Promise.all([
-    supabase.from("flows").select("id, title, goal, synced_from_yaml_at").order("id"),
-    supabase.from("runs").select("flow_id"),
+    supabase
+      .from("flows")
+      .select("id, title, goal, synced_from_yaml_at")
+      .eq("project_id", projectId)
+      .order("id"),
+    supabase.from("runs").select("flow_id").eq("project_id", projectId),
   ]);
   if (error) {
     return (
@@ -75,9 +82,7 @@ export default async function FlowsIndexPage() {
                     </span>
                     <ArrowUpRight className="w-4 h-4 text-[var(--color-text-faint)] group-hover:text-[var(--color-accent)] shrink-0 transition-colors" />
                   </div>
-                  <p className="text-sm text-[var(--color-text)] line-clamp-2 mb-4">
-                    {f.goal}
-                  </p>
+                  <p className="text-sm text-[var(--color-text)] line-clamp-2 mb-4">{f.goal}</p>
                   <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-faint)]">
                     <span>
                       {runs} {runs === 1 ? "run" : "runs"}

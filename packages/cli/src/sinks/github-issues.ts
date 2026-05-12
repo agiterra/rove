@@ -5,8 +5,8 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@rove/core";
-import { FINDING_SEVERITIES } from "@rove/core";
+} from "@agiterra/rove-core";
+import { FINDING_SEVERITIES } from "@agiterra/rove-core";
 import { computeContentHash } from "../supabase/content-hash.js";
 import type { SupabaseStore } from "../supabase/store.js";
 
