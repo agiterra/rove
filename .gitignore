@@ -16,3 +16,4 @@ build/
 *.log
 .idea/
 .vscode/
+.vercel

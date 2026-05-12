@@ -29,11 +29,21 @@ jobs:
           node-version: "22"
           registry-url: https://npm.pkg.github.com
           scope: "@agiterra"
+          always-auth: true
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm -r --filter ./packages/* build
+      - name: Build publishable packages
+        run: |
+          pnpm --filter @agiterra/rove-core build
+          pnpm --filter @agiterra/rove-cli build
+          echo '--- packages/core/dist ---'
+          ls -la packages/core/dist | head -10
+          echo '--- packages/cli/dist ---'
+          ls -la packages/cli/dist | head -10
+          echo '--- packages/cli/bin ---'
+          ls -la packages/cli/bin
 
       - name: Publish @agiterra/rove-core
         working-directory: packages/core

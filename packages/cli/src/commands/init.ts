@@ -70,16 +70,23 @@ export async function runInitCommand(opts: InitOptions = {}): Promise<number> {
   console.log(`  ${flowsDir}/.gitkeep`);
   console.log(`  .env.rove.example`);
   console.log("");
-  console.log("Next:");
-  console.log(
-    "  1. Copy .env.rove.example → .env.rove and fill in the Supabase + GH-handle values.",
-  );
-  console.log(
-    "  2. Author your first flow:  drop a *.flow.yaml in the flows dir (or use the dashboard wizard).",
-  );
-  console.log(
-    "  3. Start the daemon on a machine that has your local Claude session:  rove daemon",
-  );
+  console.log("Next steps:");
+  console.log("");
+  console.log("  1. Copy .env.rove.example → .env.rove and fill in:");
+  console.log("       ROVE_SUPABASE_URL=https://tceosllezmydpouvfuzf.supabase.co");
+  console.log("       ROVE_SUPABASE_SERVICE_ROLE_KEY=<from your team lead>");
+  console.log("       ROVE_DAEMON_GITHUB_HANDLE=<your gh handle>");
+  console.log("");
+  console.log("  2. Open the dashboard, switch to your project:");
+  console.log(`       https://rove-agiterra.vercel.app/?p=${projectId}`);
+  console.log("     (the switcher pill in the header sticks via cookie afterwards)");
+  console.log("");
+  console.log("  3. Start your daemon (run this in a terminal that stays open):");
+  console.log("       set -a && source .env.rove && set +a && rove daemon");
+  console.log("");
+  console.log("  4. Author your first flow — either:");
+  console.log("       a) hit /flows/new in the dashboard, fill the wizard");
+  console.log("       b) drop a *.flow.yaml into the flows dir, then  rove sync");
   console.log("");
   return 0;
 }

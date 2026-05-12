@@ -8,7 +8,7 @@ import { createReadClient } from "../lib/supabase/server";
 import { AppMark } from "../components/app-mark";
 import { DaemonStatusPill } from "../components/daemon-status-pill";
 import { HeaderAuthorMenu, HeaderNav } from "../components/header-nav";
-import { ProjectPill } from "../components/project-pill";
+import { ProjectSwitcher } from "../components/project-switcher";
 
 export const metadata: Metadata = {
   title: "Rove",
@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 </span>
               ) : null}
               {signedIn ? <HeaderAuthorMenu /> : null}
-              {signedIn ? <ProjectPill /> : null}
+              {signedIn ? <ProjectSwitcher /> : null}
               {signedIn ? <DaemonStatusPill /> : null}
             </div>
           </div>
