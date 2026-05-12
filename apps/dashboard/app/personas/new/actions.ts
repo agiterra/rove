@@ -66,14 +66,14 @@ export async function submitPersonaDraftAction(raw: unknown): Promise<ActionOutc
   const yaml = renderPersonaYaml(draft);
   const filePath = personaYamlPath(draft.persona_id);
   const branch = `eval/persona/${draft.persona_id}-${randomBranchSuffix()}`;
-  const author = me.displayName ?? me.githubHandle ?? "tankloop-eval-dashboard";
+  const author = me.displayName ?? me.githubHandle ?? "rove-dashboard";
 
   try {
     const pr = await createSingleFilePr({
       branch,
       filePath,
       fileContent: yaml,
-      commitMessage: `feat(eval): add persona ${draft.persona_id}\n\nAuthored via tankloop-eval dashboard by ${author}.`,
+      commitMessage: `feat(eval): add persona ${draft.persona_id}\n\nAuthored via rove dashboard by ${author}.`,
       prTitle: `feat(eval): add persona ${draft.persona_id}`,
       prBody: prBodyFor(draft, author),
     });
@@ -101,6 +101,6 @@ function prBodyFor(draft: PersonaDraft, author: string): string {
     `- [ ] Expertise + shortcuts + retries are coherent with the prompt addendum`,
     `- [ ] Persona is meaningfully different from existing personas`,
     ``,
-    `> Authored via the [tankloop-eval dashboard](https://eval-dashboard-sigma.vercel.app/personas/new) by ${author}.`,
+    `> Authored via the [rove dashboard](https://eval-dashboard-sigma.vercel.app/personas/new) by ${author}.`,
   ].join("\n");
 }

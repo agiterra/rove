@@ -40,7 +40,7 @@ export async function runUiCommand(ws: ResolvedWorkspace, opts: UiOptions): Prom
   return new Promise<number>((resolve) => {
     server.listen(opts.port, "127.0.0.1", () => {
       const url = `http://127.0.0.1:${opts.port}`;
-      console.log(`✓ tankloop-eval ui serving ${reportsDir}`);
+      console.log(`✓ rove ui serving ${reportsDir}`);
       console.log(`  Open ${url}  (Ctrl-C to stop)`);
       if (opts.open) openInBrowser(url);
     });
@@ -118,7 +118,7 @@ function renderIndexPage(reports: ReportSummary[]): string {
     .join("");
 
   return shell(
-    "tankloop-eval — Walks",
+    "rove — Walks",
     `<h1>Agentic UX Walks</h1>
      <p class="muted">${reports.length} report${reports.length === 1 ? "" : "s"}</p>
      <table>
@@ -132,7 +132,7 @@ function renderIndexPage(reports: ReportSummary[]): string {
 
 function renderReportPage(filename: string, html: string): string {
   return shell(
-    `tankloop-eval — ${filename}`,
+    `rove — ${filename}`,
     `<p><a href="/">← Back</a></p>
      <article class="report">${html}</article>`,
   );

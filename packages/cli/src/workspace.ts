@@ -35,7 +35,7 @@ function findWorkspaceRoot(startDir: string): string {
     if (parent === current) {
       throw new Error(
         `Could not find ${WORKSPACE_MARKER} in any parent of ${startDir}. ` +
-          `Run tankloop-eval from inside the TankLoop repo.`,
+          `Run rove from inside a project that has a rove.config.ts.`,
       );
     }
     current = parent;

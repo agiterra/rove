@@ -1,7 +1,7 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { findingsPayloadSchema, type FindingSeverity } from "@tankloop/agentic-ux-evaluator-core";
+import { findingsPayloadSchema, type FindingSeverity } from "@rove/core";
 import { createSinks, type SinkId } from "../factories.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
 import type { ResolvedWorkspace } from "../workspace.js";

@@ -15,9 +15,9 @@ import {
   personaDraftSchema,
   type FlowDraft,
   type PersonaDraft,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 
-const FLOW_SYSTEM_PROMPT = `You produce JSON for a TankLoop UX-walk flow specification.
+const FLOW_SYSTEM_PROMPT = `You produce JSON for a UX-walk flow specification.
 
 Schema:
 {
@@ -32,7 +32,7 @@ Rules:
 - Do NOT invent specific selectors. Do NOT pad with marketing language.
 - success_criteria items must be observable in the running UI, not internal state.`;
 
-const PERSONA_SYSTEM_PROMPT = `You produce JSON for a TankLoop UX-walk persona.
+const PERSONA_SYSTEM_PROMPT = `You produce JSON for a UX-walk persona.
 
 Schema:
 {

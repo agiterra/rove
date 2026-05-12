@@ -10,7 +10,7 @@ import type {
   DispatcherPreflightResult,
   DispatcherResult,
   PreflightCheck,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 
 const execFile = promisify(execFileCb);
 
@@ -35,7 +35,7 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
        * Path to a persistent Chromium profile (`--user-data-dir`). When set,
        * the dispatcher writes a per-walk MCP config that registers
        * `@playwright/mcp` with `--user-data-dir <path>`. The agent's browser
-       * inherits cookies + localStorage from a prior `tankloop-eval auth-setup`.
+       * inherits cookies + localStorage from a prior `rove auth-setup`.
        */
       userDataDirPath?: string;
     } = {},
@@ -129,7 +129,7 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
 }
 
 async function writeMcpConfigWithUserDataDir(userDataDirPath: string): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "tankloop-eval-mcp-"));
+  const dir = await mkdtemp(join(tmpdir(), "rove-mcp-"));
   const config = {
     mcpServers: {
       playwright: {

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FlowInfo, Persona } from "@tankloop/agentic-ux-evaluator-core";
+import type { FlowInfo, Persona } from "@rove/core";
 
 /**
  * SupabaseStore — upserts canonical-in-git rows (personas, flows) and
@@ -7,7 +7,7 @@ import type { FlowInfo, Persona } from "@tankloop/agentic-ux-evaluator-core";
  *
  * Why not in core? Adding @supabase/supabase-js to core would fatten every
  * downstream that doesn't need it (e.g. the markdown-only path). Keep
- * Supabase as a leaf dependency of tankloop-eval until the Phase 9
+ * Supabase as a leaf dependency of rove until the Phase 9
  * dashboard needs to share this code — then extract to a package.
  */
 export interface CreateRunInput {
@@ -37,7 +37,7 @@ export class SupabaseStore {
         is_built_in: p.isBuiltIn,
         icon: p.icon ?? null,
         // Built-ins have no source YAML, so we don't stamp synced_from_yaml_at
-        // here. `tankloop-eval sync` (Phase 8) does that for workspace
+        // here. `rove sync` (Phase 8) does that for workspace
         // personas with the YAML sha attached.
       },
       { onConflict: "id" },

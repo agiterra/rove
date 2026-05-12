@@ -1,5 +1,5 @@
 /**
- * Handler for kind=walk. Spawns `tankloop-eval run --flow X --persona Y`
+ * Handler for kind=walk. Spawns `rove run --flow X --persona Y`
  * as a subprocess so the existing run pipeline (preflight, dispatcher,
  * sinks, prompt, screenshots) is reused unchanged.
  *
@@ -29,9 +29,9 @@ export interface WalkResult {
 export async function runWalk(input: unknown): Promise<WalkResult> {
   const parsed = walkInputSchema.parse(input);
   // Reuse the same bin script that started the daemon — avoids requiring
-  // `tankloop-eval` on $PATH. process.argv[1] is the entry script (the
-  // daemon's own bin/tankloop-eval.js), so we spawn:
-  //   node /path/to/bin/tankloop-eval.js run …
+  // `rove` on $PATH. process.argv[1] is the entry script (the
+  // daemon's own bin/rove.js), so we spawn:
+  //   node /path/to/bin/rove.js run …
   const binJs = process.env.EVAL_TANKLOOP_BIN ?? process.argv[1];
   const args = [
     binJs,
@@ -62,7 +62,7 @@ export async function runWalk(input: unknown): Promise<WalkResult> {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
-      reject(new Error(`tankloop-eval run timed out after ${timeoutMs}ms (bin=${binJs})`));
+      reject(new Error(`rove run timed out after ${timeoutMs}ms (bin=${binJs})`));
     }, timeoutMs);
 
     child.stdout.on("data", (b: Buffer) => {
@@ -86,7 +86,7 @@ export async function runWalk(input: unknown): Promise<WalkResult> {
       if (code !== 0) {
         reject(
           new Error(
-            `tankloop-eval run exited with ${code}\n--- stderr tail ---\n${stderr.slice(-800)}`,
+            `rove run exited with ${code}\n--- stderr tail ---\n${stderr.slice(-800)}`,
           ),
         );
         return;

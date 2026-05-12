@@ -8,7 +8,7 @@ import {
   type SinkAdapter,
   type SinkInput,
   type SinkResult,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 import { getSupabaseClient } from "../supabase/client.js";
 import { computeContentHash } from "../supabase/content-hash.js";
 import { SupabaseStore } from "../supabase/store.js";

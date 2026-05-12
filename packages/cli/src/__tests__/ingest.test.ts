@@ -20,7 +20,7 @@ describe("runIngestCommand", () => {
   let badSchemaFile: string;
 
   beforeAll(async () => {
-    dir = await mkdtemp(join(tmpdir(), "tankloop-eval-ingest-"));
+    dir = await mkdtemp(join(tmpdir(), "rove-ingest-"));
     ws = {
       rootDir: dir,
       flowsDir: join(dir, "flows"),

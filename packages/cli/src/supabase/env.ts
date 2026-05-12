@@ -8,7 +8,7 @@
  *   1. EVAL_SUPABASE_URL + EVAL_SUPABASE_SERVICE_ROLE_KEY  ← eval-specific
  *   2. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY            ← shared
  *
- * The eval-specific vars exist because TankLoop's app DB and the eval store
+ * The eval-specific vars exist because the consuming project's app DB (if any) and the Rove store
  * are different Supabase projects. Setting EVAL_* lets you run a walk
  * without trampling the app's SUPABASE_URL env var (which apps/web reads).
  */

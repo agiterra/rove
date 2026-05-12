@@ -120,7 +120,7 @@ export function PersonaWizard() {
         </div>
         <p className="text-xs text-[var(--color-text-muted)]">
           Generation runs on a teammate's local Claude session — needs{" "}
-          <code className="font-mono">tankloop-eval daemon</code> running somewhere on the team.
+          <code className="font-mono">rove daemon</code> running somewhere on the team.
         </p>
       </div>
 

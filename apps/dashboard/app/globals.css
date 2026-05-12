@@ -1,24 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces — slate base with subtle warmth, no pure-black to keep depth. */
-  --color-bg: #08090d;
-  --color-bg-2: #0c0e14;
-  --color-panel: #11141c;
-  --color-panel-2: #161a24;
-  --color-border: #1d2230;
-  --color-border-strong: #2a3142;
+  /* Surfaces — navy base with subtle warmth, no pure-black to keep depth. */
+  --color-bg: #07090f;
+  --color-bg-2: #0b0f18;
+  --color-panel: #0f1422;
+  --color-panel-2: #141a2a;
+  --color-border: #1f2740;
+  --color-border-strong: #2c3654;
 
   /* Type. */
-  --color-text: #e7eaf2;
-  --color-text-muted: #8c93a6;
-  --color-text-faint: #5b637a;
+  --color-text: #e8edf7;
+  --color-text-muted: #8a93ab;
+  --color-text-faint: #5a6480;
 
-  /* Brand — emerald with violet secondary. The eval-dashboard's identity. */
-  --color-accent: #34d399;
-  --color-accent-soft: rgba(52, 211, 153, 0.16);
-  --color-accent-2: #a78bfa;
-  --color-accent-2-soft: rgba(167, 139, 250, 0.18);
+  /* Brand — Rove cyan → navy gradient. The mark + banners live on this. */
+  --color-brand-cyan: #3fc9cb;
+  --color-brand-navy: #102c57;
+
+  --color-accent: #3fc9cb;
+  --color-accent-soft: rgba(63, 201, 203, 0.16);
+  --color-accent-2: #6ea8ff;
+  --color-accent-2-soft: rgba(110, 168, 255, 0.18);
 
   /* Severity. */
   --color-severity-critical: #f43f5e;
@@ -26,11 +29,10 @@
   --color-severity-minor: #facc15;
   --color-severity-nit: #94a3b8;
 
-  /* Type ramps. Cleaner than vanilla Tailwind defaults. */
-  --font-sans:
-    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono:
-    var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Type ramps. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 html,
@@ -48,16 +50,13 @@ body {
 }
 
 body {
-  /* Subtle radial atmosphere — gives the flat dark page some sense of depth
-     without being noisy. */
+  /* Brand-tinted radial atmosphere (cyan top-left, navy top-right). */
   background-image:
-    radial-gradient(at 20% -10%, rgba(52, 211, 153, 0.06) 0, transparent 45%),
-    radial-gradient(at 90% 0%, rgba(167, 139, 250, 0.05) 0, transparent 50%);
+    radial-gradient(at 20% -10%, rgba(63, 201, 203, 0.08) 0, transparent 45%),
+    radial-gradient(at 90% 0%, rgba(16, 44, 87, 0.4) 0, transparent 55%);
   background-attachment: fixed;
 }
 
-/* Inputs + textareas inherit the font + sit on the slightly raised bg
-   so they don't visually disappear into the panel. */
 input,
 textarea,
 select {
@@ -69,7 +68,6 @@ select {
   color: var(--color-text);
 }
 
-/* Scrollbar polish — Webkit only, falls back to default everywhere else. */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -86,7 +84,6 @@ select {
   background: var(--color-border-strong);
 }
 
-/* Reusable utility classes — kept tiny; one-off Tailwind everywhere else. */
 .surface {
   background: var(--color-panel);
   border: 1px solid var(--color-border);
@@ -99,4 +96,15 @@ select {
 }
 .hairline {
   border-color: var(--color-border);
+}
+
+/* Brand gradient utility — useful for the signin hero, run-walk button, etc. */
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-cyan) 0%, var(--color-brand-navy) 100%);
+}
+.text-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-cyan) 0%, var(--color-brand-navy) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }

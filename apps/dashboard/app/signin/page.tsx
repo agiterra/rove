@@ -32,7 +32,7 @@ export default function SignInPage({
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-faint)]">
-            agentic UX evaluator · TankLoop
+            Rove · agentic UX evaluation
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance">
             Walks. Findings.
@@ -41,7 +41,7 @@ export default function SignInPage({
           </h1>
           <p className="mt-3 text-sm text-[var(--color-text-muted)] max-w-sm mx-auto">
             Sign in to view runs, browse findings, and queue agentic walks against the
-            TankLoop app.
+            your app.
           </p>
         </div>
 
@@ -55,7 +55,7 @@ export default function SignInPage({
             {busy ? "Redirecting…" : "Continue with GitHub"}
           </button>
           <p className="mt-4 text-xs text-[var(--color-text-faint)] text-center">
-            Team members of <span className="font-mono">agiterra/tankloop</span> only.
+            Team members of your workspace only.
           </p>
           {err ? <p className="mt-4 text-sm text-red-300 text-center">{err}</p> : null}
         </div>

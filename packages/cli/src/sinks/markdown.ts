@@ -5,7 +5,7 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 
 /**
  * Writes a single Markdown report per run to <reportsDir>/agentic-walks/.

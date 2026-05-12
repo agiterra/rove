@@ -1,6 +1,6 @@
-# TankLoop Eval — Supabase project
+# Rove — Supabase project
 
-This directory owns the schema for the **tankloop-eval Supabase project**
+This directory owns the schema for the **rove Supabase project**
 (hosted at `tceosllezmydpouvfuzf.supabase.co`).
 
 This is **a separate database from the TankLoop application database**.
@@ -72,7 +72,7 @@ Screenshots accumulate. To keep us inside the Supabase Free tier:
 - Every finding row carries `resolved_at` (set when status moves to
   `fixed` or `dismissed`) and `screenshots_purged_at` (set after the
   Storage objects + `finding_screenshots` rows have been deleted).
-- The `tankloop-eval cleanup-resolved` CLI command finds rows where
+- The `rove cleanup-resolved` CLI command finds rows where
   `resolved_at IS NOT NULL AND screenshots_purged_at IS NULL`, deletes
   the referenced Storage objects, deletes the join rows, then stamps
   `screenshots_purged_at`. Idempotent.

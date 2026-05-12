@@ -16,7 +16,7 @@ import { homedir } from "node:os";
 export type AuthRole = "dispatcher" | "admin" | "technician";
 
 export function authStateRoot(): string {
-  return join(homedir(), ".tankloop-eval");
+  return join(homedir(), ".rove");
 }
 
 export function userDataDir(role: AuthRole): string {

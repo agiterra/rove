@@ -10,8 +10,8 @@ import { DaemonStatusPill } from "../components/daemon-status-pill";
 import { HeaderAuthorMenu, HeaderNav } from "../components/header-nav";
 
 export const metadata: Metadata = {
-  title: "TankLoop Eval",
-  description: "Agentic UX walks for the TankLoop team — runs, findings, screenshots.",
+  title: "Rove",
+  description: "Rove — Explore. Observe. Report. Agentic UX evaluation for the agent-readable web.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -51,7 +51,7 @@ export default async function FlowsIndexPage() {
         <EmptyState
           emoji="🧭"
           title="No flows yet"
-          description="Author your first flow with the wizard, or run `tankloop-eval sync` to pull existing YAML files."
+          description="Author your first flow with the wizard, or run `rove sync` to pull existing YAML files."
           action={
             <PrimaryButtonLink href="/flows/new">
               <Plus className="w-4 h-4" />

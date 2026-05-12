@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Finding } from "@tankloop/agentic-ux-evaluator-core";
+import type { Finding } from "@rove/core";
 import { computeContentHash } from "../supabase/content-hash.js";
 
 function f(overrides: Partial<Finding> = {}): Finding {

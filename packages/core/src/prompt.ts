@@ -48,7 +48,7 @@ export interface BuildWalkPromptInput {
   screenshotsDir?: string;
   /**
    * Base URL (origin) the agent should navigate to when it loads the flow's
-   * entry_route. Defaults to http://localhost:3000 — the TankLoop dev
+   * entry_route. Defaults to http://localhost:3000 — the local dev
    * server. Override for walks that target a deployed environment (eval-
    * dashboard, staging, Vercel preview).
    */
@@ -74,7 +74,7 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
   const constraints = persona.constraints;
 
   const lines: string[] = [
-    `You are running an agentic UX evaluation walk for TankLoop.`,
+    `You are running an agentic UX evaluation walk.`,
     ``,
     `Flow ID: ${flow.flowId}`,
     `Goal: ${goal}`,
@@ -92,7 +92,7 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `- Entry route comes from the flow spec at ${flow.filePath}`,
     authenticated
       ? `- You ARE pre-authenticated. The browser has a valid session cookie from a` +
-        `\n  prior tankloop-eval auth-setup. If a navigation redirects to /auth/login,` +
+        `\n  prior rove auth-setup. If a navigation redirects to /auth/login,` +
         `\n  that is a real finding (session-expiry or role-mismatch bug) — file it.`
       : `- You are NOT pre-authenticated. If you hit a sign-in wall, do NOT attempt` +
         `\n  to sign in — treat it as a finding and continue evaluating whatever IS` +

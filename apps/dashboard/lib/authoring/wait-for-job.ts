@@ -84,7 +84,7 @@ export async function waitForJobResult(
       settle(() =>
         reject(
           new Error(
-            "No daemon claimed the job within 90s. Is `tankloop-eval daemon` running on your Mac?",
+            "No daemon claimed the job within 90s. Is `rove daemon` running on your Mac?",
           ),
         ),
       );

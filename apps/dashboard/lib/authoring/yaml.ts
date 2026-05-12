@@ -14,7 +14,7 @@ const OUTPUT_OPTIONS: ToStringOptions = {
 };
 
 const FLOW_FILE_HEADER = (flowId: string) =>
-  `# ${flowId}\n# Authored via tankloop-eval dashboard on ${new Date().toISOString().slice(0, 10)}\n# Reviewer: add steps + scenarios after this lands.\n\n`;
+  `# ${flowId}\n# Authored via rove dashboard on ${new Date().toISOString().slice(0, 10)}\n# Reviewer: add steps + scenarios after this lands.\n\n`;
 
 export function renderFlowYaml(draft: FlowDraft): string {
   const doc = new Document({
@@ -29,7 +29,7 @@ export function renderFlowYaml(draft: FlowDraft): string {
 }
 
 const PERSONAS_FILE_HEADER = (personaId: string) =>
-  `# Personas — ${personaId}\n# Authored via tankloop-eval dashboard on ${new Date().toISOString().slice(0, 10)}\n\n`;
+  `# Personas — ${personaId}\n# Authored via rove dashboard on ${new Date().toISOString().slice(0, 10)}\n\n`;
 
 export function renderPersonaYaml(draft: PersonaDraft): string {
   const doc = new Document({

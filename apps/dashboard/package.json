@@ -1,6 +1,6 @@
 {
-  "name": "@tankloop/eval-dashboard",
-  "version": "0.0.0",
+  "name": "@rove/dashboard",
+  "version": "0.0.0-alpha.1",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3030",

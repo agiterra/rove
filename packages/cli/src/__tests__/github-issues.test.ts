@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { FindingsPayload, SinkInput } from "@tankloop/agentic-ux-evaluator-core";
+import type { FindingsPayload, SinkInput } from "@rove/core";
 import { GitHubIssuesSink } from "../sinks/github-issues.js";
 import type { DedupMatch } from "../supabase/store.js";
 import type { SupabaseStore } from "../supabase/store.js";
@@ -110,7 +110,7 @@ describe("GitHubIssuesSink — Phase 8 dedup", () => {
       [hash]: {
         id: "prior-id",
         runId: "prior-run-id",
-        githubIssueUrl: "https://github.com/agiterra/tankloop/issues/777",
+        githubIssueUrl: "https://github.com/example/example/issues/777",
         firstSeenAt: "2026-05-10T00:00:00Z",
         lastSeenAt: "2026-05-10T00:00:00Z",
         status: "filed",
@@ -128,7 +128,7 @@ describe("GitHubIssuesSink — Phase 8 dedup", () => {
     });
     expect(result.ok).toBe(true);
     expect(result.routedCount).toBe(1);
-    expect(result.artifacts).toEqual(["https://github.com/agiterra/tankloop/issues/777"]);
+    expect(result.artifacts).toEqual(["https://github.com/example/example/issues/777"]);
   });
 
   it("files a fresh issue when no prior exists (dry-run still consults the store)", async () => {

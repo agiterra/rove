@@ -1,4 +1,4 @@
-import { discoverFlows } from "@tankloop/agentic-ux-evaluator-core";
+import { discoverFlows } from "@rove/core";
 import type { ResolvedWorkspace } from "../workspace.js";
 
 export async function runListCommand(ws: ResolvedWorkspace): Promise<number> {

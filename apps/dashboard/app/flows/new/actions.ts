@@ -75,7 +75,7 @@ export async function submitFlowDraftAction(raw: unknown): Promise<ActionOutcome
   const yaml = renderFlowYaml(draft);
   const filePath = flowYamlPath(draft.flow_id);
   const branch = `eval/flow/${draft.flow_id.replace(/\./g, "-")}-${randomBranchSuffix()}`;
-  const author = me.displayName ?? me.githubHandle ?? "tankloop-eval-dashboard";
+  const author = me.displayName ?? me.githubHandle ?? "rove-dashboard";
   const templateNote = draft.template_id ? ` (template: ${draft.template_id})` : "";
 
   try {
@@ -83,7 +83,7 @@ export async function submitFlowDraftAction(raw: unknown): Promise<ActionOutcome
       branch,
       filePath,
       fileContent: yaml,
-      commitMessage: `feat(eval): add flow ${draft.flow_id}${templateNote}\n\nAuthored via tankloop-eval dashboard by ${author}.`,
+      commitMessage: `feat(eval): add flow ${draft.flow_id}${templateNote}\n\nAuthored via rove dashboard by ${author}.`,
       prTitle: `feat(eval): add flow ${draft.flow_id}`,
       prBody: prBodyFor(draft, author),
     });
@@ -110,6 +110,6 @@ function prBodyFor(draft: FlowDraft, author: string): string {
     `- [ ] Success criteria are observable, not internal state`,
     `- [ ] Add \`steps:\` and \`scenarios:\` if this flow needs more than agent free-roam`,
     ``,
-    `> Authored via the [tankloop-eval dashboard](https://eval-dashboard-sigma.vercel.app/flows/new) by ${author}.`,
+    `> Authored via the [rove dashboard](https://eval-dashboard-sigma.vercel.app/flows/new) by ${author}.`,
   ].join("\n");
 }

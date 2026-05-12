@@ -8,6 +8,7 @@ import { runIngestCommand } from "./commands/ingest.js";
 import { runAuthSetupCommand } from "./commands/auth-setup.js";
 import { runCleanupResolvedCommand } from "./commands/cleanup-resolved.js";
 import { runDaemonCommand } from "./commands/daemon.js";
+import { runInitCommand } from "./commands/init.js";
 import { runSyncCommand } from "./commands/sync.js";
 import { runUiCommand } from "./commands/ui.js";
 import type { AuthRole } from "./auth-state.js";
@@ -26,9 +27,29 @@ function parseAuthRole(s: string): AuthRole {
 
 const program = new Command();
 program
-  .name("tankloop-eval")
-  .description("Agentic UX evaluator — run walks against TankLoop from any host")
+  .name("rove")
+  .description("Agentic UX evaluator — walk any web app, file findings, no shared cloud key")
   .version("0.0.0");
+
+program
+  .command("init")
+  .description("Bootstrap Rove in this project (writes rove.config.ts + flows dir + .env example)")
+  .option("--workspace-id <id>", "Pre-fill workspaceId from your Rove dashboard")
+  .option("--flows-dir <path>", "Where flow YAMLs live, repo-relative", "rove/flows")
+  .option("--target-url <url>", "Default origin to walk (e.g. http://localhost:3000)")
+  .option("--github-repo <owner/repo>", "Enables the github-issues sink + PR-driven walks later")
+  .option("--force", "Overwrite an existing rove.config.ts", false)
+  .action(async (rawOpts: Record<string, unknown>) => {
+    process.exit(
+      await runInitCommand({
+        workspaceId: rawOpts.workspaceId as string | undefined,
+        flowsDir: rawOpts.flowsDir as string | undefined,
+        defaultTargetUrl: rawOpts.targetUrl as string | undefined,
+        githubRepo: rawOpts.githubRepo as string | undefined,
+        force: rawOpts.force as boolean,
+      }),
+    );
+  });
 
 program
   .command("list")

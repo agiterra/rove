@@ -3,7 +3,7 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 
 export type RouteToSinksInput = SinkInput;
 

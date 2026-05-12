@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { FindingsPayload, SinkInput } from "@tankloop/agentic-ux-evaluator-core";
+import type { FindingsPayload, SinkInput } from "@rove/core";
 import { SupabaseSink } from "../sinks/supabase.js";
 
 /**
@@ -141,7 +141,7 @@ describe("SupabaseSink", () => {
   let screenshotPath: string;
 
   beforeAll(async () => {
-    screenshotsDir = await mkdtemp(join(tmpdir(), "tankloop-eval-supabase-sink-"));
+    screenshotsDir = await mkdtemp(join(tmpdir(), "rove-supabase-sink-"));
     screenshotPath = join(screenshotsDir, "step1-login.png");
     // Minimal valid PNG (8-byte signature is enough — sink reads bytes, doesn't validate).
     await writeFile(screenshotPath, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -206,7 +206,7 @@ describe("SupabaseSink", () => {
   });
 
   it("optionally deletes the local screenshot copy after upload", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "tankloop-eval-supabase-cleanup-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "rove-supabase-cleanup-"));
     const p = join(tempDir, "step1.png");
     await writeFile(p, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 
@@ -282,7 +282,7 @@ describe("SupabaseSink", () => {
         {
           id: "prior-finding-uuid",
           run_id: "prior-run-uuid",
-          github_issue_url: "https://github.com/agiterra/tankloop/issues/999",
+          github_issue_url: "https://github.com/example/example/issues/999",
           first_seen_at: "2026-05-10T00:00:00Z",
           last_seen_at: "2026-05-10T00:00:00Z",
           status: "filed",
@@ -333,7 +333,7 @@ describe("SupabaseSink", () => {
       github_issue_url: string | null;
       status: string;
     };
-    expect(first.github_issue_url).toBe("https://github.com/agiterra/tankloop/issues/999");
+    expect(first.github_issue_url).toBe("https://github.com/example/example/issues/999");
     expect(first.status).toBe("filed");
 
     // Second finding is new — no URL, status='new'.

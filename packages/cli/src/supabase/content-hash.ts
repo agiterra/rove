@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Finding } from "@tankloop/agentic-ux-evaluator-core";
+import type { Finding } from "@rove/core";
 
 /**
  * Deterministic hash used by Phase 8 dedup. Phase 7 stores it on every

@@ -1,8 +1,8 @@
 import { access, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { discoverFlows } from "@tankloop/agentic-ux-evaluator-core";
-import type { PreflightCheck } from "@tankloop/agentic-ux-evaluator-core";
+import { discoverFlows } from "@rove/core";
+import type { PreflightCheck } from "@rove/core";
 import { ClaudeCodeCliDispatcher } from "../dispatchers/claude-code-cli.js";
 import { userDataDir, type AuthRole } from "../auth-state.js";
 import { readEvalSupabaseEnv } from "../supabase/env.js";
@@ -88,7 +88,7 @@ function checkAuthProfile(role: AuthRole): PreflightCheck {
     name: `auth profile (${role})`,
     status: "warn",
     detail: `missing — only needed if you walk a ${role}-category persona`,
-    remedy: `tankloop-eval auth-setup --role ${role}`,
+    remedy: `rove auth-setup --role ${role}`,
   };
 }
 

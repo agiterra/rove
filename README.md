@@ -21,9 +21,9 @@ The output isn't pass/fail. It's **findings**: severity-scored UX observations w
 
 ## Status
 
-This repo was extracted from the [TankLoop](https://github.com/agiterra/tankloop) monorepo on **2026-05-12** where it lived through Phases 1–11 as `apps/eval-dashboard/`, `apps/tankloop-eval/`, `packages/agentic-ux-evaluator-core/`, and `infra/supabase/eval/`.
+This repo was extracted from the [TankLoop](https://github.com/agiterra/tankloop) monorepo on **2026-05-12** where it lived through Phases 1–11 as `apps/eval-dashboard/`, `apps/rove/`, `packages/agentic-ux-evaluator-core/`, and `infra/supabase/eval/`.
 
-It's **early alpha**. The shape of the system works end-to-end (CLI + daemon + dashboard + Supabase + GitHub App + agent walks) — but the surface still says `tankloop-eval` in places, the GitHub App is named "TankLoop Eval Bot," and the persona library is shaped around TankLoop's roles. Rebranding + project-agnostic Phase B is the next milestone.
+It's **early alpha**. The shape of the system works end-to-end (CLI + daemon + dashboard + Supabase + GitHub App + agent walks) — but the surface still says `rove` in places, the GitHub App is named "Rove Bot," and the persona library is shaped around TankLoop's roles. Rebranding + project-agnostic Phase B is the next milestone.
 
 Plan: see [`nimbalyst-local/plans/rove-extraction-and-standalone-product.md`](https://github.com/agiterra/tankloop/blob/main/nimbalyst-local/plans/rove-extraction-and-standalone-product.md) in tankloop (will migrate here).
 
@@ -31,7 +31,7 @@ Plan: see [`nimbalyst-local/plans/rove-extraction-and-standalone-product.md`](ht
 
 ```
 apps/dashboard/        ← Next.js 16 dashboard (formerly apps/eval-dashboard)
-packages/cli/          ← CLI + daemon (formerly apps/tankloop-eval; binary "tankloop-eval", to be renamed "rove")
+packages/cli/          ← CLI + daemon (formerly apps/rove; binary "rove", to be renamed "rove")
 packages/core/         ← Types, schemas, prompts (formerly packages/agentic-ux-evaluator-core)
 infra/supabase/        ← Hosted Supabase project migrations
 examples/flows/        ← Example flow YAML files
@@ -44,7 +44,7 @@ This commit is a verbatim copy of the working tankloop sources. Nothing's been r
 
 - `pnpm install` won't work in isolation — workspace deps still reference `@tankloop/*` packages.
 - `vercel deploy` will not find the project link.
-- The CLI binary is still called `tankloop-eval`.
+- The CLI binary is still called `rove`.
 
 Phase B fixes all of that. See the plan.
 

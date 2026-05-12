@@ -1,7 +1,7 @@
 /**
  * Dispatches a claimed agent_jobs row to the appropriate handler.
  * Generation handlers shell out to the local Claude session; walk handler
- * shells out to the existing `tankloop-eval run` pipeline.
+ * shells out to the existing `rove run` pipeline.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateFlow, generatePersona } from "./handlers/generate.js";

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import type { FindingsPayload } from "@tankloop/agentic-ux-evaluator-core";
+import type { FindingsPayload } from "@rove/core";
 import { MarkdownSink } from "../sinks/markdown.js";
 
 const PAYLOAD: FindingsPayload = {
@@ -33,7 +33,7 @@ const PAYLOAD: FindingsPayload = {
 describe("MarkdownSink", () => {
   let reportsDir: string;
   beforeAll(async () => {
-    reportsDir = await mkdtemp(join(tmpdir(), "tankloop-eval-md-sink-"));
+    reportsDir = await mkdtemp(join(tmpdir(), "rove-md-sink-"));
   });
   afterAll(async () => {
     await rm(reportsDir, { recursive: true, force: true });

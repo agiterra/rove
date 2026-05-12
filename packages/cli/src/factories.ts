@@ -2,8 +2,8 @@ import type {
   DispatcherAdapter,
   FindingSeverity,
   SinkAdapter,
-} from "@tankloop/agentic-ux-evaluator-core";
-import { FINDING_SEVERITIES } from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
+import { FINDING_SEVERITIES } from "@rove/core";
 import { ClaudeCodeCliDispatcher } from "./dispatchers/claude-code-cli.js";
 import { CodexCliDispatcher } from "./dispatchers/codex-cli.js";
 import { MarkdownSink } from "./sinks/markdown.js";

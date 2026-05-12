@@ -5,7 +5,7 @@ import {
   discoverFlows,
   type FlowInfo,
   type Persona,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 import { getSupabaseClient } from "../supabase/client.js";
 import { SupabaseStore } from "../supabase/store.js";
 import type { ResolvedWorkspace } from "../workspace.js";

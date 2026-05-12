@@ -5,8 +5,8 @@ import type {
   SinkAdapter,
   SinkInput,
   SinkResult,
-} from "@tankloop/agentic-ux-evaluator-core";
-import { FINDING_SEVERITIES } from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
+import { FINDING_SEVERITIES } from "@rove/core";
 import { computeContentHash } from "../supabase/content-hash.js";
 import type { SupabaseStore } from "../supabase/store.js";
 
@@ -164,7 +164,7 @@ function renderRepeatComment(finding: Finding, input: SinkInput): string {
   if (input.branch) lines.push(`- **Branch**: \`${input.branch}\``);
   if (finding.step_index !== undefined) lines.push(`- **Step**: ${finding.step_index}`);
   if (input.payload.walked_url) lines.push(`- **Walked URL**: ${input.payload.walked_url}`);
-  lines.push(``, `_Filed automatically by \`tankloop-eval\` (dedup wrapper)._`);
+  lines.push(``, `_Filed automatically by \`rove\` (dedup wrapper)._`);
   return lines.join("\n");
 }
 
@@ -184,7 +184,7 @@ function renderIssueBody(finding: Finding, input: SinkInput): string {
   if (finding.step_index !== undefined) lines.push(`**Step**: ${finding.step_index}`);
   if (finding.evidence) lines.push(`**Evidence**: ${finding.evidence}`);
   if (input.payload.walked_url) lines.push(`**Walked URL**: ${input.payload.walked_url}`);
-  lines.push("", "_Filed automatically by `tankloop-eval`._");
+  lines.push("", "_Filed automatically by `rove`._");
   return lines.join("\n");
 }
 

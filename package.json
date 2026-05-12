@@ -1,0 +1,27 @@
+{
+  "name": "rove",
+  "version": "0.0.0-alpha.1",
+  "private": true,
+  "description": "Rove — agentic UX evaluation for the agent-readable web. Explore. Observe. Report.",
+  "homepage": "https://github.com/agiterra/rove",
+  "license": "UNLICENSED",
+  "author": "Agiterra",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agiterra/rove.git"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* --filter=./apps/* build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dashboard": "pnpm --filter @rove/dashboard dev",
+    "cli": "pnpm --filter @rove/cli build && node packages/cli/bin/rove.js",
+    "daemon": "pnpm --filter @rove/cli build && node packages/cli/bin/rove.js daemon"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "packageManager": "pnpm@10.15.0"
+}

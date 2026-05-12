@@ -6,7 +6,7 @@ import {
   type FindingSeverity,
   type FlowInfo,
   type Persona,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
@@ -22,7 +22,7 @@ export interface RunOptions {
   personaId: string;
   goal?: string;
   notes?: string;
-  /** Origin (scheme + host[+port]) to walk. Defaults to the local TankLoop dev server. */
+  /** Origin (scheme + host[+port]) to walk. Defaults to the local dev server. */
   targetUrl?: string;
   dryRun: boolean;
   maxBudgetUsd: number;
@@ -52,7 +52,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
       authProfilePath = candidate;
     } else {
       console.error(
-        `✗ No auth profile for role=${role} at ${candidate}. Run \`tankloop-eval auth-setup --role ${role}\` first, ` +
+        `✗ No auth profile for role=${role} at ${candidate}. Run \`rove auth-setup --role ${role}\` first, ` +
           `or pass --no-auth to walk anonymously.`,
       );
       return 1;

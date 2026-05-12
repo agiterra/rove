@@ -1,12 +1,24 @@
 {
-  "name": "@tankloop/tankloop-eval",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@rove/cli",
+  "version": "0.0.0-alpha.1",
+  "description": "Rove CLI + daemon. Walks your app as personas and agents, files findings, integrates with the Rove dashboard.",
   "bin": {
-    "tankloop-eval": "./bin/tankloop-eval.js"
+    "rove": "./bin/rove.js"
   },
+  "files": [
+    "bin",
+    "dist"
+  ],
   "type": "module",
-  "main": "dist/cli.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
@@ -15,8 +27,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@rove/core": "workspace:*",
     "@supabase/supabase-js": "^2.105.4",
-    "@tankloop/agentic-ux-evaluator-core": "workspace:*",
     "commander": "^12.1.0",
     "marked": "^14.1.4",
     "playwright": "1.60.0-alpha-2026-05-06",

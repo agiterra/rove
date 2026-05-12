@@ -7,7 +7,7 @@ import type {
   DispatcherPreflightResult,
   DispatcherResult,
   PreflightCheck,
-} from "@tankloop/agentic-ux-evaluator-core";
+} from "@rove/core";
 
 const execFile = promisify(execFileCb);
 
