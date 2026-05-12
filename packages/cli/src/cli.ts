@@ -58,7 +58,7 @@ program
   .command("list")
   .description("List discoverable flow files")
   .action(async () => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(await runListCommand(ws));
   });
 
@@ -73,7 +73,7 @@ program
   .command("doctor")
   .description("Check the local environment is ready to dispatch a walk")
   .action(async () => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(await runDoctorCommand(ws));
   });
 
@@ -116,7 +116,7 @@ program
   .option("--gh-dry-run", "GitHub sink only — log gh commands instead of running them", false)
   .option("--no-auth", "Walk anonymously (skip storage-state injection)")
   .action(async (rawOpts: Record<string, unknown>) => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(
       await runRunCommand(ws, {
         flowId: rawOpts.flow as string,
@@ -144,7 +144,7 @@ program
   .option("--gh-dry-run", "GitHub sink only — log gh commands instead of running them", false)
   .option("--dispatcher-id <id>", "Dispatcher id to record (default: manual-ingest)")
   .action(async (filePath: string, rawOpts: Record<string, unknown>) => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(
       await runIngestCommand(ws, {
         filePath,
@@ -188,7 +188,7 @@ program
   .option("--port <n>", "Port to bind", (s) => parseInt(s, 10), 4040)
   .option("--no-open", "Don't auto-open the browser")
   .action(async (rawOpts: Record<string, unknown>) => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(
       await runUiCommand(ws, {
         port: rawOpts.port as number,
@@ -202,7 +202,7 @@ program
   .description("Push built-in personas + flow YAML to the eval Supabase store.")
   .option("--dry-run", "Print what would be written but don't write", false)
   .action(async (rawOpts: Record<string, unknown>) => {
-    const ws = resolveWorkspace();
+    const ws = await resolveWorkspace();
     process.exit(await runSyncCommand(ws, { dryRun: rawOpts.dryRun as boolean }));
   });
 

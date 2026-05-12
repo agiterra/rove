@@ -1,43 +1,44 @@
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-
 /**
- * Resolved paths the CLI needs for a run. Computed once at startup so the
- * commands stay free of path-juggling.
+ * Resolved paths the CLI needs for a run. Read from the consuming
+ * project's `rove.config.ts`.
+ *
+ * The marker file is `rove.config.{ts,js,mjs}`. The CLI walks up from
+ * cwd to find it; the directory containing it is the project root.
+ * `flowsDir` comes from the config. `reportsDir` defaults to
+ * `<root>/.rove/reports` (created on demand).
  */
+import { existsSync, mkdirSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
+import { loadRoveConfig } from "./config.js";
+
 export interface ResolvedWorkspace {
-  /** Repo root (directory containing pnpm-workspace.yaml). */
+  /** Project root — the dir containing rove.config.ts. */
   rootDir: string;
-  /** Directory containing *.flow.yaml files. */
+  /** Directory holding *.flow.yaml + *.personas.yaml. From config.flowsDir. */
   flowsDir: string;
-  /** Directory where Markdown reports are written. */
+  /** Where Markdown walk reports go. */
   reportsDir: string;
 }
 
-const FLOWS_REL = "e2e/ui-overhaul/agentic/flows";
-const REPORTS_REL = "apps/web/specs";
-const WORKSPACE_MARKER = "pnpm-workspace.yaml";
+const REPORTS_REL_DEFAULT = ".rove/reports";
 
-export function resolveWorkspace(startDir = process.cwd()): ResolvedWorkspace {
-  const rootDir = findWorkspaceRoot(startDir);
-  return {
-    rootDir,
-    flowsDir: join(rootDir, FLOWS_REL),
-    reportsDir: join(rootDir, REPORTS_REL),
-  };
-}
+export async function resolveWorkspace(
+  startDir: string = process.cwd(),
+): Promise<ResolvedWorkspace> {
+  const { config, projectRoot } = await loadRoveConfig(startDir);
 
-function findWorkspaceRoot(startDir: string): string {
-  let current = resolve(startDir);
-  while (true) {
-    if (existsSync(join(current, WORKSPACE_MARKER))) return current;
-    const parent = dirname(current);
-    if (parent === current) {
-      throw new Error(
-        `Could not find ${WORKSPACE_MARKER} in any parent of ${startDir}. ` +
-          `Run rove from inside a project that has a rove.config.ts.`,
-      );
-    }
-    current = parent;
+  const flowsDir = isAbsolute(config.flowsDir)
+    ? config.flowsDir
+    : resolve(projectRoot, config.flowsDir);
+
+  const reportsDir = resolve(projectRoot, REPORTS_REL_DEFAULT);
+  if (!existsSync(reportsDir)) {
+    mkdirSync(reportsDir, { recursive: true });
   }
+
+  return {
+    rootDir: projectRoot,
+    flowsDir,
+    reportsDir,
+  };
 }
