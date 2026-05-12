@@ -116,14 +116,13 @@ export class GitHubIssuesSink implements SinkAdapter {
     // Filing path: create a new issue.
     const title = `[UX·${finding.severity}] ${finding.title}`;
     const body = renderIssueBody(finding, input);
-    const labels = [
-      this.opts.areaLabel,
-      this.opts.typeLabel,
-      "agentic-evaluator",
-      `flow:${input.payload.flow_id}`,
-      `persona:${input.payload.persona_id}`,
-      `severity:${finding.severity}`,
-    ].join(",");
+    // Static labels only — dynamic flow:* and persona:* labels caused
+    // `gh issue create` to fail when the label didn't exist yet. The flow
+    // and persona ids are rendered into the issue body, where they're
+    // searchable but don't gate filing.
+    const labels = [this.opts.areaLabel, this.opts.typeLabel, "agentic-evaluator"]
+      .filter((s): s is string => Boolean(s))
+      .join(",");
 
     if (this.opts.dryRun) {
       console.error(`[dry-run] gh issue create --title ${JSON.stringify(title)} --label ${labels}`);
