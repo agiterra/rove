@@ -18,7 +18,8 @@
     "test": "pnpm -r test",
     "dashboard": "pnpm --filter @agiterra/rove-dashboard dev",
     "cli": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js",
-    "daemon": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js daemon"
+    "daemon": "pnpm --filter @agiterra/rove-cli build && node packages/cli/bin/rove.js daemon",
+    "sync:agent-guides": "node scripts/sync-agent-guides.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
