@@ -1,0 +1,36 @@
+{
+  "name": "@tankloop/eval-dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3030",
+    "build": "next build",
+    "start": "next start -p 3030",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^8.2.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.105.4",
+    "clsx": "^2.1.1",
+    "geist": "^1.7.0",
+    "lucide-react": "^0.511.0",
+    "next": "^16.2.1",
+    "octokit": "^5.0.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "recharts": "^2.15.4",
+    "yaml": "^2.9.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^20",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.0",
+    "postcss": "^8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5"
+  }
+}

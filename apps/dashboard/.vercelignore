@@ -1,0 +1,11 @@
+# Vercel uploads only the project subdir, so the workspace .gitignore at
+# the repo root doesn't apply. List the local build artifacts explicitly.
+
+node_modules/
+.next/
+.turbo/
+.vercel/output/
+
+# Per-developer Vercel CLI link metadata is uploaded automatically; the
+# auth + project json files don't need to ride along again.
+.vercel/.env*.local

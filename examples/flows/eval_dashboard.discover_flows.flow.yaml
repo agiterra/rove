@@ -1,0 +1,21 @@
+# eval_dashboard.discover_flows
+# Dogfood flow — the agentic UX evaluator walking its own dashboard.
+# Authored manually 2026-05-12 to validate the end-to-end Phase 11b loop.
+
+flow_id: eval_dashboard.discover_flows
+goal: "Land on the eval-dashboard flows index, find an existing flow, open its detail page, locate the Run walk affordance, and return to the index"
+
+entry_route: "/flows"
+
+budget:
+  max_steps: 25
+  max_seconds: 180
+
+steps: []
+
+success_predicate:
+  - "/flows lists at least one flow with a stable monospace flow_id"
+  - "Clicking a flow navigates to /flows/<id> without a full reload feel slower than 2s"
+  - "The flow detail page shows a 'Run walk' button next to the run count"
+  - "A back affordance ('← all flows') is visible from the detail page"
+  - "No console errors appear in the viewport's network/console traffic during the walk"

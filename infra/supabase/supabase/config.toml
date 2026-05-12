@@ -1,0 +1,68 @@
+# Supabase CLI config for the TankLoop Eval project.
+#
+# This is NOT the TankLoop application Supabase config (see /supabase/config.toml
+# at the repo root for that one). This file owns the eval store — a separate
+# Supabase project that hosts persona / flow / run / finding rows + screenshot
+# Storage for the agentic UX evaluator.
+#
+# Hosted project ref: tceosllezmydpouvfuzf
+#
+# Local development:
+#   cd infra/supabase/eval
+#   supabase start         # boots a local stack on alternate ports
+#   supabase db reset      # applies migrations/ in order
+#
+# Hosted deploy:
+#   supabase link --project-ref tceosllezmydpouvfuzf
+#   supabase db push
+
+project_id = "tankloop-eval-local"
+
+[api]
+enabled = true
+# Offset ports from the app DB stack (54321) so both can run side-by-side.
+port = 64321
+schemas = ["public", "storage"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 64322
+shadow_port = 64320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+# Enabled because Phase 9 dashboard uses GitHub OAuth via Supabase Auth.
+# Phase 7 writes from the CLI use the service-role key and bypass auth.
+enabled = true
+site_url = "http://localhost:3001"
+additional_redirect_urls = ["http://localhost:3001/auth/callback"]
+
+[auth.external.github]
+enabled = true
+# Configured in the dashboard for the hosted project; placeholders for local.
+client_id = "env(SUPABASE_AUTH_GITHUB_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GITHUB_SECRET)"
+
+[studio]
+enabled = true
+port = 64323
+
+[realtime]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[inbucket]
+enabled = false
+
+[analytics]
+enabled = false

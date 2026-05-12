@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces — slate base with subtle warmth, no pure-black to keep depth. */
+  --color-bg: #08090d;
+  --color-bg-2: #0c0e14;
+  --color-panel: #11141c;
+  --color-panel-2: #161a24;
+  --color-border: #1d2230;
+  --color-border-strong: #2a3142;
+
+  /* Type. */
+  --color-text: #e7eaf2;
+  --color-text-muted: #8c93a6;
+  --color-text-faint: #5b637a;
+
+  /* Brand — emerald with violet secondary. The eval-dashboard's identity. */
+  --color-accent: #34d399;
+  --color-accent-soft: rgba(52, 211, 153, 0.16);
+  --color-accent-2: #a78bfa;
+  --color-accent-2-soft: rgba(167, 139, 250, 0.18);
+
+  /* Severity. */
+  --color-severity-critical: #f43f5e;
+  --color-severity-major: #fb923c;
+  --color-severity-minor: #facc15;
+  --color-severity-nit: #94a3b8;
+
+  /* Type ramps. Cleaner than vanilla Tailwind defaults. */
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-feature-settings:
+    "ss01",
+    "cv11",
+    "cv01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Subtle radial atmosphere — gives the flat dark page some sense of depth
+     without being noisy. */
+  background-image:
+    radial-gradient(at 20% -10%, rgba(52, 211, 153, 0.06) 0, transparent 45%),
+    radial-gradient(at 90% 0%, rgba(167, 139, 250, 0.05) 0, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Inputs + textareas inherit the font + sit on the slightly raised bg
+   so they don't visually disappear into the panel. */
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+/* Scrollbar polish — Webkit only, falls back to default everywhere else. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border: 3px solid var(--color-bg);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-strong);
+}
+
+/* Reusable utility classes — kept tiny; one-off Tailwind everywhere else. */
+.surface {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+.surface-raised {
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+.hairline {
+  border-color: var(--color-border);
+}
