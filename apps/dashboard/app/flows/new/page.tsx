@@ -5,6 +5,8 @@ import { FlowWizard } from "./flow-wizard";
 
 export const dynamic = "force-dynamic";
 
+export const metadata: import("next").Metadata = { title: "New flow" };
+
 export default function NewFlowPage() {
   return (
     <div className="max-w-3xl mx-auto">

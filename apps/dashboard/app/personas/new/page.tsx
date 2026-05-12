@@ -5,6 +5,8 @@ import { PersonaWizard } from "./persona-wizard";
 
 export const dynamic = "force-dynamic";
 
+export const metadata: import("next").Metadata = { title: "New persona" };
+
 export default function NewPersonaPage() {
   return (
     <div className="max-w-2xl mx-auto">

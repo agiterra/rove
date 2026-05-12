@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { createReadClient } from "../../../lib/supabase/server";
@@ -7,6 +8,15 @@ import { RunWalkButton, type PersonaOption } from "./run-walk-button";
 import { TrendChart } from "./trend-chart";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ flowId: string }>;
+}): Promise<Metadata> {
+  const { flowId } = await params;
+  return { title: decodeURIComponent(flowId) };
+}
 
 interface RunWithFindings {
   id: string;

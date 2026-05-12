@@ -6,6 +6,8 @@ import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
 
+export const metadata: import("next").Metadata = { title: "Runs" };
+
 interface PageProps {
   searchParams: Promise<{ p?: string }>;
 }

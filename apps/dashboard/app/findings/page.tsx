@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink, Image as ImageIcon } from "lucide-react";
 import { createReadClient, createServiceRoleSupabase } from "../../lib/supabase/server";
@@ -7,6 +8,8 @@ import { resolveProjectId } from "../../lib/project-context";
 import { FindingDrawer } from "./drawer";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Findings" };
 
 const SEVERITIES = ["critical", "major", "minor", "nit"] as const;
 

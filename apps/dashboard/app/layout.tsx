@@ -11,7 +11,10 @@ import { HeaderAuthorMenu, HeaderNav } from "../components/header-nav";
 import { ProjectSwitcher } from "../components/project-switcher";
 
 export const metadata: Metadata = {
-  title: "Rove",
+  title: {
+    template: "%s · Rove",
+    default: "Rove — Explore. Observe. Report.",
+  },
   description: "Rove — Explore. Observe. Report. Agentic UX evaluation for the agent-readable web.",
 };
 
@@ -32,12 +35,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen">
         <header className="sticky top-0 z-30 backdrop-blur-md bg-[var(--color-bg)]/75 border-b border-[var(--color-border)]">
           <div className="max-w-7xl mx-auto px-6 h-14 flex items-center gap-6">
-            <Link
-              href={signedIn ? "/runs" : "/signin"}
-              className="hover:opacity-90 transition-opacity"
-            >
-              <AppMark />
-            </Link>
+            {signedIn ? (
+              <Link href="/runs" className="hover:opacity-90 transition-opacity">
+                <AppMark />
+              </Link>
+            ) : (
+              // Unauth visitors saw the logo linked to /signin, which the
+              // agent flagged as agent.predictable_urls (self-loop on the
+              // sign-in page). Render the mark inert until there's a real
+              // home route to go to.
+              <span className="opacity-90">
+                <AppMark />
+              </span>
+            )}
             {signedIn ? <HeaderNav /> : null}
             <div className="ml-auto flex items-center gap-3 text-xs">
               {bypassActive ? (
