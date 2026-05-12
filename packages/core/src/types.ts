@@ -8,15 +8,28 @@ export type PersonaCategory =
   | "admin"
   | "mobile"
   | "accessibility"
+  | "agent"
   | "custom";
 
 export type PersonaExpertise = "novice" | "intermediate" | "expert";
+
+export type AgentRuntime =
+  | "claude_computer_use"
+  | "chatgpt_operator"
+  | "browser_use"
+  | "playwright_codegen";
 
 export interface PersonaConstraints {
   shortcuts_allowed: boolean;
   hovers_allowed: boolean;
   keyboard_navigation_only?: boolean;
   retries_per_step: number;
+  /**
+   * Agent personas only — which agent runtime this persona simulates.
+   * The walk prompt injects different "what an agent of this shape can
+   * actually do" guidance based on the runtime.
+   */
+  agent_runtime?: AgentRuntime;
 }
 
 export interface Persona {

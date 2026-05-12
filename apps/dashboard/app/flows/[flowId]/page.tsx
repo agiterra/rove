@@ -17,6 +17,7 @@ interface RunWithFindings {
 interface PersonaRow {
   id: string;
   label: string;
+  category: string;
 }
 interface FlowRow {
   id: string;
@@ -49,7 +50,7 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
       .eq("project_id", projectId)
       .order("started_at", { ascending: true })
       .limit(200),
-    supabase.from("personas").select("id, label").eq("project_id", projectId).order("id"),
+    supabase.from("personas").select("id, label, category").eq("project_id", projectId).order("id"),
   ]);
 
   if (runsRes.error) {
@@ -66,6 +67,7 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
   const personas: PersonaOption[] = ((personasRes.data ?? []) as PersonaRow[]).map((p) => ({
     id: p.id,
     label: `${p.id} — ${p.label}`,
+    category: p.category,
   }));
 
   const totals = { critical: 0, major: 0, minor: 0, nit: 0 };

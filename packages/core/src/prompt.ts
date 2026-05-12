@@ -120,11 +120,7 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `   meaningful affordances.`,
     `6. Reference the flow spec for what to expect at each step: ${flow.filePath}`,
     ``,
-    `UX evaluation rubric:`,
-    `- Nielsen heuristics (status visibility, real-world match, error prevention,`,
-    `  recognition over recall, consistency)`,
-    `- WCAG 2.2 AA basics (focus, target size, semantic roles, labels, contrast)`,
-    `- ISO 9241-110 (self-descriptiveness, suitability for the task)`,
+    persona.category === "agent" ? buildAgentRubric() : buildHumanRubric(),
     ``,
     `Severity scale:`,
     `- critical: blocks the flow goal entirely`,
@@ -182,4 +178,62 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
   lines.push(`Begin.`);
 
   return lines.join("\n");
+}
+
+/**
+ * Rubric for human personas — Nielsen / WCAG / ISO.
+ */
+function buildHumanRubric(): string {
+  return [
+    `UX evaluation rubric:`,
+    `- Nielsen heuristics (status visibility, real-world match, error prevention,`,
+    `  recognition over recall, consistency)`,
+    `- WCAG 2.2 AA basics (focus, target size, semantic roles, labels, contrast)`,
+    `- ISO 9241-110 (self-descriptiveness, suitability for the task)`,
+  ].join("\n");
+}
+
+/**
+ * Rubric for agent personas — agent-readability heuristics.
+ *
+ * Every heuristic id starts with `agent.` so the dashboard can split
+ * agent-readability findings from human-UX findings without parsing the
+ * description.
+ */
+function buildAgentRubric(): string {
+  return [
+    `Agent-readiness rubric — file each finding with one of these heuristic ids:`,
+    ``,
+    `- agent.semantic_html — interactive elements are real <button>/<a>/<input>,`,
+    `  not styled <div onClick>. Agents bind to roles, not pixels.`,
+    `- agent.stable_selectors — critical actions have stable identifiers`,
+    `  (id, data-testid, aria-label, role+name) the agent can target across`,
+    `  renders. Class-name selectors are unstable; flag their absence.`,
+    `- agent.accessibility_tree_completeness — everything visually meaningful`,
+    `  is present in the accessibility tree (no canvas-rendered text, no`,
+    `  aria-hidden on critical content, no images-of-text for labels).`,
+    `- agent.feedback_announced — success/error feedback updates the a11y`,
+    `  tree (role="status", aria-live, focus shift). Pure visual feedback`,
+    `  (toast that doesn't shift focus or announce) is invisible to agents.`,
+    `- agent.no_hover_only — no critical affordance requires a hover the`,
+    `  agent can't reliably perform.`,
+    `- agent.no_visual_only_state — state (selected/active/disabled/loading)`,
+    `  is communicated via aria-attributes + roles, not just color/icon.`,
+    `- agent.predictable_urls — important state is reflected in the URL so`,
+    `  the agent can deep-link, resume, share, and verify "did I land where`,
+    `  I expected?"`,
+    `- agent.titles_and_meta — <title> and meta descriptions actually`,
+    `  describe what the page is. Agents use these to verify navigation.`,
+    `- agent.captcha_friendly — no aggressive bot-detection (Cloudflare`,
+    `  challenge, hCaptcha, etc.) blocking legitimate agentic traffic.`,
+    `  Surface the issue; do NOT try to bypass.`,
+    `- agent.rate_limit_signaling — 429 responses carry Retry-After;`,
+    `  errors include machine-readable codes the agent can branch on.`,
+    ``,
+    `Severity for agent findings:`,
+    `- critical: the goal is unreachable for this agent runtime`,
+    `- major: requires a workaround (visual-only signal, brittle selector)`,
+    `- minor: friction (extra hop, ambiguous role name)`,
+    `- nit: cosmetic (missing meta description on a non-critical page)`,
+  ].join("\n");
 }

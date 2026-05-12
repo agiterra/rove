@@ -7,6 +7,7 @@ import { queueWalkAction } from "./run-walk-actions";
 export interface PersonaOption {
   id: string;
   label: string;
+  category: string;
 }
 
 export function RunWalkButton({ flowId, personas }: { flowId: string; personas: PersonaOption[] }) {
@@ -78,11 +79,24 @@ export function RunWalkButton({ flowId, personas }: { flowId: string; personas: 
             disabled={busy}
             className="rounded-md bg-[var(--color-bg)] border border-[var(--color-border)] px-2 py-1.5 text-sm font-mono"
           >
-            {personas.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
+            <optgroup label="🧑  Human personas">
+              {personas
+                .filter((p) => p.category !== "agent")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="🤖  Agent personas">
+              {personas
+                .filter((p) => p.category === "agent")
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+            </optgroup>
           </select>
           <input
             type="url"

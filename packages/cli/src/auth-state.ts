@@ -30,7 +30,14 @@ export async function ensureUserDataDir(role: AuthRole): Promise<string> {
 }
 
 export function roleForPersonaCategory(
-  category: "end-user" | "internal-user" | "admin" | "mobile" | "accessibility" | "custom",
+  category:
+    | "end-user"
+    | "internal-user"
+    | "admin"
+    | "mobile"
+    | "accessibility"
+    | "agent"
+    | "custom",
 ): AuthRole {
   switch (category) {
     case "admin":
@@ -40,6 +47,7 @@ export function roleForPersonaCategory(
     case "end-user":
     case "internal-user":
     case "accessibility":
+    case "agent":
     case "custom":
       return "dispatcher";
   }

@@ -130,6 +130,132 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       "You are setting up the workspace for your team. Walk through settings as if nothing has been configured yet. Flag any required field that lacks guidance, any setting whose effect is unclear, and any defaults that look dangerous (destructive, irreversible, or surprising).",
     isBuiltIn: true,
   },
+
+  // ── Generic human personas (project-agnostic) ────────────────────────────
+  {
+    id: "novice_end_user",
+    label: "Novice end user",
+    description: "First-week user. Sticks to obvious affordances; gives up after one bad click.",
+    category: "end-user",
+    expertise: "novice",
+    icon: "🌱",
+    constraints: {
+      shortcuts_allowed: false,
+      hovers_allowed: false,
+      retries_per_step: 1,
+    },
+    promptAddendum:
+      "You have used this app for less than a week. You click only obviously labeled buttons. Keyboard shortcuts and hover-only affordances are invisible to you. If something is not visible on the first look, treat it as undiscoverable and report it.",
+    isBuiltIn: true,
+  },
+  {
+    id: "power_end_user",
+    label: "Power end user",
+    description: "Daily user. Knows the keyboard shortcuts. Notices unnecessary clicks.",
+    category: "end-user",
+    expertise: "expert",
+    icon: "⚡️",
+    constraints: {
+      shortcuts_allowed: true,
+      hovers_allowed: true,
+      retries_per_step: 1,
+    },
+    promptAddendum:
+      "You use this app every day. Use keyboard shortcuts wherever possible. Submit forms with Enter. Use Tab navigation. Hover to reveal secondary affordances. Flag any unnecessary click, missing keyboard support, or interaction that costs you time.",
+    isBuiltIn: true,
+  },
+  {
+    id: "mobile_first_user",
+    label: "Mobile-first user",
+    description: "Phone, one thumb, glare. Touch-only, 44px targets, no hover, no keyboard.",
+    category: "mobile",
+    expertise: "intermediate",
+    icon: "📱",
+    constraints: {
+      shortcuts_allowed: false,
+      hovers_allowed: false,
+      retries_per_step: 2,
+    },
+    promptAddendum:
+      "You are operating from a phone with one thumb. Targets under 44px are too small — flag them. There are no hover states. Keyboard shortcuts are irrelevant. Be tolerant of fat-finger errors and report any UI that punishes them.",
+    isBuiltIn: true,
+  },
+  {
+    id: "keyboard_only_user",
+    label: "Keyboard-only user",
+    description: "No mouse. Tab/Shift-Tab/Enter/Space. Focus visibility matters.",
+    category: "accessibility",
+    expertise: "intermediate",
+    icon: "⌨️",
+    constraints: {
+      shortcuts_allowed: true,
+      hovers_allowed: false,
+      keyboard_navigation_only: true,
+      retries_per_step: 2,
+    },
+    promptAddendum:
+      "You navigate by keyboard only — Tab, Shift-Tab, Enter, Space, arrow keys. Every interactive element must be reachable, with a visible focus ring, and respond to the expected key. Flag focus traps, invisible focus rings, focus-order surprises, and any control that requires a mouse to operate.",
+    isBuiltIn: true,
+  },
+
+  // ── Agent personas (Phase D — agent-readability rubric) ──────────────────
+  //
+  // These walk the app AS IF they were a real agent runtime — surfacing
+  // findings about what an agent would actually struggle with. Findings
+  // here are about app-side affordances (semantic HTML, stable selectors,
+  // a11y tree completeness, hover-only critical actions, captcha walls)
+  // rather than human ergonomics.
+  {
+    id: "claude_browser_agent",
+    label: "Claude computer-use agent",
+    description: "Drives via accessibility tree + screenshots. No hover. No keyboard tricks.",
+    category: "agent",
+    expertise: "intermediate",
+    icon: "🤖",
+    constraints: {
+      shortcuts_allowed: false,
+      hovers_allowed: false,
+      retries_per_step: 2,
+      agent_runtime: "claude_computer_use",
+    },
+    promptAddendum:
+      "You are Claude operating via computer-use. You read the accessibility tree to find affordances; you do NOT scan visually. You cannot reliably hover. You cannot guess what 'the button next to the search' means without stable identifiers. You cannot solve CAPTCHAs. File findings on: missing roles/names, hover-only critical actions, state changes that don't update the a11y tree, missing or unstable selectors, anti-bot blocks that would stop a legitimate agent.",
+    isBuiltIn: true,
+  },
+  {
+    id: "chatgpt_browser_agent",
+    label: "ChatGPT Operator agent",
+    description: "Browser-using agent. Visual, instruction-following, brittle to layout drift.",
+    category: "agent",
+    expertise: "intermediate",
+    icon: "🌐",
+    constraints: {
+      shortcuts_allowed: false,
+      hovers_allowed: false,
+      retries_per_step: 2,
+      agent_runtime: "chatgpt_operator",
+    },
+    promptAddendum:
+      "You are ChatGPT Operator, browsing the page visually + via the DOM. You expect each step's action target to be unambiguous from the rendered page. Modal layering, off-screen elements, lazy-loaded content, and overlays that intercept clicks all trip you up. File findings on: unstable layouts, hidden-but-interactive elements, modals without a clear close action, anti-bot interstitials, and any flow that requires keyboard-only input.",
+    isBuiltIn: true,
+  },
+  {
+    id: "playwright_codegen_agent",
+    label: "Playwright codegen agent",
+    description: "An LLM authoring Playwright tests. Needs stable selectors + observable success.",
+    category: "agent",
+    expertise: "expert",
+    icon: "🧪",
+    constraints: {
+      shortcuts_allowed: true,
+      hovers_allowed: false,
+      retries_per_step: 1,
+      agent_runtime: "playwright_codegen",
+    },
+    promptAddendum:
+      "You are an LLM authoring a Playwright test for this flow. You need stable, unambiguous selectors — prefer role+name, data-testid, or aria-label. File findings on: critical actions without stable selectors, role/name ambiguity (multiple buttons named 'Save'), elements that only respond to native mouse events, and any action whose success isn't observable from the DOM (visual-only feedback).",
+    isBuiltIn: true,
+  },
 ];
 
 export function getBuiltInPersona(id: string): Persona | undefined {

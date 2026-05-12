@@ -17,6 +17,7 @@ export {
   findingSchema,
   findingScreenshotSchema,
   findingsPayloadSchema,
+  type AgentRuntime,
   type Finding,
   type FindingScreenshot,
   type FindingsPayload,

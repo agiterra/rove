@@ -17,6 +17,7 @@ interface FindingRow {
   title: string;
   description: string;
   status: string;
+  heuristic: string | null;
   github_issue_url: string | null;
   first_seen_at: string;
   last_seen_at: string;
@@ -31,6 +32,8 @@ interface SearchParams {
   flow?: string;
   run?: string;
   persona?: string;
+  /** 'agent' | 'human' — splits the list by heuristic prefix `agent.*`. */
+  lens?: string;
   open?: string;
   p?: string;
 }
@@ -47,7 +50,7 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
   let q = supabase
     .from("findings")
     .select(
-      "id, run_id, severity, title, description, status, github_issue_url, first_seen_at, last_seen_at, content_hash, runs(flow_id, persona_id, branch), finding_screenshots(id, storage_key, caption)",
+      "id, run_id, severity, title, description, status, heuristic, github_issue_url, first_seen_at, last_seen_at, content_hash, runs(flow_id, persona_id, branch), finding_screenshots(id, storage_key, caption)",
     )
     .eq("project_id", projectId)
     .order("last_seen_at", { ascending: false })
@@ -58,6 +61,11 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
   }
   if (searchParams.status) q = q.eq("status", searchParams.status);
   if (searchParams.run) q = q.eq("run_id", searchParams.run);
+  if (searchParams.lens === "agent") {
+    q = q.like("heuristic", "agent.%");
+  } else if (searchParams.lens === "human") {
+    q = q.or("heuristic.is.null,heuristic.not.like.agent.%");
+  }
 
   const { data, error } = await q;
   if (error) return <ErrorState message={error.message} />;
@@ -140,8 +148,21 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
                         href={mergeSearch(searchParams, { open: f.id })}
                         className="font-medium text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors line-clamp-2"
                       >
+                        {f.heuristic?.startsWith("agent.") ? (
+                          <span
+                            className="mr-1.5 text-[10px] align-middle"
+                            title="Agent-readability finding"
+                          >
+                            🤖
+                          </span>
+                        ) : null}
                         {f.title}
                       </Link>
+                      {f.heuristic ? (
+                        <div className="mt-0.5 text-[10px] font-mono text-[var(--color-text-faint)]">
+                          {f.heuristic}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-5 py-3.5 text-[11px] font-mono">
                       <div className="text-[var(--color-text-muted)]">{f.runs?.flow_id ?? "—"}</div>
@@ -227,6 +248,17 @@ function Filters({ current }: { current: SearchParams }) {
         ))}
         <FilterChip href={link("status", undefined)} active={!current.status}>
           all
+        </FilterChip>
+      </FilterGroup>
+      <FilterGroup label="lens" value={current.lens}>
+        <FilterChip href={link("lens", "human")} active={current.lens === "human"}>
+          🧑 human
+        </FilterChip>
+        <FilterChip href={link("lens", "agent")} active={current.lens === "agent"}>
+          🤖 agent
+        </FilterChip>
+        <FilterChip href={link("lens", undefined)} active={!current.lens}>
+          both
         </FilterChip>
       </FilterGroup>
       {current.run ? (
