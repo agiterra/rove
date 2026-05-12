@@ -10,15 +10,19 @@ Read this if you're a teammate adding Rove to a new project (or your second, fif
 
 You need a GitHub PAT with `read:packages` so npm can pull `@agiterra/rove-*` from GitHub Packages.
 
-Two paths:
+Two paths — **(a) is faster if you already use `gh`**:
 
-**a) Use your existing `gh` CLI auth.** If you already use `gh`:
+**a) Grant `read:packages` to your existing `gh` CLI token, then use it.**
 
 ```bash
+# One-time scope grant — opens a browser, takes 10 seconds:
+gh auth refresh -s read:packages
+
+# Then wire it into npm:
 echo "//npm.pkg.github.com/:_authToken=$(gh auth token)" >> ~/.npmrc
 ```
 
-(Your `gh` token already has `read:packages` if you authed with the default scopes.)
+(Default `gh` scopes do NOT include `read:packages`; the refresh step is required.)
 
 **b) Create a fresh PAT.** https://github.com/settings/tokens/new?scopes=read:packages → name it `rove-install` → 90-day expiry → generate → copy → then:
 
