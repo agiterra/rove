@@ -1,36 +1,42 @@
 /**
- * Resolves the eval-store Supabase config from the environment.
+ * Resolves the Rove Supabase config from the environment.
  *
  * The CLI writes from a trusted developer machine; we use the service-role
  * key (which bypasses RLS). The key MUST NOT be checked in. Sources, in
  * order of precedence:
  *
- *   1. EVAL_SUPABASE_URL + EVAL_SUPABASE_SERVICE_ROLE_KEY  ← eval-specific
- *   2. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY            ← shared
+ *   1. ROVE_SUPABASE_URL + ROVE_SUPABASE_SERVICE_ROLE_KEY  ← canonical
+ *   2. EVAL_SUPABASE_URL + EVAL_SUPABASE_SERVICE_ROLE_KEY  ← legacy alias
+ *      (tankloop's pre-rename .env.eval; remove once tankloop fully
+ *      migrates off the old daemon)
  *
- * The eval-specific vars exist because the consuming project's app DB (if any) and the Rove store
- * are different Supabase projects. Setting EVAL_* lets you run a walk
- * without trampling the app's SUPABASE_URL env var (which apps/web reads).
+ * The Rove-specific vars exist so the CLI's writes don't trample a
+ * consuming project's own SUPABASE_URL (which apps/web typically reads).
  */
-export interface EvalSupabaseEnv {
+export interface RoveSupabaseEnv {
   url: string;
   serviceRoleKey: string;
 }
 
-export function readEvalSupabaseEnv(): EvalSupabaseEnv | null {
-  const url = process.env.EVAL_SUPABASE_URL ?? process.env.SUPABASE_URL;
+export function readRoveSupabaseEnv(): RoveSupabaseEnv | null {
+  const url = process.env.ROVE_SUPABASE_URL ?? process.env.EVAL_SUPABASE_URL;
   const serviceRoleKey =
-    process.env.EVAL_SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.ROVE_SUPABASE_SERVICE_ROLE_KEY ?? process.env.EVAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) return null;
   return { url, serviceRoleKey };
 }
 
-export function requireEvalSupabaseEnv(): EvalSupabaseEnv {
-  const env = readEvalSupabaseEnv();
+export function requireRoveSupabaseEnv(): RoveSupabaseEnv {
+  const env = readRoveSupabaseEnv();
   if (env) return env;
   throw new Error(
-    "Supabase env vars are not set. Provide EVAL_SUPABASE_URL and " +
-      "EVAL_SUPABASE_SERVICE_ROLE_KEY (or the unprefixed SUPABASE_* equivalents). " +
-      "See infra/supabase/eval/README.md.",
+    "Supabase env vars are not set. Provide ROVE_SUPABASE_URL and " +
+      "ROVE_SUPABASE_SERVICE_ROLE_KEY in your .env.rove. See TEAM-SETUP.md.",
   );
 }
+
+// Back-compat exports — every callsite in the CLI imports the old names.
+// Migrating to `requireRoveSupabaseEnv` is a separate sweep.
+export const readEvalSupabaseEnv = readRoveSupabaseEnv;
+export const requireEvalSupabaseEnv = requireRoveSupabaseEnv;
+export type EvalSupabaseEnv = RoveSupabaseEnv;
