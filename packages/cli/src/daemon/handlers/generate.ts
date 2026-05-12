@@ -69,8 +69,8 @@ async function spawnClaudeForJson(
   systemPrompt: string,
   input: GenerateInput,
 ): Promise<unknown> {
-  const claudeBin = process.env.EVAL_CLAUDE_BIN ?? "claude";
-  const model = input.modelOverride ?? process.env.EVAL_DAEMON_MODEL ?? "haiku";
+  const claudeBin = process.env.ROVE_CLAUDE_BIN ?? process.env.EVAL_CLAUDE_BIN ?? "claude";
+  const model = input.modelOverride ?? process.env.ROVE_DAEMON_MODEL ?? process.env.EVAL_DAEMON_MODEL ?? "haiku";
   const stdout = await spawnAndCapture(
     claudeBin,
     [

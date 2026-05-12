@@ -32,7 +32,7 @@ export async function runWalk(input: unknown): Promise<WalkResult> {
   // `rove` on $PATH. process.argv[1] is the entry script (the
   // daemon's own bin/rove.js), so we spawn:
   //   node /path/to/bin/rove.js run …
-  const binJs = process.env.EVAL_TANKLOOP_BIN ?? process.argv[1];
+  const binJs = process.env.ROVE_CLI_BIN ?? process.env.EVAL_TANKLOOP_BIN ?? process.argv[1];
   const args = [
     binJs,
     "run",

@@ -19,7 +19,7 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
   const claimMode =
     opts.claimMode ??
     ((process.env.ROVE_DAEMON_CLAIM_MODE === "requested-only" ||
-    process.env.EVAL_DAEMON_CLAIM_MODE === "requested-only"
+    (process.env.ROVE_DAEMON_CLAIM_MODE ?? process.env.EVAL_DAEMON_CLAIM_MODE) === "requested-only"
       ? "requested-only"
       : "all") as "all" | "requested-only");
 

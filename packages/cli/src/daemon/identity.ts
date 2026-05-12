@@ -19,10 +19,10 @@ export interface DaemonIdentity {
 export async function resolveDaemonIdentity(
   supabase: SupabaseClient,
 ): Promise<DaemonIdentity> {
-  const githubHandle = process.env.EVAL_DAEMON_GITHUB_HANDLE;
+  const githubHandle = process.env.ROVE_DAEMON_GITHUB_HANDLE ?? process.env.EVAL_DAEMON_GITHUB_HANDLE;
   if (!githubHandle) {
     throw new Error(
-      "EVAL_DAEMON_GITHUB_HANDLE is required. Set it to your GitHub handle so the daemon knows which team_members row to use.",
+      "ROVE_DAEMON_GITHUB_HANDLE is required. Set it to your GitHub handle so the daemon knows which team_members row to use.",
     );
   }
 
@@ -43,7 +43,7 @@ export async function resolveDaemonIdentity(
   return {
     userId: data.supabase_user_id,
     githubHandle,
-    daemonName: process.env.EVAL_DAEMON_NAME ?? `${githubHandle}-${hostname()}`,
+    daemonName: process.env.ROVE_DAEMON_NAME ?? process.env.EVAL_DAEMON_NAME ?? `${githubHandle}-${hostname()}`,
     hostname: hostname(),
   };
 }

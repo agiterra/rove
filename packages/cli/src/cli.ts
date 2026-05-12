@@ -86,7 +86,7 @@ program
   .option("--notes <text>", "Per-run notes appended to the prompt")
   .option(
     "--target-url <url>",
-    "Origin to walk (defaults to http://localhost:3000 / EVAL_TARGET_URL env)",
+    "Origin to walk (defaults to http://localhost:3000 / ROVE_TARGET_URL env)",
   )
   .option("--dry-run", "Print the prompt and exit without dispatching", false)
   .option("--max-budget-usd <n>", "Dispatcher budget cap in dollars", parseFloat, 5)

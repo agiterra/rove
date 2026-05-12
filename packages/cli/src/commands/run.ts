@@ -77,7 +77,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     workspacePath: ws.rootDir,
     authenticated: Boolean(authProfilePath),
     screenshotsDir,
-    targetUrl: opts.targetUrl ?? process.env.EVAL_TARGET_URL,
+    targetUrl: opts.targetUrl ?? process.env.ROVE_TARGET_URL ?? process.env.EVAL_TARGET_URL,
   });
 
   if (opts.dryRun) {
