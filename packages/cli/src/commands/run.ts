@@ -65,8 +65,22 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     }
   }
 
+  // Agent personas (and, when shipped, change-review walks) run in a
+  // clean-room: fresh cwd, scrubbed env, no source-read MCP tools. This is
+  // the black-box guarantee that makes their findings credible. Human
+  // personas keep the shared cwd so they can resolve flow-spec paths.
+  const isolation: "clean-room" | "shared" =
+    persona.category === "agent" ? "clean-room" : "shared";
+  const isolated = isolation === "clean-room";
+
+  // Load the config once so its defaultTargetUrl participates in the target
+  // resolution precedence below (and projectId is reused at sink-create time).
+  const { config } = await loadRoveConfig(ws.rootDir);
+
   const runId = randomUUID();
-  const screenshotsDir = join(ws.reportsDir, "agentic-walks", runId, "screenshots");
+  const runDir = join(ws.reportsDir, "agentic-walks", runId);
+  const screenshotsDir = join(runDir, "screenshots");
+  const trajectoryLogPath = join(runDir, "trajectory.jsonl");
   await mkdir(screenshotsDir, { recursive: true });
 
   const prompt = buildWalkPrompt({
@@ -77,7 +91,12 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     workspacePath: ws.rootDir,
     authenticated: Boolean(authProfilePath),
     screenshotsDir,
-    targetUrl: opts.targetUrl ?? process.env.ROVE_TARGET_URL ?? process.env.EVAL_TARGET_URL,
+    targetUrl:
+      opts.targetUrl ??
+      process.env.ROVE_TARGET_URL ??
+      process.env.EVAL_TARGET_URL ??
+      config.defaultTargetUrl,
+    isolated,
   });
 
   if (opts.dryRun) {
@@ -87,7 +106,10 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
 
   const { commitSha, branch } = readGitContext(ws.rootDir);
 
-  const dispatcher = createDispatcher(opts.dispatcher, { userDataDirPath: authProfilePath });
+  const dispatcher = createDispatcher(opts.dispatcher, {
+    userDataDirPath: authProfilePath,
+    isolation,
+  });
   const preflight = await dispatcher.preflight();
   if (!preflight.ok) {
     console.error("Dispatcher preflight failed:");
@@ -108,6 +130,8 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     maxBudgetUsd: opts.maxBudgetUsd,
     timeoutSeconds: opts.timeoutSeconds,
     cwd: ws.rootDir,
+    trajectoryLogPath,
+    screenshotsDir,
   });
   const finishedAt = new Date();
 
@@ -126,7 +150,6 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     return 1;
   }
 
-  const { config } = await loadRoveConfig(ws.rootDir);
   const sinks = createSinks(opts.sinks, ws, config.projectId, {
     ghMinSeverity: opts.ghMinSeverity,
     ghDryRun: opts.ghDryRun,
@@ -139,6 +162,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     finishedAt,
     rawStdout: result.stdout,
     screenshotsDir,
+    trajectoryLogPath,
     commitSha,
     branch,
   });

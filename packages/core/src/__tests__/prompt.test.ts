@@ -82,6 +82,33 @@ describe("buildWalkPrompt", () => {
     expect(out).not.toMatch(/tracker_create/);
   });
 
+  describe("isolated mode (clean-room walks)", () => {
+    it("emits the no-prior-knowledge directive and omits project paths", () => {
+      const out = buildWalkPrompt({
+        flow: FLOW,
+        goal: FLOW.goal,
+        persona: NOVICE,
+        workspacePath: "/repo",
+        isolated: true,
+      });
+      expect(out).toContain("NO prior knowledge of this app");
+      expect(out).not.toContain(FLOW.filePath);
+      expect(out).not.toContain("Workspace root");
+    });
+
+    it("keeps project-path references when isolated is false (default)", () => {
+      const out = buildWalkPrompt({
+        flow: FLOW,
+        goal: FLOW.goal,
+        persona: NOVICE,
+        workspacePath: "/repo",
+      });
+      expect(out).toContain(FLOW.filePath);
+      expect(out).toContain("Workspace root");
+      expect(out).not.toContain("NO prior knowledge of this app");
+    });
+  });
+
   it("appends per-run notes when provided", () => {
     const out = buildWalkPrompt({
       flow: FLOW,

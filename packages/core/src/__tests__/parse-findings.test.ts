@@ -102,6 +102,82 @@ describe("parseFindings", () => {
     expect(result.data.findings[0].id).toBe("finding-1");
   });
 
+  it("parses a payload with reflection.goal_reached and exposes the boolean", () => {
+    const payload = { ...VALID_PAYLOAD, reflection: { goal_reached: false } };
+    const result = parseFindings(wrap(payload));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.reflection?.goal_reached).toBe(false);
+  });
+
+  it("accepts a payload without reflection (pre-rollout walks)", () => {
+    const result = parseFindings(wrap(VALID_PAYLOAD));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.reflection).toBeUndefined();
+  });
+
+  it("parses a full payload with plan, surprises, and extended reflection", () => {
+    const payload = {
+      ...VALID_PAYLOAD,
+      plan: {
+        expected_path: [
+          { step: 1, description: "Click 'New job'", expected_affordance: "button name='New job'" },
+          { step: 2, description: "Pick a property" },
+        ],
+        expected_step_count: 4,
+        expected_minutes: 2,
+        biggest_worry: "Property picker may not search by partial name.",
+        authored_before_browser_open: true as const,
+      },
+      surprises: [
+        {
+          kind: "affordance_missing" as const,
+          step_index: 1,
+          expected: "Primary CTA visible",
+          observed: "Hidden behind a kebab",
+          recovered: true,
+          recovery_cost_steps: 2,
+        },
+      ],
+      reflection: {
+        goal_reached: true,
+        actual_step_count: 7,
+        largest_expectation_gap: "Discovery of the CTA took four clicks.",
+        confidence_persona_would_succeed: 0.55,
+      },
+    };
+    const result = parseFindings(wrap(payload));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.plan?.expected_step_count).toBe(4);
+    expect(result.data.surprises).toHaveLength(1);
+    expect(result.data.surprises[0].kind).toBe("affordance_missing");
+    expect(result.data.reflection?.confidence_persona_would_succeed).toBe(0.55);
+  });
+
+  it("rejects a plan whose authored_before_browser_open is false", () => {
+    const payload = {
+      ...VALID_PAYLOAD,
+      plan: {
+        expected_path: [{ step: 1, description: "Click X" }],
+        expected_step_count: 1,
+        authored_before_browser_open: false,
+      },
+    };
+    const result = parseFindings(wrap(payload));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("schema_mismatch");
+  });
+
+  it("defaults surprises to empty array when omitted", () => {
+    const result = parseFindings(wrap(VALID_PAYLOAD));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.surprises).toEqual([]);
+  });
+
   it("parses the real Phase 0 spike transcript shape", () => {
     // Mirrors the structure of /tmp/walk-transcript.txt produced by the spike.
     const payload = {

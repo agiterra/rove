@@ -88,14 +88,79 @@ export const findingSchema = z.object({
     .transform((arr) => arr.map((entry) => (typeof entry === "string" ? { path: entry } : entry))),
 });
 
+export const walkPlanStepSchema = z.object({
+  step: z.number().int().nonnegative(),
+  description: z.string().min(1),
+  expected_affordance: z.string().optional(),
+});
+
+export const walkPlanSchema = z.object({
+  expected_path: z.array(walkPlanStepSchema).min(1),
+  expected_step_count: z.number().int().positive(),
+  expected_minutes: z.number().positive().optional(),
+  biggest_worry: z.string().optional(),
+  authored_before_browser_open: z.literal(true),
+});
+
+export const SURPRISE_KINDS = [
+  "unexpected_detour",
+  "affordance_missing",
+  "ambiguous_label",
+  "hesitation",
+  "recovery",
+  "dead_end",
+  "expectation_mismatch",
+] as const;
+export type SurpriseKind = (typeof SURPRISE_KINDS)[number];
+
+export const surpriseSchema = z.object({
+  kind: z.enum(SURPRISE_KINDS),
+  step_index: z.number().int().nonnegative(),
+  expected: z.string().min(1),
+  observed: z.string().min(1),
+  recovered: z.boolean(),
+  recovery_cost_steps: z.number().int().nonnegative().optional(),
+});
+
+export const reflectionSchema = z.object({
+  /**
+   * Did the persona accomplish the flow's stated goal?
+   *
+   * Asked of the agent at the end of every walk. The single most diagnostic
+   * signal Rove produces: `goal_reached=false` with `findings.length === 0`
+   * is the navigation-maze signature — every page worked, the user never
+   * arrived. Optional during the alpha rollout window so pre-existing walks
+   * don't fail schema validation; the prompt unconditionally requests it.
+   */
+  goal_reached: z.boolean(),
+  /** Actual number of meaningful steps the walk consumed. */
+  actual_step_count: z.number().int().nonnegative().optional(),
+  /** One-sentence callout of the biggest plan-vs-actual divergence. */
+  largest_expectation_gap: z.string().optional(),
+  /**
+   * Adversarially-framed confidence: "find the reasons a different user of
+   * this persona would fail at this flow, then state how confident you are
+   * one would succeed." Per the calibration paper, this phrasing yields a
+   * usable signal where naive "rate your confidence" does not.
+   */
+  confidence_persona_would_succeed: z.number().min(0).max(1).optional(),
+});
+
 export const findingsPayloadSchema = z.object({
   flow_id: z.string().min(1),
   persona_id: z.string().min(1),
   walked_url: z.string().optional(),
   summary: z.string().optional(),
   findings: z.array(findingSchema),
+  plan: walkPlanSchema.optional(),
+  surprises: z.array(surpriseSchema).default([]),
+  reflection: reflectionSchema.optional(),
 });
 
 export type FindingScreenshot = z.infer<typeof findingScreenshotSchema>;
 export type Finding = z.infer<typeof findingSchema>;
+export type WalkPlanStep = z.infer<typeof walkPlanStepSchema>;
+export type WalkPlan = z.infer<typeof walkPlanSchema>;
+export type Surprise = z.infer<typeof surpriseSchema>;
+export type Reflection = z.infer<typeof reflectionSchema>;
 export type FindingsPayload = z.infer<typeof findingsPayloadSchema>;

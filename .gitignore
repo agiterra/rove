@@ -12,6 +12,9 @@ build/
 .env.rove
 .env.eval
 
+# Local walk reports (markdown sink output, screenshots, trajectory logs).
+.rove/
+
 .DS_Store
 *.log
 .idea/

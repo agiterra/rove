@@ -40,6 +40,12 @@ export interface SinkInput {
    */
   screenshotsDir: string;
   /**
+   * Optional absolute path to the per-run MCP-proxy JSONL trajectory log.
+   * When present, sinks that care (currently SupabaseSink) parse it to
+   * populate run_steps + runs.metrics. Missing file → "no trajectory."
+   */
+  trajectoryLogPath?: string;
+  /**
    * Git commit SHA at run time, if discoverable. Sinks that pin findings to
    * a code revision (Supabase) use this; sinks that don't (Markdown) ignore it.
    */

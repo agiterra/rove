@@ -15,13 +15,18 @@ export async function generateMetadata({
   params: Promise<{ flowId: string }>;
 }): Promise<Metadata> {
   const { flowId } = await params;
-  return { title: decodeURIComponent(flowId) };
+  const decoded = decodeURIComponent(flowId);
+  return {
+    title: decoded,
+    description: `Review Rove walk history and findings trend for ${decoded}.`,
+  };
 }
 
 interface RunWithFindings {
   id: string;
   started_at: string;
   status: string;
+  goal_reached: boolean | null;
   findings: { severity: string }[];
 }
 interface PersonaRow {
@@ -55,7 +60,7 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
       .maybeSingle(),
     supabase
       .from("runs")
-      .select("id, started_at, status, findings(severity)")
+      .select("id, started_at, status, goal_reached, findings(severity)")
       .eq("flow_id", decoded)
       .eq("project_id", projectId)
       .order("started_at", { ascending: true })
@@ -87,6 +92,19 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
     }
   }
   const totalFindings = totals.critical + totals.major + totals.minor + totals.nit;
+
+  const goalRuns = runs.filter((r) => r.goal_reached !== null);
+  const goalsReached = goalRuns.filter((r) => r.goal_reached === true).length;
+  const goalsTotal = goalRuns.length;
+  const goalPct = goalsTotal > 0 ? Math.round((goalsReached / goalsTotal) * 100) : null;
+  const goalColor =
+    goalPct === null
+      ? undefined
+      : goalPct >= 80
+        ? "var(--color-accent)"
+        : goalPct >= 50
+          ? "var(--color-severity-major)"
+          : "var(--color-severity-critical)";
 
   const series = runs.map((r) => {
     const counts = { critical: 0, major: 0, minor: 0, nit: 0 };
@@ -133,7 +151,13 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
         </div>
 
         {/* Stat strip */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <GoalsReachedStat
+            reached={goalsReached}
+            total={goalsTotal}
+            pct={goalPct}
+            color={goalColor}
+          />
           <Stat label="runs" value={runs.length} />
           <Stat label="findings" value={totalFindings} />
           <Stat label="critical" value={totals.critical} color="var(--color-severity-critical)" />
@@ -173,6 +197,49 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
       >
         {value}
       </div>
+    </div>
+  );
+}
+
+function GoalsReachedStat({
+  reached,
+  total,
+  pct,
+  color,
+}: {
+  reached: number;
+  total: number;
+  pct: number | null;
+  color: string | undefined;
+}) {
+  return (
+    <div
+      className="rounded-lg bg-[var(--color-bg-2)]/60 border border-[var(--color-border)] px-3 py-2.5"
+      title={
+        total === 0
+          ? "No walks have recorded goal_reached yet."
+          : `${reached} of ${total} walks reached the flow goal.`
+      }
+    >
+      <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-faint)]">
+        goals reached
+      </div>
+      {total === 0 ? (
+        <div className="mt-0.5 text-xl font-semibold tabular-nums text-[var(--color-text-faint)]">
+          —
+        </div>
+      ) : (
+        <div
+          className="mt-0.5 flex items-baseline gap-1.5 tabular-nums"
+          style={color ? { color } : undefined}
+        >
+          <span className="text-xl font-semibold">
+            {reached}
+            <span className="text-[var(--color-text-faint)]">/{total}</span>
+          </span>
+          <span className="text-[11px] text-[var(--color-text-muted)]">{pct}%</span>
+        </div>
+      )}
     </div>
   );
 }

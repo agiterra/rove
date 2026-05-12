@@ -14,9 +14,14 @@ export {
 } from "./parse-findings.js";
 export {
   FINDING_SEVERITIES,
+  SURPRISE_KINDS,
   findingSchema,
   findingScreenshotSchema,
   findingsPayloadSchema,
+  reflectionSchema,
+  surpriseSchema,
+  walkPlanSchema,
+  walkPlanStepSchema,
   type AgentRuntime,
   type Finding,
   type FindingScreenshot,
@@ -27,6 +32,11 @@ export {
   type PersonaCategory,
   type PersonaConstraints,
   type PersonaExpertise,
+  type Reflection,
+  type Surprise,
+  type SurpriseKind,
+  type WalkPlan,
+  type WalkPlanStep,
 } from "./types.js";
 export type {
   DispatcherAdapter,

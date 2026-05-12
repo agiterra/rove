@@ -84,6 +84,13 @@ export class SupabaseStore {
     summary?: string;
     status: "completed" | "failed";
     exitCode?: number;
+    goalReached?: boolean;
+    plan?: unknown;
+    surprises?: unknown;
+    predictedStepCount?: number;
+    actualStepCount?: number;
+    largestExpectationGap?: string;
+    personaSuccessConfidence?: number;
   }): Promise<void> {
     const { error } = await this.db
       .from("runs")
@@ -93,6 +100,13 @@ export class SupabaseStore {
         summary: input.summary ?? null,
         status: input.status,
         exit_code: input.exitCode ?? null,
+        goal_reached: input.goalReached ?? null,
+        plan: input.plan ?? null,
+        surprises: input.surprises ?? null,
+        predicted_step_count: input.predictedStepCount ?? null,
+        actual_step_count: input.actualStepCount ?? null,
+        largest_expectation_gap: input.largestExpectationGap ?? null,
+        persona_success_confidence: input.personaSuccessConfidence ?? null,
       })
       .eq("id", input.runId);
     if (error) throw new Error(`completeRun(${input.runId}): ${error.message}`);
@@ -179,6 +193,47 @@ export class SupabaseStore {
     }
     if (!data) return;
     await this.setFindingGithubUrl(data.id, url);
+  }
+
+  /**
+   * Persist parsed MCP-proxy trajectory rows + the aggregate metrics roll-up.
+   * Inserted as a batch; runs.metrics is patched in the same call.
+   */
+  async writeTrajectory(input: {
+    runId: string;
+    steps: Array<{
+      step_index: number;
+      direction: "result" | "error";
+      tool_name: string;
+      args: unknown;
+      result_summary: string | null;
+      aria_snapshot: string | null;
+      url_after: string | null;
+      duration_ms: number;
+    }>;
+    metrics: unknown;
+  }): Promise<void> {
+    if (input.steps.length > 0) {
+      const rows = input.steps.map((s) => ({
+        run_id: input.runId,
+        project_id: this.projectId,
+        step_index: s.step_index,
+        direction: s.direction,
+        tool_name: s.tool_name,
+        args: s.args ?? null,
+        result_summary: s.result_summary,
+        aria_snapshot: s.aria_snapshot,
+        url_after: s.url_after,
+        duration_ms: s.duration_ms,
+      }));
+      const { error } = await this.db.from("run_steps").insert(rows);
+      if (error) throw new Error(`writeTrajectory(steps): ${error.message}`);
+    }
+    const { error: metricsErr } = await this.db
+      .from("runs")
+      .update({ metrics: input.metrics })
+      .eq("id", input.runId);
+    if (metricsErr) throw new Error(`writeTrajectory(metrics): ${metricsErr.message}`);
   }
 
   /** Sync-only: upsert a project persona with its YAML SHA. */

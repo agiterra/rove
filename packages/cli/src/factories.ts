@@ -31,6 +31,13 @@ export const DEFAULT_SINKS: SinkId[] = computeDefaultSinks();
 export interface DispatcherFactoryOptions {
   /** Path to a persistent Chromium profile (`--user-data-dir`) to hand to MCP. */
   userDataDirPath?: string;
+  /**
+   * `clean-room` for agent and change-review walks — fresh cwd, scrubbed env,
+   * strict MCP config so the agent has no source-read access. `shared`
+   * (default) preserves the operator's cwd and full env for human-persona
+   * walks where some project context is acceptable.
+   */
+  isolation?: "clean-room" | "shared";
 }
 
 export function createDispatcher(
@@ -39,7 +46,10 @@ export function createDispatcher(
 ): DispatcherAdapter {
   switch (id) {
     case "claude-code":
-      return new ClaudeCodeCliDispatcher({ userDataDirPath: opts.userDataDirPath });
+      return new ClaudeCodeCliDispatcher({
+        userDataDirPath: opts.userDataDirPath,
+        isolation: opts.isolation,
+      });
     case "codex":
       // Codex doesn't yet have user-data-dir injection — the codex MCP setup
       // is the user's call.

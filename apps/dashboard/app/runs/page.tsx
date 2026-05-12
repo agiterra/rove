@@ -6,7 +6,10 @@ import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: import("next").Metadata = { title: "Runs" };
+export const metadata: import("next").Metadata = {
+  title: "Runs",
+  description: "Review recent Rove walks, statuses, commits, and finding counts.",
+};
 
 interface PageProps {
   searchParams: Promise<{ p?: string }>;
@@ -23,6 +26,7 @@ interface RunRow {
   started_at: string;
   finished_at: string | null;
   initiator_label: string | null;
+  goal_reached: boolean | null;
   findings: { count: number }[];
 }
 
@@ -33,7 +37,7 @@ export default async function RunsPage({ searchParams }: PageProps) {
   const { data, error } = await supabase
     .from("runs")
     .select(
-      "id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, findings(count)",
+      "id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, goal_reached, findings(count)",
     )
     .eq("project_id", projectId)
     .order("started_at", { ascending: false })
@@ -71,6 +75,7 @@ export default async function RunsPage({ searchParams }: PageProps) {
                 <th className="px-5 py-3 font-medium">Flow / persona</th>
                 <th className="px-5 py-3 font-medium">By</th>
                 <th className="px-5 py-3 font-medium">Branch · SHA</th>
+                <th className="px-5 py-3 font-medium text-center">Goal</th>
                 <th className="px-5 py-3 font-medium text-right">Findings</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium text-right">When</th>
@@ -83,7 +88,7 @@ export default async function RunsPage({ searchParams }: PageProps) {
                   <tr key={r.id} className="hover:bg-[var(--color-panel-2)]/60 transition-colors">
                     <td className="px-5 py-3.5">
                       <Link
-                        href={`/flows/${encodeURIComponent(r.flow_id)}`}
+                        href={`/runs/${r.id}`}
                         className="font-mono text-[13px] text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors"
                       >
                         {r.flow_id}
@@ -99,6 +104,9 @@ export default async function RunsPage({ searchParams }: PageProps) {
                       {r.branch ?? "—"}
                       <span className="mx-1.5">·</span>
                       {shortSha(r.commit_sha)}
+                    </td>
+                    <td className="px-5 py-3.5 text-center">
+                      <GoalGlyph value={r.goal_reached} />
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <Link
@@ -122,6 +130,37 @@ export default async function RunsPage({ searchParams }: PageProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function GoalGlyph({ value }: { value: boolean | null }) {
+  if (value === true) {
+    return (
+      <span
+        title="Goal reached"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-300 text-[12px] font-bold border border-emerald-500/30"
+      >
+        ✓
+      </span>
+    );
+  }
+  if (value === false) {
+    return (
+      <span
+        title="Goal not reached"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-rose-500/10 text-rose-300 text-[12px] font-bold border border-rose-500/30"
+      >
+        ✗
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Pre-rollout walk — goal_reached not captured"
+      className="text-[var(--color-text-faint)] text-xs"
+    >
+      —
+    </span>
   );
 }
 

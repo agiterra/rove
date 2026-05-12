@@ -30,6 +30,20 @@ export interface DispatcherInput {
   timeoutSeconds?: number;
   /** Optional cwd override; defaults to process.cwd(). */
   cwd?: string;
+  /**
+   * Per-walk JSONL log path for the MCP-proxy. When set, the dispatcher
+   * configures its MCP server to route through the proxy so every tool call
+   * is teed to this file. Sinks read it after the walk to derive trajectory
+   * metrics + populate run_steps.
+   */
+  trajectoryLogPath?: string;
+  /**
+   * Per-walk screenshots dir. The dispatcher passes it to the underlying
+   * MCP server as `--output-dir <path>` so `browser_take_screenshot` calls
+   * land in the run's expected location instead of the operator's default
+   * (~/Downloads, the CWD, etc.).
+   */
+  screenshotsDir?: string;
 }
 
 export interface DispatcherResult {

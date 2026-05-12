@@ -12,6 +12,7 @@ import {
 import { getSupabaseClient } from "../supabase/client.js";
 import { computeContentHash } from "../supabase/content-hash.js";
 import { SupabaseStore } from "../supabase/store.js";
+import { readTrajectoryLog, type ParsedTrajectory } from "../mcp-proxy/parse-log.js";
 
 const WALKS_BUCKET = "walks";
 
@@ -106,6 +107,7 @@ export class SupabaseSink implements SinkAdapter {
     }
 
     try {
+      const { plan, surprises, reflection } = input.payload;
       await this.store.completeRun({
         runId: input.runId,
         finishedAt: input.finishedAt,
@@ -113,7 +115,22 @@ export class SupabaseSink implements SinkAdapter {
         summary: input.payload.summary,
         status: errors.length === 0 ? "completed" : "failed",
         exitCode: 0,
+        goalReached: reflection?.goal_reached,
+        plan: plan ?? undefined,
+        surprises: surprises && surprises.length > 0 ? surprises : undefined,
+        predictedStepCount: plan?.expected_step_count,
+        actualStepCount: reflection?.actual_step_count,
+        largestExpectationGap: reflection?.largest_expectation_gap,
+        personaSuccessConfidence: reflection?.confidence_persona_would_succeed,
       });
+
+      // Persist trajectory after the run row exists (step rows FK to runs.id).
+      if (input.trajectoryLogPath) {
+        const trajectory = await this.readAndPersistTrajectory(input);
+        if (trajectory) {
+          artifacts.push(input.trajectoryLogPath);
+        }
+      }
     } catch (err) {
       errors.push(err instanceof Error ? err.message : String(err));
     }
@@ -128,6 +145,18 @@ export class SupabaseSink implements SinkAdapter {
       ok: errors.length === 0,
       error: errors.length > 0 ? errors.join("; ") : undefined,
     };
+  }
+
+  private async readAndPersistTrajectory(input: SinkInput): Promise<ParsedTrajectory | null> {
+    if (!input.trajectoryLogPath) return null;
+    const trajectory = await readTrajectoryLog(input.trajectoryLogPath, input.startedAt);
+    if (!trajectory) return null;
+    await this.store.writeTrajectory({
+      runId: input.runId,
+      steps: trajectory.steps,
+      metrics: trajectory.metrics,
+    });
+    return trajectory;
   }
 
   private async insertFinding(input: SinkInput, finding: Finding): Promise<string> {

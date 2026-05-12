@@ -1,6 +1,6 @@
 {
   "name": "@agiterra/rove-cli",
-  "version": "0.0.0-alpha.7",
+  "version": "0.0.0-alpha.8",
   "description": "Rove CLI + daemon. Walks your app as personas and agents, files findings, integrates with the Rove dashboard.",
   "repository": {
     "type": "git",
@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@agiterra/rove-core": "workspace:*",
+    "@playwright/mcp": "^0.0.75",
     "@supabase/supabase-js": "^2.105.4",
     "commander": "^12.1.0",
     "marked": "^14.1.4",

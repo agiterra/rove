@@ -1,3 +1,8 @@
+// File-size exception (~350 lines): the walk prompt is one cohesive
+// document the agent reads sequentially. Splitting the four phases
+// (plan / walk / reflect / surprise log) and the two rubrics into
+// sibling files would fragment what is essentially a long string
+// literal. Re-evaluate if individual phases gain independent logic.
 import type { FlowInfo, Persona } from "./types.js";
 
 /**
@@ -53,6 +58,14 @@ export interface BuildWalkPromptInput {
    * dashboard, staging, Vercel preview).
    */
   targetUrl?: string;
+  /**
+   * Clean-room mode. When true, the agent runs with no access to the project
+   * source (fresh cwd, strict-mcp-config, scrubbed env). The prompt therefore
+   * must not reference any project-internal file paths — entry routes and
+   * goals are inlined, not pointed-to. Set true for agent personas; defaults
+   * to false for human personas which still have project context.
+   */
+  isolated?: boolean;
 }
 
 export function buildWalkPrompt(input: BuildWalkPromptInput): string {
@@ -68,6 +81,7 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     authenticated = false,
     screenshotsDir,
     targetUrl = "http://localhost:3000",
+    isolated = false,
   } = input;
 
   const toolPrefix = `mcp__${mcpToolPrefix}__browser_`;
@@ -76,6 +90,16 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
   const lines: string[] = [
     `You are running an agentic UX evaluation walk.`,
     ``,
+    ...(isolated
+      ? [
+          `You have NO prior knowledge of this app. You have not seen its source code,`,
+          `you have no memory of any prior visit, and you cannot read files from disk.`,
+          `The only way to learn anything about this app is to drive its browser UI`,
+          `using the ${toolPrefix}* tools. If the only way to find an affordance would`,
+          `be to read the project's source — that is itself a finding, not a workaround.`,
+          ``,
+        ]
+      : []),
     `Flow ID: ${flow.flowId}`,
     `Goal: ${goal}`,
     `Persona: ${persona.id} — ${persona.label} (${persona.category}, ${persona.expertise})`,
@@ -88,8 +112,11 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     ``,
     `Environment:`,
     `- Target environment: ${targetUrl}`,
-    `  Combine this origin with the entry_route from the flow spec to form your starting URL.`,
-    `- Entry route comes from the flow spec at ${flow.filePath}`,
+    isolated
+      ? `  Navigate directly to this origin to begin. The flow's entry route is part\n` +
+        `  of the goal stated above; discover it from the UI, not from any file.`
+      : `  Combine this origin with the entry_route from the flow spec to form your starting URL.`,
+    ...(isolated ? [] : [`- Entry route comes from the flow spec at ${flow.filePath}`]),
     authenticated
       ? `- You ARE pre-authenticated. The browser has a valid session cookie from a` +
         `\n  prior rove auth-setup. If a navigation redirects to /auth/login,` +
@@ -98,7 +125,19 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
         `\n  to sign in — treat it as a finding and continue evaluating whatever IS` +
         `\n  reachable (landing page, the sign-in page UX itself, public routes).`,
     ``,
-    `Steps:`,
+    `Phase A — Plan FIRST, before any browser call.`,
+    `Before you call any ${toolPrefix}* tool, think through how a ${persona.label}`,
+    `would expect to accomplish "${goal}". Then write down a structured plan:`,
+    `- 3 to 7 ordered steps, each one sentence, describing what you expect to do.`,
+    `- For each step, the affordance you expect to find (e.g. "button name='Create'",`,
+    `  "input labeled 'Email'", "link in left nav under 'Settings'").`,
+    `- The total step count you expect, in minutes if you'd estimate it.`,
+    `- Your biggest worry — the single place a real ${persona.category} user of this`,
+    `  persona is most likely to get stuck or confused.`,
+    `Set authored_before_browser_open = true to attest you wrote this before`,
+    `looking at the app. The plan ships in the JSON output as the \`plan\` field.`,
+    ``,
+    `Phase B — Walk the flow.`,
     `1. Use ${toolPrefix}* tools to walk the flow goal as this persona. Typical`,
     `   tools include ${toolPrefix}navigate, ${toolPrefix}snapshot, ${toolPrefix}click,`,
     `   ${toolPrefix}type, ${toolPrefix}press_key, ${toolPrefix}take_screenshot,`,
@@ -107,7 +146,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `   observation tool — refs from that snapshot are good evidence citations.`,
     `3. Walk the flow goal as the persona. Record what you observed, what you`,
     `   clicked, what feedback you got, and what was confusing or missing.`,
-    `4. When something is worth capturing visually, call ${toolPrefix}take_screenshot.`,
+    `4. Whenever reality diverged from your plan, log a SURPRISE — see Phase D.`,
+    `5. When something is worth capturing visually, call ${toolPrefix}take_screenshot.`,
     screenshotsDir
       ? `   Save screenshots into this directory (it already exists):\n` +
         `     ${screenshotsDir}\n` +
@@ -115,12 +155,43 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
         `   Reference them in the matching finding using just the filename in the\n` +
         `   \`screenshots\` array — the CLI resolves the path relative to that dir.`
       : `   No screenshots dir was provided; reference image paths in \`evidence\` only.`,
-    `5. Time-box: ~${maxWalkMinutes} minutes of browser interaction, no more than`,
+    `6. Time-box: ~${maxWalkMinutes} minutes of browser interaction, no more than`,
     `   ${maxBrowserCalls} browser tool calls total. Stop early if you run out of`,
     `   meaningful affordances.`,
-    `6. Reference the flow spec for what to expect at each step: ${flow.filePath}`,
+    ...(isolated
+      ? [
+          `7. The goal stated above is the entire success criterion. There is no flow`,
+          `   spec file to consult; if the goal feels under-specified, treat the gap`,
+          `   itself as evidence (e.g. "the goal said 'create a job' but the UI offered`,
+          `   no obvious way to know which job type").`,
+        ]
+      : [`7. Reference the flow spec for what to expect at each step: ${flow.filePath}`]),
     ``,
     persona.category === "agent" ? buildAgentRubric() : buildHumanRubric(),
+    ``,
+    `Phase C — Reflect, adversarially.`,
+    `After the walk, ask yourself: "If this app shipped tomorrow, what specific`,
+    `reasons would a different user of this persona FAIL to accomplish this goal?"`,
+    `Search your own trajectory for those reasons. Only then estimate your`,
+    `confidence (0.0 to 1.0) that another user of this persona would succeed.`,
+    `Bias toward lower confidence when the path required recovery, when the`,
+    `success state was hard to verify, or when the goal depended on a discovery`,
+    `step you had to retry. This adversarial framing improves calibration —`,
+    `naive "rate your confidence" is uninformative.`,
+    ``,
+    `Phase D — Surprise log.`,
+    `A SURPRISE is a moment where reality diverged from your plan. Log one for:`,
+    `- An expected affordance was missing or hidden ("affordance_missing")`,
+    `- The path detoured through unexpected pages ("unexpected_detour")`,
+    `- A label or icon was ambiguous and slowed you ("ambiguous_label")`,
+    `- You hesitated, unsure what to click ("hesitation")`,
+    `- You had to backtrack or undo to recover ("recovery")`,
+    `- You reached a state with no obvious next step ("dead_end")`,
+    `- The UI's response didn't match what you expected from your action ("expectation_mismatch")`,
+    `Each surprise: kind, step_index it happened on, what you expected, what you`,
+    `observed, recovered (true if you got back on track), and recovery_cost_steps.`,
+    `Surprises are NOT the same as findings. A surprise is data; a finding is a`,
+    `judgement. Some surprises become findings; some don't. Log both.`,
     ``,
     `Severity scale:`,
     `- critical: blocks the flow goal entirely`,
@@ -140,6 +211,32 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `  "persona_id": "${persona.id}",`,
     `  "walked_url": "${targetUrl}/...",`,
     `  "summary": "one-paragraph summary of what you observed",`,
+    `  "plan": {`,
+    `    "expected_path": [`,
+    `      { "step": 1, "description": "Click the primary CTA on the dashboard.", "expected_affordance": "button name='New job'" },`,
+    `      { "step": 2, "description": "Pick a property from a searchable list." }`,
+    `    ],`,
+    `    "expected_step_count": 4,`,
+    `    "expected_minutes": 2,`,
+    `    "biggest_worry": "The property picker may not search by partial name.",`,
+    `    "authored_before_browser_open": true`,
+    `  },`,
+    `  "surprises": [`,
+    `    {`,
+    `      "kind": "affordance_missing",`,
+    `      "step_index": 1,`,
+    `      "expected": "Primary 'New job' CTA visible on the dashboard.",`,
+    `      "observed": "Only a kebab menu in the toolbar exposed it.",`,
+    `      "recovered": true,`,
+    `      "recovery_cost_steps": 2`,
+    `    }`,
+    `  ],`,
+    `  "reflection": {`,
+    `    "goal_reached": true,`,
+    `    "actual_step_count": 7,`,
+    `    "largest_expectation_gap": "Expected a primary CTA; took four clicks to discover the kebab menu.",`,
+    `    "confidence_persona_would_succeed": 0.55`,
+    `  },`,
     `  "findings": [`,
     `    {`,
     `      "id": "finding-1",`,
@@ -161,7 +258,24 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `- It MUST be the last thing in your response. No prose, no markdown after`,
     `  the closing marker.`,
     `- It MUST be valid JSON parseable by JSON.parse.`,
+    `- \`plan\` is REQUIRED. Author it in Phase A, before any browser call.`,
+    `  authored_before_browser_open must be literally true.`,
+    `- \`surprises\` is an array; emit one per divergence per Phase D. Empty array`,
+    `  is valid only if the walk genuinely matched the plan step-for-step.`,
+    `- \`reflection.goal_reached\` is REQUIRED. Set true iff you actually`,
+    `  accomplished the flow's stated goal as a user of this persona would`,
+    `  recognize success — not "the page loaded," not "the request succeeded,"`,
+    `  but "a real ${persona.category} user would say: yes, I got what I came for."`,
+    `  Set false if you ran out of budget, got lost, could not find the path,`,
+    `  or completed an action without being able to verify the result from the UI.`,
+    `- \`reflection.confidence_persona_would_succeed\` is REQUIRED. Estimate it`,
+    `  AFTER you have written down at least two reasons a different user of`,
+    `  this persona might fail (Phase C). 1.0 = certain success; 0.0 = certain`,
+    `  failure. Do not anchor on your own outcome — a different user is the`,
+    `  subject of the estimate.`,
     `- If you found nothing, return findings: [] with a summary explaining why.`,
+    `  goal_reached can still be true (or false) independent of findings count —`,
+    `  an app can have zero findings and still leave you stranded.`,
     `- The \`screenshots\` field is optional. Omit it (or use []) when nothing`,
     `  worth showing was captured for that finding. Bare-string entries`,
     `  (\`"step3.png"\`) are also accepted.`,
@@ -174,7 +288,9 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     lines.push(``, `Additional constraints for this run:`, notes.trim());
   }
 
-  lines.push(``, `Workspace root (for path references only): ${workspacePath}`);
+  if (!isolated) {
+    lines.push(``, `Workspace root (for path references only): ${workspacePath}`);
+  }
   lines.push(`Begin.`);
 
   return lines.join("\n");

@@ -1,9 +1,16 @@
+// File-size exception (~315 lines): the dispatcher's concerns — preflight,
+// MCP-config writing, isolation handling, env scrubbing — are tightly
+// coupled to the single spawn site. Splitting them into siblings would
+// require re-threading more state than it would save in cognitive load.
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { execFile as execFileCb } from "node:child_process";
+
+const localRequire = createRequire(import.meta.url);
 import type {
   DispatcherAdapter,
   DispatcherInput,
@@ -14,12 +21,24 @@ import type {
 
 const execFile = promisify(execFileCb);
 
+export type IsolationMode = "clean-room" | "shared";
+
 /**
  * Drives a walk by shelling out to the `claude` CLI in --print mode.
  *
  * Expects the user to have:
  *   1. `claude` on PATH (the Claude Code CLI)
- *   2. Playwright MCP registered as `playwright` (see preflight remedy)
+ *   2. Playwright MCP — either registered globally (shared mode) or available
+ *      as an installable npm package (clean-room mode bundles it on-the-fly).
+ *
+ * Isolation mode:
+ *   - `shared`: legacy behavior. cwd = caller's cwd. Inherits full env. Uses
+ *     the operator's global MCP registry unless a user-data-dir is provided.
+ *   - `clean-room`: required for agent / change-review walks. cwd = fresh
+ *     tmpdir with no source. MCP config is written per-walk and constrained
+ *     via --strict-mcp-config so the agent can't Read/Grep/Bash project files.
+ *     Env is scrubbed to a minimal allowlist (no API keys, no Supabase creds,
+ *     no GH tokens) so prior session context cannot color the walk.
  */
 export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
   readonly id = "claude-code-cli";
@@ -38,8 +57,17 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
        * inherits cookies + localStorage from a prior `rove auth-setup`.
        */
       userDataDirPath?: string;
+      /**
+       * Defaults to "shared" for compatibility. Set "clean-room" for agent
+       * personas and change-review walks — see class doc.
+       */
+      isolation?: IsolationMode;
     } = {},
   ) {}
+
+  private get isolation(): IsolationMode {
+    return this.opts.isolation ?? "shared";
+  }
 
   private get skipPermissions(): boolean {
     return this.opts.skipPermissions ?? true;
@@ -50,14 +78,25 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
 
     checks.push(await checkCommand(this.claudeBin, ["--version"], "claude CLI installed"));
 
-    if (checks[0].status === "ok") {
-      checks.push(await checkPlaywrightMcp(this.claudeBin));
-    } else {
+    // In clean-room mode (or any mode that ships its own MCP config), the
+    // global playwright registration is irrelevant — we write our own per
+    // walk and pin it with --strict-mcp-config.
+    const providesOwnMcp = this.isolation === "clean-room" || !!this.opts.userDataDirPath;
+
+    if (checks[0].status !== "ok") {
       checks.push({
         name: "playwright MCP registered",
         status: "fail",
         detail: "skipped — claude CLI missing",
       });
+    } else if (providesOwnMcp) {
+      checks.push({
+        name: "playwright MCP (per-walk config)",
+        status: "ok",
+        detail: "isolated mode — registers @playwright/mcp via --mcp-config",
+      });
+    } else {
+      checks.push(await checkPlaywrightMcp(this.claudeBin));
     }
 
     return {
@@ -77,17 +116,35 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
       args.push("--max-budget-usd", String(input.maxBudgetUsd));
     }
 
-    if (this.opts.userDataDirPath) {
-      const mcpConfigPath = await writeMcpConfigWithUserDataDir(this.opts.userDataDirPath);
+    // Decide MCP config + cwd + env based on isolation.
+    const isCleanRoom = this.isolation === "clean-room";
+    let cwd: string = input.cwd ?? process.cwd();
+    let env: NodeJS.ProcessEnv = process.env;
+
+    // Always route through the proxy when we have a log path. Otherwise
+    // legacy behavior — proxy only when isolation/userDataDir need it.
+    const needsCustomMcpConfig =
+      isCleanRoom || !!this.opts.userDataDirPath || !!input.trajectoryLogPath;
+    if (needsCustomMcpConfig) {
+      const mcpConfigPath = await writeMcpConfig({
+        userDataDirPath: this.opts.userDataDirPath,
+        trajectoryLogPath: input.trajectoryLogPath,
+        screenshotsDir: input.screenshotsDir,
+      });
       args.push("--mcp-config", mcpConfigPath, "--strict-mcp-config");
+    }
+
+    if (isCleanRoom) {
+      cwd = await mkdtemp(join(tmpdir(), "rove-cleanroom-"));
+      env = scrubbedEnv(process.env);
     }
 
     args.push(input.prompt);
 
     return new Promise<DispatcherResult>((resolve, reject) => {
       const child = spawn(this.claudeBin, args, {
-        cwd: input.cwd ?? process.cwd(),
-        env: process.env,
+        cwd,
+        env,
         stdio: ["ignore", "pipe", "pipe"],
       });
 
@@ -128,20 +185,120 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
   }
 }
 
-async function writeMcpConfigWithUserDataDir(userDataDirPath: string): Promise<string> {
+/**
+ * Writes a per-walk MCP config registering only `@playwright/mcp`. With
+ * --strict-mcp-config this is the entire toolset the agent can call. When
+ * a trajectoryLogPath is supplied, the playwright server is fronted by the
+ * proxy script so every JSON-RPC message is teed to the log.
+ */
+async function writeMcpConfig(opts: {
+  userDataDirPath?: string;
+  trajectoryLogPath?: string;
+  screenshotsDir?: string;
+}): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "rove-mcp-"));
+  // Args destined for @playwright/mcp itself (NOT the npx wrapper — the
+  // proxy spawns `npx -y @playwright/mcp@latest` internally, then appends
+  // these. When we're not proxying, the dispatcher invokes npx + these.
+  const playwrightServerArgs: string[] = [];
+  if (opts.userDataDirPath) {
+    playwrightServerArgs.push("--user-data-dir", opts.userDataDirPath);
+  }
+  if (opts.screenshotsDir) {
+    playwrightServerArgs.push("--output-dir", opts.screenshotsDir);
+  }
+
+  // Resolve @playwright/mcp from rove-cli's own node_modules — avoids the
+  // npx cold-start (network + cache miss) on every walk. The package is a
+  // declared dependency of @agiterra/rove-cli. The proxy does its own resolve.
+  // Note: @playwright/mcp's `exports` map doesn't expose ./cli.js, so we
+  // resolve via package.json and derive the bin file from its directory.
+  const command = process.execPath;
+  let args: string[];
+  if (opts.trajectoryLogPath) {
+    args = [
+      proxyScriptPath(),
+      "--log",
+      opts.trajectoryLogPath,
+      "--",
+      ...playwrightServerArgs,
+    ];
+  } else {
+    args = [resolveMcpCli(), ...playwrightServerArgs];
+  }
+
   const config = {
     mcpServers: {
-      playwright: {
-        command: "npx",
-        args: ["-y", "@playwright/mcp@latest", "--user-data-dir", userDataDirPath],
-      },
+      playwright: { command, args },
     },
   };
   const filePath = join(dir, "mcp-config.json");
   await writeFile(filePath, JSON.stringify(config, null, 2), "utf8");
   return filePath;
 }
+
+function proxyScriptPath(): string {
+  // packages/cli/dist/dispatchers/claude-code-cli.js (built) ←→
+  // packages/cli/bin/playwright-mcp-proxy.mjs (sibling)
+  // Resolve via import.meta.url so it works in both built dist and ts-node.
+  const here = new URL(import.meta.url);
+  return new URL("../../bin/playwright-mcp-proxy.mjs", here).pathname;
+}
+
+function resolveMcpCli(): string {
+  const pkgJsonPath = localRequire.resolve("@playwright/mcp/package.json");
+  return join(dirname(pkgJsonPath), "cli.js");
+}
+
+/**
+ * Build a minimal env for the agent subprocess. The agent must NOT inherit
+ * secrets that belong to the dispatcher's own pipeline (Supabase service-role
+ * key, GitHub tokens, third-party API keys). It also must not inherit any
+ * project-specific connection strings — those are the source-of-truth the
+ * agent might otherwise consult instead of walking the UI.
+ *
+ * Allowed: path/locale basics for claude + playwright to function. Any
+ * variable matching one of the SCRUB_ALLOW_PREFIXES is also passed (CLAUDE_*,
+ * PLAYWRIGHT_*, NODE_*, XDG_*) — those are tool-config, not data.
+ */
+function scrubbedEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const key of SCRUB_ALLOW_EXACT) {
+    const v = source[key];
+    if (v !== undefined) out[key] = v;
+  }
+  for (const [key, v] of Object.entries(source)) {
+    if (v === undefined) continue;
+    if (out[key] !== undefined) continue;
+    if (SCRUB_ALLOW_PREFIXES.some((p) => key.startsWith(p))) {
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+const SCRUB_ALLOW_EXACT: readonly string[] = [
+  "PATH",
+  "HOME",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "TERM",
+  "TMPDIR",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "LC_MESSAGES",
+  "PWD",
+  "ANTHROPIC_API_KEY",
+];
+
+const SCRUB_ALLOW_PREFIXES: readonly string[] = [
+  "CLAUDE_",
+  "PLAYWRIGHT_",
+  "NODE_",
+  "XDG_",
+];
 
 async function checkCommand(bin: string, args: string[], name: string): Promise<PreflightCheck> {
   try {
