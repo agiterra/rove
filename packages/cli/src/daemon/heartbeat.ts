@@ -84,6 +84,24 @@ export async function registerWorker(
   return { workerId: data.id as string, workerName: name, kind, capabilities };
 }
 
+/**
+ * Stamp the worker row as cleanly stopped. Combined with
+ * `releaseInFlightClaims`, this gives the UI an immediate "offline"
+ * signal — no waiting for the 90s recovery threshold.
+ */
+export async function markWorkerStopped(
+  supabase: SupabaseClient,
+  workerId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("workers")
+    .update({ stopped_at: new Date().toISOString() })
+    .eq("id", workerId);
+  if (error) {
+    console.error(`[shutdown] mark worker stopped: ${error.message}`);
+  }
+}
+
 export function startHeartbeat(
   supabase: SupabaseClient,
   workerId: string,

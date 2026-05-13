@@ -18,10 +18,13 @@ import { dispatchJob } from "./dispatch.js";
 import {
   claimNextJob,
   listClaimableIds,
+  recoverStaleClaims,
+  releaseInFlightClaims,
   tryClaimJob,
   type AgentJobRow,
 } from "./claim.js";
 import {
+  markWorkerStopped,
   registerWorker,
   startHeartbeat,
   type WorkerKind,
@@ -60,6 +63,14 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
   );
 
   const heartbeat = startHeartbeat(supabase, worker.workerId);
+
+  // Every daemon runs the recovery sweep on a 30s cadence. The first one
+  // to grab eligible rows wins; subsequent sweeps are no-ops.
+  const recoveryTimer = setInterval(() => {
+    void recoverStaleClaims(supabase, opts.projectId).then((n) => {
+      if (n > 0) console.log(`[recovery] released ${n} stale claim(s)`);
+    });
+  }, 30_000);
 
   let busy = false;
 
@@ -122,13 +133,27 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
     });
 
   await new Promise<void>((resolve) => {
-    const shutdown = (signal: string) => {
+    let shuttingDown = false;
+    const shutdown = async (signal: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       console.log(`[daemon] ${signal} received — shutting down`);
       heartbeat.stop();
-      void channel.unsubscribe().finally(resolve);
+      clearInterval(recoveryTimer);
+      // Release any in-flight claims back to pending so peer daemons can
+      // pick them up immediately, then stamp the worker as cleanly stopped
+      // so the UI shows "offline" without waiting 90s for recovery.
+      try {
+        await releaseInFlightClaims(supabase, opts.projectId, worker.workerId);
+        await markWorkerStopped(supabase, worker.workerId);
+      } catch (err) {
+        console.error(`[shutdown] ${(err as Error).message}`);
+      }
+      await channel.unsubscribe();
+      resolve();
     };
-    process.once("SIGINT", () => shutdown("SIGINT"));
-    process.once("SIGTERM", () => shutdown("SIGTERM"));
+    process.once("SIGINT", () => void shutdown("SIGINT"));
+    process.once("SIGTERM", () => void shutdown("SIGTERM"));
   });
 }
 
