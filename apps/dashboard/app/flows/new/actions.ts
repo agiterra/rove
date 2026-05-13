@@ -10,6 +10,10 @@ import { queueGenerationJob, type QueuedJob } from "../../../lib/authoring/queue
 import { requireTeamMember } from "../../../lib/authoring/require-team-member";
 import { flowDraftSchema, type FlowDraft } from "../../../lib/authoring/schemas";
 import { flowYamlPath, renderFlowYaml } from "../../../lib/authoring/yaml";
+import { createReadClient } from "../../../lib/supabase/server";
+
+const DAEMON_STALE_AFTER_MS = 2 * 60_000;
+const PROJECT_SLUG_RE = /^[a-z][a-z0-9-]*$/;
 
 export interface ActionResult<T> {
   ok: true;
@@ -24,6 +28,84 @@ export type ActionOutcome<T> = ActionResult<T> | ActionError;
 
 function asError(message: string): ActionError {
   return { ok: false, error: message };
+}
+
+/**
+ * Server-side poll of a single agent_jobs row. The wizard calls this
+ * every ~2.5s as the safety net beside its Realtime subscription, since
+ * Realtime + RLS silently drop events when DEV_BYPASS_AUTH=1 leaves the
+ * browser without a session. createReadClient() honors dev-bypass and
+ * returns a service-role-backed client when there's no signed-in user,
+ * so this read works in every auth mode.
+ */
+export async function fetchAgentJobAction(jobId: string): Promise<{
+  status: "pending" | "claimed" | "running" | "completed" | "failed" | "cancelled";
+  result: Record<string, unknown> | null;
+  error: string | null;
+  claimedBy: string | null;
+} | null> {
+  if (typeof jobId !== "string" || jobId.length === 0) return null;
+  const supabase = await createReadClient();
+  const { data } = await supabase
+    .from("agent_jobs")
+    .select("status, result, error, claimed_by")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as {
+    status: string;
+    result: Record<string, unknown> | null;
+    error: string | null;
+    claimed_by: string | null;
+  };
+  return {
+    status: row.status as
+      | "pending"
+      | "claimed"
+      | "running"
+      | "completed"
+      | "failed"
+      | "cancelled",
+    result: row.result,
+    error: row.error,
+    claimedBy: row.claimed_by,
+  };
+}
+
+/**
+ * Cheap polling endpoint for the DaemonLauncher — returns whether any
+ * daemon for `projectId` has heartbeated within the last 2 minutes plus
+ * a small summary the UI can render ("daemon abc12345 on host X"). Used
+ * to flip the launcher to "online" the moment the user runs `pnpm daemon`.
+ */
+export async function checkDaemonOnlineAction(projectId: string): Promise<{
+  online: boolean;
+  daemonName: string | null;
+  hostname: string | null;
+  daemonId: string | null;
+}> {
+  if (!PROJECT_SLUG_RE.test(projectId)) {
+    return { online: false, daemonName: null, hostname: null, daemonId: null };
+  }
+  const supabase = await createReadClient();
+  const { data } = await supabase
+    .from("daemon_heartbeats")
+    .select("user_id, daemon_name, hostname, last_seen_at")
+    .eq("project_id", projectId);
+  if (!data) return { online: false, daemonName: null, hostname: null, daemonId: null };
+  const cutoff = Date.now() - DAEMON_STALE_AFTER_MS;
+  const fresh = data.find(
+    (h: { last_seen_at: string }) => new Date(h.last_seen_at).getTime() > cutoff,
+  ) as
+    | { user_id: string; daemon_name: string; hostname: string | null; last_seen_at: string }
+    | undefined;
+  if (!fresh) return { online: false, daemonName: null, hostname: null, daemonId: null };
+  return {
+    online: true,
+    daemonName: fresh.daemon_name,
+    hostname: fresh.hostname,
+    daemonId: fresh.user_id,
+  };
 }
 
 /**

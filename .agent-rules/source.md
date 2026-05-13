@@ -39,6 +39,7 @@ Rove exists because there's a gap in the testing market for **non-deterministic,
 | Release process (version bump, tag, GH Packages publish) | `.claude/rules/release-process.md` |
 | Onboarding a new consuming project | `TEAM-SETUP.md` (top of repo) |
 | Roadmap + what's done | `docs/ROADMAP.md` |
+| Feature backlog ("what's on our list") | `docs/BACKLOG.md` |
 | Adding or extending an agent rule | `.agent-rules/README.md` |
 
 ## Hosting + infra
@@ -82,3 +83,4 @@ pnpm sync:agent-guides       # regenerate CLAUDE.md + AGENTS.md from source
 - `TEAM-SETUP.md` — how a teammate adds Rove to a new project (PAT, `.npmrc`, `rove init`).
 - `docs/INSTALL.md` — abbreviated install reference.
 - `docs/ROADMAP.md` — status + what's next + phase plan.
+- `docs/BACKLOG.md` — feature backlog. Read this when asked "what do we have for features." Add bullets here for ideas not yet started; promote to a GitHub issue when work begins.

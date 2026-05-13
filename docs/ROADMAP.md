@@ -8,7 +8,7 @@ Single source of truth for what's done, what's in flight, what's next. Updated a
 
 - ✅ Repo extracted from tankloop (`agiterra/tankloop` → `agiterra/rove`).
 - ✅ Renamed packages to `@agiterra/rove-*` (GitHub Packages requires scope = org).
-- ✅ Published `@agiterra/rove-core@0.0.0-alpha.4` + `@agiterra/rove-cli@0.0.0-alpha.4` to GitHub Packages.
+- ✅ Published `@agiterra/rove-core@0.0.0-alpha.7` + `@agiterra/rove-cli@0.0.0-alpha.7` to GitHub Packages.
 - ✅ Dashboard at `https://rove-agiterra.vercel.app`, auto-deploys from main.
 - ✅ Hosted Supabase project (`tceosllezmydpouvfuzf`), multi-project tenancy via `project_id` (Phase C-lite).
 - ✅ Tankloop is Rove customer #1 (`pnpm add -D @agiterra/rove-cli` + `rove.config.ts`).
@@ -19,9 +19,9 @@ Single source of truth for what's done, what's in flight, what's next. Updated a
 
 ### Quick wins (each ≤ 1 hour)
 
-- [ ] Fix the 2 remaining agent findings from the dogfood re-walk:
-  - Wrap the signin page's emoji hints in a `<ul role="list">` with `<li role="listitem">` (currently bare divs → `agent.accessibility_tree_completeness`).
-  - Add per-route `<meta description>` (extend the `metadata` exports) → `agent.titles_and_meta`.
+- [x] Fix the 2 remaining agent findings from the dogfood re-walk:
+  - Wrapped the signin page's emoji hints in a `<ul role="list">` with `<li>` children (`agent.accessibility_tree_completeness`).
+  - Added per-route `<meta description>` via route metadata exports (`agent.titles_and_meta`).
 - [ ] Add a `LICENSE` file (currently `UNLICENSED`). Decide license at Phase E; for alpha, "All rights reserved" + `UNLICENSED` is fine to keep, just document the choice.
 - [ ] Add a `CONTRIBUTING.md` pointing at `.agent-rules/` and `TEAM-SETUP.md`.
 

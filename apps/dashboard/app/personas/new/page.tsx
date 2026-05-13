@@ -5,7 +5,10 @@ import { PersonaWizard } from "./persona-wizard";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: import("next").Metadata = { title: "New persona" };
+export const metadata: import("next").Metadata = {
+  title: "New persona",
+  description: "Author a new Rove persona for human or agent UX evaluation.",
+};
 
 export default function NewPersonaPage() {
   return (

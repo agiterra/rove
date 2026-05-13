@@ -6,7 +6,10 @@ import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: import("next").Metadata = { title: "Flows" };
+export const metadata: import("next").Metadata = {
+  title: "Flows",
+  description: "Browse the user and agent flows Rove walks for this project.",
+};
 
 interface FlowRow {
   id: string;

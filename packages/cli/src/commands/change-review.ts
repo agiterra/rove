@@ -50,12 +50,19 @@ export async function runChangeReviewCommand(
   const isolation = "clean-room" as const;
 
   const { config } = await loadRoveConfig(ws.rootDir);
-  const targetUrl =
+  const baseTargetUrl =
     opts.targetUrl ??
     process.env.ROVE_TARGET_URL ??
     process.env.EVAL_TARGET_URL ??
     config.defaultTargetUrl ??
     "http://localhost:3000";
+
+  // The walked dashboard reads project context from `?p=<slug>`. Stamp it
+  // into the target URL so the agent's browser-side actions (queueing a
+  // generation job, etc.) land in the same project_id as the change-review
+  // walk itself — otherwise the daemon for project A polls in vain while
+  // the queued job lives in project B.
+  const targetUrl = withProjectParam(baseTargetUrl, config.projectId);
 
   const referenceRoutes =
     opts.referenceRoutes.length > 0 ? opts.referenceRoutes : defaultReferences(opts.changedRoutes);
@@ -187,4 +194,17 @@ function git(cwd: string, args: string[]): string | null {
   const r = spawnSync("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
   if (r.status !== 0) return null;
   return r.stdout.trim() || null;
+}
+
+/** Append `?p=<projectId>` to a target URL, preserving any existing query. */
+function withProjectParam(targetUrl: string, projectId: string): string {
+  try {
+    const u = new URL(targetUrl);
+    if (!u.searchParams.get("p")) u.searchParams.set("p", projectId);
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    // Malformed origin — fall back to naive append so we don't break the walk.
+    const sep = targetUrl.includes("?") ? "&" : "?";
+    return `${targetUrl}${sep}p=${encodeURIComponent(projectId)}`;
+  }
 }

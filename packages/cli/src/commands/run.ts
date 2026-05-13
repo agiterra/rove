@@ -83,6 +83,15 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   const trajectoryLogPath = join(runDir, "trajectory.jsonl");
   await mkdir(screenshotsDir, { recursive: true });
 
+  const baseTargetUrl =
+    opts.targetUrl ??
+    process.env.ROVE_TARGET_URL ??
+    process.env.EVAL_TARGET_URL ??
+    config.defaultTargetUrl;
+  // Stamp project_id into the target URL so any dashboard-side queueing the
+  // agent does (Generate, Run-walk) lands in the same tenant as this run.
+  const targetUrl = baseTargetUrl ? withProjectParam(baseTargetUrl, config.projectId) : undefined;
+
   const prompt = buildWalkPrompt({
     flow,
     goal: opts.goal ?? flow.goal,
@@ -91,11 +100,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     workspacePath: ws.rootDir,
     authenticated: Boolean(authProfilePath),
     screenshotsDir,
-    targetUrl:
-      opts.targetUrl ??
-      process.env.ROVE_TARGET_URL ??
-      process.env.EVAL_TARGET_URL ??
-      config.defaultTargetUrl,
+    targetUrl,
     isolated,
   });
 
@@ -207,4 +212,16 @@ function git(cwd: string, args: string[]): string | null {
   const r = spawnSync("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
   if (r.status !== 0) return null;
   return r.stdout.trim() || null;
+}
+
+/** Append `?p=<projectId>` to a target URL, preserving any existing query. */
+function withProjectParam(targetUrl: string, projectId: string): string {
+  try {
+    const u = new URL(targetUrl);
+    if (!u.searchParams.get("p")) u.searchParams.set("p", projectId);
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    const sep = targetUrl.includes("?") ? "&" : "?";
+    return `${targetUrl}${sep}p=${encodeURIComponent(projectId)}`;
+  }
 }

@@ -27,9 +27,10 @@ export function ProjectSwitcherMenu({
 
   function pick(id: string) {
     setProjectCookie(id);
-    // Strip ?p=… from the URL so the cookie takes precedence going forward.
+    // Stamp ?p=<new> on the URL directly so the new project is the active
+    // tenant immediately — no double-redirect bounce through the middleware.
     const url = new URL(window.location.href);
-    url.searchParams.delete("p");
+    url.searchParams.set("p", id);
     window.location.href = url.toString();
   }
 

@@ -1,16 +1,24 @@
 "use client";
 
 /**
- * Client-side helper that waits for a queued agent_jobs row to finish by
- * subscribing to Realtime UPDATEs on its id. Resolves with the result on
- * `completed`, rejects with the daemon's error message on `failed`, and
- * times out after `timeoutMs` (default 90s — long enough for Claude
- * Haiku, short enough to surface "no daemon online" within a minute).
+ * Client-side helper that waits for a queued agent_jobs row to finish.
  *
- * Falls back to a single fetch on subscription start so we don't miss a
- * row that completed before the channel attached.
+ * Two channels of detection run in parallel:
+ *   1. Supabase Realtime UPDATEs on the row's id — sub-second latency
+ *      when the user has a real session (Realtime is RLS-gated).
+ *   2. A periodic SELECT poll every 2.5s as the safety net — covers the
+ *      DEV_BYPASS_AUTH case (no session → RLS filters the Realtime
+ *      events) and any future ops where the WS drops.
+ *
+ * Whichever surfaces a terminal state first wins.
+ *
+ * Resolves with the result on `completed`, rejects with the daemon's
+ * error message on `failed`, and times out after `timeoutMs` (default
+ * 90s — long enough for Claude Haiku, short enough to surface "no
+ * daemon online" within a minute).
  */
 import { createBrowserSupabase } from "../supabase/client";
+import { fetchAgentJobAction } from "../../app/flows/new/actions";
 
 export interface AgentJobSnapshot {
   id: string;
@@ -47,6 +55,7 @@ export async function waitForJobResult(
       settled = true;
       fn();
       void channel.unsubscribe();
+      clearInterval(pollTimer);
       clearTimeout(timer);
     };
 
@@ -62,6 +71,26 @@ export async function waitForJobResult(
       }
     };
 
+    // Read via a server action — the cookie-bound supabase client falls
+    // back to service-role when DEV_BYPASS_AUTH leaves the browser
+    // without a session, so the read works in every auth mode. The
+    // browser-side Realtime sub still fires when the user is signed in.
+    const fetchSnapshot = async () => {
+      try {
+        const res = await fetchAgentJobAction(jobId);
+        if (!res) return;
+        handleSnapshot({
+          id: jobId,
+          status: res.status,
+          result: res.result,
+          error: res.error,
+          claimed_by: res.claimedBy,
+        });
+      } catch {
+        // Tolerated — next tick will retry.
+      }
+    };
+
     const channel = supabase
       .channel(`agent_job_${jobId}`)
       .on(
@@ -72,13 +101,17 @@ export async function waitForJobResult(
       .subscribe(async (status) => {
         if (status !== "SUBSCRIBED") return;
         // Catch-up read in case the daemon completed before we subscribed.
-        const { data } = await supabase
-          .from("agent_jobs")
-          .select("id, status, result, error, claimed_by")
-          .eq("id", jobId)
-          .maybeSingle();
-        handleSnapshot(data as AgentJobSnapshot | null);
+        await fetchSnapshot();
       });
+
+    // Safety-net poll. Realtime is RLS-gated and silently filters events
+    // when there's no user session (dev-bypass). Polling every 2.5s
+    // guarantees we surface terminal states regardless of auth path. The
+    // poll naturally stops once `settle()` runs.
+    const pollTimer = setInterval(() => {
+      if (settled) return;
+      void fetchSnapshot();
+    }, 2500);
 
     const timer = setTimeout(() => {
       settle(() =>

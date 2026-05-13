@@ -40,8 +40,8 @@ export default function SignInPage({
             <span className="text-[var(--color-accent)]">Real bugs your tests missed.</span>
           </h1>
           <p className="mt-3 text-sm text-[var(--color-text-muted)] max-w-sm mx-auto">
-            Sign in to view runs, browse findings, and queue agentic walks against the
-            your app.
+            Sign in to view runs, browse findings, and queue agentic walks against your
+            app.
           </p>
         </div>
 
@@ -60,11 +60,11 @@ export default function SignInPage({
           {err ? <p className="mt-4 text-sm text-red-300 text-center">{err}</p> : null}
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-3 text-center">
+        <ul role="list" className="mt-8 grid grid-cols-3 gap-3 text-center">
           <Hint emoji="🧭" label="Browse flows" />
           <Hint emoji="🤖" label="Queue walks" />
           <Hint emoji="🐛" label="Read findings" />
-        </div>
+        </ul>
       </div>
     </div>
   );
@@ -72,10 +72,10 @@ export default function SignInPage({
 
 function Hint({ emoji, label }: { emoji: string; label: string }) {
   return (
-    <div className="text-[11px] text-[var(--color-text-muted)]">
+    <li className="text-[11px] text-[var(--color-text-muted)]">
       <div className="text-base mb-1">{emoji}</div>
       {label}
-    </div>
+    </li>
   );
 }
 

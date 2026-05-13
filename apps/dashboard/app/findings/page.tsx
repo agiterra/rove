@@ -9,7 +9,10 @@ import { FindingDrawer } from "./drawer";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Findings" };
+export const metadata: Metadata = {
+  title: "Findings",
+  description: "Review UX findings surfaced by Rove's human and agent persona walks.",
+};
 
 const SEVERITIES = ["critical", "major", "minor", "nit"] as const;
 
