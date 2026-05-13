@@ -13,6 +13,8 @@ Single source of truth for **features and ideas not yet started**. If Brian asks
 
 ## Features
 
+- **Web-driven local worker install** — `/setup` page + one-paste install one-liner + macOS launchd auto-start + `rove://` recovery handler. Plan: [`docs/plans/install-flow.md`](plans/install-flow.md). Blocked on worker-tokens.
+- **Per-worker JWT auth** (path B before the dashboard install flow) — replace the daemon's service-role key with a per-worker JWT minted by the dashboard, so the install one-liner can hand out a credential that's safe to leak. Plan: [`docs/plans/worker-tokens.md`](plans/worker-tokens.md). Blocks the dashboard install flow.
 - ~~**Named workers**~~ — shipped 2026-05-13 in PRs #1–#5 + step-6 docs. See [`docs/walkers.md`](walkers.md) for usage; [`docs/plans/named-workers.md`](plans/named-workers.md) for the design rationale.
 - _(add new items above this line)_
 
