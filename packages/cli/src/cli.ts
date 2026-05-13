@@ -320,6 +320,10 @@ program
     "Comma-separated capabilities this worker will claim: manual,localhost,webhook. " +
       "Defaults derive from --kind (laptop=manual,localhost; dedicated=manual,webhook).",
   )
+  .option(
+    "--project-id <slug>",
+    "Override the rove.config.ts projectId. Lets one machine walk multiple projects without switching cwd.",
+  )
   .action(async (rawOpts: Record<string, unknown>) => {
     const claims = typeof rawOpts.claims === "string"
       ? (rawOpts.claims as string)
@@ -342,6 +346,7 @@ program
         workerName: rawOpts.as as string | undefined,
         workerKind: rawOpts.kind as "laptop" | "dedicated" | undefined,
         capabilities: claims as Array<"manual" | "localhost" | "webhook"> | undefined,
+        projectIdOverride: rawOpts.projectId as string | undefined,
       }),
     );
   });
@@ -353,22 +358,25 @@ const workers = program
 workers
   .command("list", { isDefault: true })
   .description("List workers in the active project.")
-  .action(async () => {
-    process.exit(await runWorkersListCommand());
+  .option("--project-id <slug>", "Override rove.config.ts projectId.")
+  .action(async (opts: { projectId?: string }) => {
+    process.exit(await runWorkersListCommand(opts.projectId));
   });
 
 workers
   .command("disable <name>")
   .description("Soft-disable a worker — the daemon refuses to start until re-enabled.")
-  .action(async (name: string) => {
-    process.exit(await runWorkersDisableCommand(name));
+  .option("--project-id <slug>", "Override rove.config.ts projectId.")
+  .action(async (name: string, opts: { projectId?: string }) => {
+    process.exit(await runWorkersDisableCommand(name, opts.projectId));
   });
 
 workers
   .command("enable <name>")
   .description("Clear a worker's disabled state.")
-  .action(async (name: string) => {
-    process.exit(await runWorkersEnableCommand(name));
+  .option("--project-id <slug>", "Override rove.config.ts projectId.")
+  .action(async (name: string, opts: { projectId?: string }) => {
+    process.exit(await runWorkersEnableCommand(name, opts.projectId));
   });
 
 program.parseAsync(process.argv).catch((err) => {
