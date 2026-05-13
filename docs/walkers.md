@@ -43,6 +43,20 @@ rove daemon \
 
 `--as` is required for a stable identity. Give it a name that reads well in the team's `/workers` page — `agiterra-home-mini`, `office-walker`, `brian-nuc`. The default name (`<githubHandle>-<hostname>`) works but is less legible.
 
+### Running one machine against multiple projects
+
+The daemon reads `projectId` from `rove.config.ts` in the cwd, but `--project-id` overrides it. Useful when one laptop walks several consumer projects without you having to `cd` between repos:
+
+```bash
+# Walk tankloop, even though I'm in the rove repo
+rove daemon --project-id=tankloop --as=brian-laptop-tankloop
+
+# In another terminal, walk a second project at the same time
+rove daemon --project-id=acme --as=brian-laptop-acme
+```
+
+Each daemon registers a distinct worker row (unique on `(project_id, name)`), so they don't conflict. The same `--project-id` flag works on `rove workers list / disable / enable` so you can inspect or toggle workers in any project without changing cwd.
+
 Now the team has:
 
 - The dev's laptop daemons claiming `manual` + `localhost` work as before.

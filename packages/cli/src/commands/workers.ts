@@ -10,6 +10,21 @@
 import { loadRoveConfig } from "../config.js";
 import { getSupabaseClient } from "../supabase/client.js";
 
+const PROJECT_SLUG_RE = /^[a-z][a-z0-9-]*$/;
+
+async function resolveProjectId(override: string | undefined): Promise<string> {
+  if (override !== undefined) {
+    if (!PROJECT_SLUG_RE.test(override)) {
+      throw new Error(
+        `--project-id must be lowercase letters/numbers/hyphens (got: ${override})`,
+      );
+    }
+    return override;
+  }
+  const { config } = await loadRoveConfig();
+  return config.projectId;
+}
+
 interface WorkerRow {
   id: string;
   name: string;
@@ -47,21 +62,21 @@ function relative(iso: string | null): string {
   return `${Math.floor(dt / (24 * 60 * 60_000))}d ago`;
 }
 
-export async function runWorkersListCommand(): Promise<number> {
+export async function runWorkersListCommand(projectIdOverride?: string): Promise<number> {
   try {
-    const { config } = await loadRoveConfig();
+    const projectId = await resolveProjectId(projectIdOverride);
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("workers")
       .select("id, name, kind, github_handle, capabilities, last_heartbeat_at, stopped_at, disabled_at")
-      .eq("project_id", config.projectId);
+      .eq("project_id", projectId);
     if (error) {
       console.error(`workers list: ${error.message}`);
       return 1;
     }
     const workers = (data ?? []) as WorkerRow[];
     if (workers.length === 0) {
-      console.error(`No workers registered for project '${config.projectId}'.`);
+      console.error(`No workers registered for project '${projectId}'.`);
       console.error(`Start a daemon with: rove daemon --as=<name>`);
       return 0;
     }
@@ -121,14 +136,18 @@ export async function runWorkersListCommand(): Promise<number> {
   }
 }
 
-async function setDisabled(name: string, disabled: boolean): Promise<number> {
+async function setDisabled(
+  name: string,
+  disabled: boolean,
+  projectIdOverride?: string,
+): Promise<number> {
   try {
-    const { config } = await loadRoveConfig();
+    const projectId = await resolveProjectId(projectIdOverride);
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("workers")
       .update({ disabled_at: disabled ? new Date().toISOString() : null })
-      .eq("project_id", config.projectId)
+      .eq("project_id", projectId)
       .eq("name", name)
       .select("id");
     if (error) {
@@ -136,7 +155,7 @@ async function setDisabled(name: string, disabled: boolean): Promise<number> {
       return 1;
     }
     if (!data || data.length === 0) {
-      console.error(`No worker named '${name}' in project '${config.projectId}'.`);
+      console.error(`No worker named '${name}' in project '${projectId}'.`);
       return 1;
     }
     console.log(`worker '${name}' ${disabled ? "disabled" : "enabled"}.`);
@@ -147,10 +166,10 @@ async function setDisabled(name: string, disabled: boolean): Promise<number> {
   }
 }
 
-export function runWorkersDisableCommand(name: string): Promise<number> {
-  return setDisabled(name, true);
+export function runWorkersDisableCommand(name: string, projectIdOverride?: string): Promise<number> {
+  return setDisabled(name, true, projectIdOverride);
 }
 
-export function runWorkersEnableCommand(name: string): Promise<number> {
-  return setDisabled(name, false);
+export function runWorkersEnableCommand(name: string, projectIdOverride?: string): Promise<number> {
+  return setDisabled(name, false, projectIdOverride);
 }
