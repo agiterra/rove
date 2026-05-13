@@ -39,6 +39,7 @@ import {
 } from "./heartbeat.js";
 import { resolveDaemonIdentity, type DaemonIdentity } from "./identity.js";
 import { handleWorkerTokenRejection } from "./worker-error.js";
+import { decodeWorkerToken } from "../supabase/decode-token.js";
 import type { WorkerCapability } from "../commands/daemon.js";
 
 export interface DaemonOptions {
@@ -47,24 +48,6 @@ export interface DaemonOptions {
   workerName?: string;
   workerKind?: WorkerKind;
   capabilities?: WorkerCapability[];
-}
-
-interface WorkerClaims {
-  workerId: string;
-  projectId: string;
-  workerName: string;
-  githubHandle: string | null;
-}
-
-function decodeWorkerToken(token: string): WorkerClaims {
-  const [, payload] = token.split(".");
-  const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
-  return {
-    workerId: claims.worker_id as string,
-    projectId: claims.project_id as string,
-    workerName: claims.worker_name as string,
-    githubHandle: (claims.github_handle as string | undefined) ?? null,
-  };
 }
 
 export async function startDaemon(

@@ -17,6 +17,7 @@ import {
   runWorkersEnableCommand,
   runWorkersListCommand,
 } from "./commands/workers.js";
+import { runAuthShowTokenCommand } from "./commands/auth-show-token.js";
 import type { AuthRole } from "./auth-state.js";
 import {
   DEFAULT_DISPATCHER,
@@ -377,6 +378,20 @@ workers
   .option("--project-id <slug>", "Override rove.config.ts projectId.")
   .action(async (name: string, opts: { projectId?: string }) => {
     process.exit(await runWorkersEnableCommand(name, opts.projectId));
+  });
+
+const auth = program
+  .command("auth")
+  .description("Worker token inspection and credential management.");
+
+auth
+  .command("show-token")
+  .description(
+    "Decode and display the active worker token's claims. " +
+    "Useful for debugging token rejections. Does not print the raw token or verify the signature.",
+  )
+  .action(async () => {
+    process.exit(await runAuthShowTokenCommand());
   });
 
 program.parseAsync(process.argv).catch((err) => {
