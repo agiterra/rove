@@ -10,15 +10,15 @@
  * requiring per-dollar backslash escaping inside a TS template literal.
  * Only ${origin} is substituted at request time.
  *
- * File-size exception: longer than the 300-line cap (~390 lines). This file
+ * File-size exception: longer than the 300-line cap (~500 lines). This file
  * is a cohesive single-purpose artifact — the route handler and the bash
  * script it serves. Splitting them would require fs reads at runtime
  * (import.meta.url resolution differs across Next.js build targets).
  *
- * Steps implemented (install-flow plan v3, steps 1-10 scope + step 4 additions):
+ * Steps implemented (install-flow plan v3, full step 5 scope):
  *   1  – shell hygiene (set -euo pipefail)
  *   2  – argparse (--install-code=<uuid> and variants)
- *   3  – sanity checks (Darwin, node, curl)
+ *   3  – sanity checks (Darwin, node, curl, osacompile, codesign, PlistBuddy, lsregister)
  *   4  – umask 077
  *   5  – POST exchange → parse JSON → validate required fields
  *   6  – mkdir ~/.rove (chmod 700)
@@ -28,9 +28,11 @@
  *   10 – npm install into ~/.rove/lib/; verify rove.js exists
  *   11 – write LaunchAgent plist with literal absolute paths (step 4)
  *   12 – launchctl bootout → bootstrap → enable → kickstart (step 4)
- *
- * Deferred to step 5:
- *   rove:// URL handler applet
+ *   13 – generate AppleScript applet source (paths substituted before osacompile)
+ *   14 – compile applet + patch Info.plist for rove:// URL scheme
+ *   15 – write ~/.rove/url-handler.sh (chmod 700) — action dispatcher
+ *   16 – ad-hoc codesign the .app
+ *   17 – lsregister to register the URL scheme with LaunchServices
  */
 import "server-only";
 import { getDashboardOrigin } from "@/lib/dashboard-origin";
@@ -67,8 +69,7 @@ function buildScript(origin: string): string {
     `# Fetched from: ${origin}/install`,
     `# Usage: curl -fsSL ${origin}/install | bash -s -- --install-code=<uuid>`,
     `#`,
-    `# Implements install-flow plan v3, steps 1-10 + step 4 (LaunchAgent).`,
-    `# Deferred to step 5: rove:// URL handler applet.`,
+    `# Implements install-flow plan v3, full step 5 scope (LaunchAgent + rove:// handler).`,
     `set -euo pipefail`,
     ``,
     `ORIGIN="${origin}"`,
@@ -133,6 +134,28 @@ function buildScript(origin: string): string {
     ``,
     `if ! command -v curl &>/dev/null; then`,
     `  echo "error: curl not found. It ships with macOS; something is wrong with your PATH." >&2`,
+    `  exit 1`,
+    `fi`,
+    ``,
+    `if ! command -v osacompile &>/dev/null; then`,
+    `  echo "error: osacompile not found. It ships with macOS; something is wrong with your installation." >&2`,
+    `  exit 1`,
+    `fi`,
+    ``,
+    `if ! command -v codesign &>/dev/null; then`,
+    `  echo "error: codesign not found. It ships with Xcode Command Line Tools (xcode-select --install)." >&2`,
+    `  exit 1`,
+    `fi`,
+    ``,
+    `PLISTBUDDY="/usr/libexec/PlistBuddy"`,
+    `if [[ ! -x "${S}PLISTBUDDY" ]]; then`,
+    `  echo "error: PlistBuddy not found at ${S}PLISTBUDDY. It ships with macOS." >&2`,
+    `  exit 1`,
+    `fi`,
+    ``,
+    `LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"`,
+    `if [[ ! -x "${S}LSREGISTER" ]]; then`,
+    `  echo "error: lsregister not found at ${S}LSREGISTER. It ships with macOS." >&2`,
     `  exit 1`,
     `fi`,
     ``,
@@ -317,6 +340,125 @@ function buildScript(origin: string): string {
     `echo "Daemon installed and started."`,
     `echo ""`,
     ``,
+    `# ── step 13: write ~/.rove/url-handler.sh (chmod 700) ────────────────────`,
+    `# The handler reads worker_name + project_id from ~/.rove/env only.
+    # URL query params are ignored — any site can craft rove://start?evil=1.
+    # Action enum is closed: start | stop | restart | reveal-logs.
+    # rove://start deliberately omits launchctl enable (reviewer cheatsheet #16).
+    # rove://stop uses bootout only — not disable (reviewer cheatsheet #8).`,
+    `URL_HANDLER="${S}HOME/.rove/url-handler.sh"`,
+    ``,
+    // Build the url-handler.sh content using string concatenation so that
+    // bash parameter expansions like ${url#rove://} and ${action%%[?/]*}
+    // are NOT interpreted by TypeScript's template literal parser.
+    // S = "$" is defined at the top of buildScript().
+    `cat > "${S}URL_HANDLER" <<'HANDLER_EOF'`,
+    `#!/bin/bash`,
+    `set -euo pipefail`,
+    ``,
+    `# Source trusted local config — never accept worker_name/project_id from URL.`,
+    `ENV_FILE="$HOME/.rove/env"`,
+    `if [[ -f "$ENV_FILE" ]]; then`,
+    `  # shellcheck source=/dev/null`,
+    `  source "$ENV_FILE"`,
+    `fi`,
+    ``,
+    `# Parse only the action keyword from the URL. Strip everything from ? or / onward.`,
+    `url="$1"`,
+    "action=\"" + S + "{url#rove://}\"",
+    "action=\"" + S + "{action%%[?/]*}\"",
+    ``,
+    `PLIST="$HOME/Library/LaunchAgents/com.agiterra.rove.daemon.plist"`,
+    ``,
+    `case "$action" in`,
+    `  start)`,
+    `    # Bootstrap loads the agent; kickstart forces immediate start.`,
+    `    # IMPORTANT: do NOT call launchctl enable here — the URL handler must`,
+    `    # not override a user's deliberate launchctl disable or admin disable.`,
+    `    launchctl bootstrap gui/$UID "$PLIST" 2>/dev/null || true`,
+    `    launchctl kickstart -k gui/$UID/com.agiterra.rove.daemon 2>/dev/null || true`,
+    `    ;;`,
+    `  stop)`,
+    `    # Session-scoped pause. Next login (or re-bootstrap) restarts.`,
+    `    # IMPORTANT: do NOT call launchctl disable — that's the admin path.`,
+    `    launchctl bootout gui/$UID "$PLIST" 2>/dev/null || true`,
+    `    ;;`,
+    `  restart)`,
+    `    launchctl bootout gui/$UID "$PLIST" 2>/dev/null || true`,
+    `    launchctl bootstrap gui/$UID "$PLIST" 2>/dev/null || true`,
+    `    launchctl kickstart -k gui/$UID/com.agiterra.rove.daemon 2>/dev/null || true`,
+    `    ;;`,
+    `  reveal-logs)`,
+    `    open -R "$HOME/.rove/daemon.log"`,
+    `    ;;`,
+    `  *)`,
+    `    # Closed enum — silently ignore unknown actions.`,
+    `    exit 0`,
+    `    ;;`,
+    `esac`,
+    `HANDLER_EOF`,
+    `chmod 700 "${S}URL_HANDLER"`,
+    ``,
+    `echo "URL handler written at ${S}URL_HANDLER"`,
+    ``,
+    `# ── step 14: generate AppleScript applet (paths substituted before compile) ─`,
+    `# AppleScript compiled scripts cannot expand shell variables at runtime.
+    # We substitute the absolute path NOW (heredoc with double-quoted opener)
+    # so the compiled .scpt carries the literal path. (reviewer cheatsheet #15)`,
+    `APPLET_DIR="${S}HOME/Applications"`,
+    `APPLET_PATH="${S}APPLET_DIR/Rove Launcher.app"`,
+    `APPLET_TMP="/tmp/rove-launcher.applescript"`,
+    ``,
+    `mkdir -p "${S}APPLET_DIR"`,
+    ``,
+    `# Double-quoted heredoc: $URL_HANDLER expands here in the shell, not inside
+    # the compiled AppleScript. The result is a literal absolute path baked in.`,
+    `cat > "${S}APPLET_TMP" <<OSA`,
+    `on open location this_url`,
+    `  do shell script "${S}URL_HANDLER " & quoted form of this_url`,
+    `end open location`,
+    `OSA`,
+    ``,
+    `osacompile -o "${S}APPLET_PATH" "${S}APPLET_TMP"`,
+    `rm -f "${S}APPLET_TMP"`,
+    ``,
+    `echo "AppleScript applet compiled at ${S}APPLET_PATH"`,
+    ``,
+    `# ── step 15: patch Info.plist to declare rove:// URL scheme ─────────────`,
+    `# PlistBuddy Add commands are not idempotent — delete first (ignore error),
+    # then add the full chain cleanly.`,
+    `INFO_PLIST="${S}APPLET_PATH/Contents/Info.plist"`,
+    ``,
+    `"${S}PLISTBUDDY" -c "Delete :CFBundleURLTypes" "${S}INFO_PLIST" 2>/dev/null || true`,
+    `"${S}PLISTBUDDY" -c "Add :CFBundleURLTypes array" "${S}INFO_PLIST"`,
+    `"${S}PLISTBUDDY" -c "Add :CFBundleURLTypes:0 dict" "${S}INFO_PLIST"`,
+    `"${S}PLISTBUDDY" -c "Add :CFBundleURLTypes:0:CFBundleURLName string Rove Launcher" "${S}INFO_PLIST"`,
+    `"${S}PLISTBUDDY" -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "${S}INFO_PLIST"`,
+    `"${S}PLISTBUDDY" -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string rove" "${S}INFO_PLIST"`,
+    ``,
+    `# Verify the plist is well-formed before we proceed.`,
+    `if command -v plutil &>/dev/null; then`,
+    `  plutil -lint "${S}INFO_PLIST" || {`,
+    `    echo "error: Info.plist failed plutil lint after CFBundleURLTypes patch" >&2`,
+    `    exit 1`,
+    `  }`,
+    `fi`,
+    ``,
+    `echo "Info.plist patched with CFBundleURLSchemes=rove"`,
+    ``,
+    `# ── step 16: ad-hoc codesign the applet ─────────────────────────────────`,
+    `# Ad-hoc signing suppresses Gatekeeper warnings on this Mac.
+    # Each user builds their own applet locally so ad-hoc is sufficient.`,
+    `codesign -s - --force "${S}APPLET_PATH"`,
+    ``,
+    `echo "Applet signed (ad-hoc)."`,
+    ``,
+    `# ── step 17: register URL scheme with LaunchServices ─────────────────────`,
+    `"${S}LSREGISTER" -R "${S}APPLET_PATH"`,
+    ``,
+    `echo "URL scheme rove:// registered with LaunchServices."`,
+    `echo ""`,
+    ``,
     `# ── success ───────────────────────────────────────────────────────────────`,
     `echo "=================================================================="`,
     `echo " Rove worker installed and running!"`,
@@ -328,9 +470,14 @@ function buildScript(origin: string): string {
     `echo " Env file    : ~/.rove/env          (chmod 600)"`,
     `echo " Plist       : ~/Library/LaunchAgents/com.agiterra.rove.daemon.plist"`,
     `echo " Logs        : ~/.rove/daemon.log  /  ~/.rove/daemon.err"`,
+    `echo " URL handler : ~/.rove/url-handler.sh  (chmod 700)"`,
+    `echo " Applet      : ~/Applications/Rove Launcher.app"`,
     `echo ""`,
     `echo " Daemon installed and started. The dashboard at ${origin}/workers"`,
     `echo " should show your worker online within a few seconds."`,
+    `echo ""`,
+    `echo " The URL handler is installed. You can use the dashboard's"`,
+    `echo " Resume / Pause / Restart / Show-logs actions without leaving the browser."`,
     `echo ""`,
     `echo " The daemon will restart automatically at login. If it ever stops,"`,
     `echo " use the dashboard controls to resume — no terminal trip needed."`,

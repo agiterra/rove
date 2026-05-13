@@ -10,6 +10,7 @@ import Link from "next/link";
 import { createReadClient } from "../../lib/supabase/server";
 import { PageHeader } from "../../components/page-header";
 import { resolveProjectId } from "../../lib/project-context";
+import { WorkerRowActions } from "./WorkerRowActions";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,7 @@ export default async function WorkersPage({ searchParams }: PageProps) {
                 <th className="px-4 py-2.5 text-left">Claims</th>
                 <th className="px-4 py-2.5 text-left">Status</th>
                 <th className="px-4 py-2.5 text-left">Last heartbeat</th>
+                <th className="px-4 py-2.5 text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -143,6 +145,13 @@ export default async function WorkersPage({ searchParams }: PageProps) {
                     </td>
                     <td className="px-4 py-2.5 text-[var(--color-text-muted)] font-mono text-[12px]">
                       {w.last_heartbeat_at ? relativeTime(w.last_heartbeat_at) : "never"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <WorkerRowActions
+                        workerName={w.name}
+                        projectId={projectId}
+                        status={status}
+                      />
                     </td>
                   </tr>
                 );
