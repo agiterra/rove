@@ -20,3 +20,6 @@ build/
 .idea/
 .vscode/
 .vercel
+
+# Generated tarballs produced by the dashboard's prebuild step. Never committed.
+apps/dashboard/public/install/*.tgz
