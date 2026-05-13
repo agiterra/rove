@@ -4,6 +4,14 @@
 **Owner**: Brian.
 **Why now**: The dashboard cannot, by browser security model, launch a process on the user's machine. The realistic "user never leaves the interface" experience is therefore *one* terminal moment (the install paste) followed by an always-on local daemon plus a `rove://` protocol handler the dashboard can poke when the daemon is stopped or crashed.
 
+## v3.1 changes (Open question #2 resolved in step 2)
+
+2. **Worker-name collision predicate is now concrete.** Open question #2 asked whether the mint endpoint should detect naming conflicts and, if so, what "active" means. Resolved in `POST /api/install/mint` (step 2):
+   - **Active** = `disabled_at IS NULL AND stopped_at IS NULL AND last_heartbeat_at > now() - 90 seconds` — identical to the dashboard's "online" chip semantics.
+   - An active or administratively disabled worker blocks re-mint → **409** with a human-readable error naming the worker and project.
+   - A **stale or stopped** worker (heartbeat older than 90 s, or `stopped_at` set) does **not** block re-mint. This is the "I'm reinstalling on the same machine" case: the prior daemon is inert, so minting a fresh install code for the same name is safe.
+   - The mint endpoint does **not** create a `workers` row — that still happens at exchange time via `mintWorkerToken()`.
+
 ## v3 changes (responses to second Codex review)
 
 1. **Install code framing tightened.** v2 called the install code "not a credential" — too strong. It IS a short-lived single-use bearer secret while it's live (5 minutes); whoever captures it before exchange can redeem it. v3 phrases it as such and recommends `HISTCONTROL=ignorespace` (so a leading-space-prefixed paste isn't recorded) for users who want extra hardening.

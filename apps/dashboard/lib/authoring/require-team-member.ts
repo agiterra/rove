@@ -16,7 +16,32 @@ export interface TeamMemberContext {
 
 export async function requireTeamMember(): Promise<TeamMemberContext> {
   if (env.devBypassAuth() && !env.isProduction()) {
-    return { userId: "dev-bypass", githubHandle: null, displayName: "DEV_BYPASS_AUTH" };
+    // Resolve the real supabase_user_id from team_members so inserts that carry
+    // a user_id FK (e.g. install_codes → auth.users) receive a valid UUID that
+    // actually exists in the DB. If the lookup fails (e.g. no Supabase connection),
+    // fall back gracefully — callers that don't insert into FK-constrained tables
+    // will still work.
+    const { createServiceRoleSupabase } = await import("../supabase/server");
+    const bypassHandle = process.env["ROVE_DAEMON_GITHUB_HANDLE"] ?? null;
+    const svc = createServiceRoleSupabase();
+    const { data: member } = bypassHandle
+      ? await svc
+          .from("team_members")
+          .select("supabase_user_id, github_handle, display_name")
+          .eq("github_handle", bypassHandle)
+          .is("removed_at", null)
+          .maybeSingle()
+      : { data: null };
+    if (member?.supabase_user_id) {
+      return {
+        userId: member.supabase_user_id as string,
+        githubHandle: (member.github_handle as string | null) ?? bypassHandle,
+        displayName: (member.display_name as string | null) ?? bypassHandle,
+      };
+    }
+    // No matching team member — return a sentinel. Any insert that FKs auth.users
+    // will fail; that's acceptable since this path is dev-only.
+    return { userId: "00000000-0000-0000-0000-000000000000", githubHandle: bypassHandle, displayName: "DEV_BYPASS_AUTH" };
   }
 
   const supabase = await createServerSupabase();
