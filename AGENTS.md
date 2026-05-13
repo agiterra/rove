@@ -42,6 +42,7 @@ Rove exists because there's a gap in the testing market for **non-deterministic,
 | Onboarding a new consuming project | `TEAM-SETUP.md` (top of repo) |
 | Roadmap + what's done | `docs/ROADMAP.md` |
 | Feature backlog ("what's on our list") | `docs/BACKLOG.md` |
+| Worker daemons + dedicated team walkers | `docs/walkers.md` |
 | Adding or extending an agent rule | `.agent-rules/README.md` |
 
 ## Hosting + infra
@@ -86,6 +87,7 @@ pnpm sync:agent-guides       # regenerate CLAUDE.md + AGENTS.md from source
 - `docs/INSTALL.md` — abbreviated install reference.
 - `docs/ROADMAP.md` — status + what's next + phase plan.
 - `docs/BACKLOG.md` — feature backlog. Read this when asked "what do we have for features." Add bullets here for ideas not yet started; promote to a GitHub issue when work begins.
+- `docs/walkers.md` — workers concept (laptop vs dedicated), capability routing, the home-desktop pattern, recovery / late-completion behavior. Cite this when explaining how the team can run an always-on dedicated machine without tunnels or API keys.
 
 ---
 

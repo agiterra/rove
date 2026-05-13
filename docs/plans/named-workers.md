@@ -1,6 +1,6 @@
 # Plan — Named Workers
 
-**Status**: Step 1 in flight (branch `named-workers-step-1`). v6 — incorporates four rounds of Codex review + one implementation-time correction.
+**Status**: Shipped 2026-05-13. All six steps merged (#1–#5 + #6). v6 — incorporates four rounds of Codex review + one implementation-time correction. End-user docs at [`docs/walkers.md`](../walkers.md).
 **Owner**: Brian.
 **Why now**: Today a walk only happens when somebody's daemon is running. The team has no shared awareness of *which* machines are claiming *which* jobs. Phase E (auto-walk on PR) cannot ship until this is solved, because a webhook firing at 3 AM cannot depend on a developer's laptop being open.
 

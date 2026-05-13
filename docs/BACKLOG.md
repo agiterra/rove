@@ -13,7 +13,7 @@ Single source of truth for **features and ideas not yet started**. If Brian asks
 
 ## Features
 
-- **Named workers** — give walker daemons identity, capability, and visibility so teams can dedicate machines (e.g. a home desktop) for webhook-triggered walks. No tunnels, no cloud sandbox, no API keys. Plan: [`docs/plans/named-workers.md`](plans/named-workers.md).
+- ~~**Named workers**~~ — shipped 2026-05-13 in PRs #1–#5 + step-6 docs. See [`docs/walkers.md`](walkers.md) for usage; [`docs/plans/named-workers.md`](plans/named-workers.md) for the design rationale.
 - _(add new items above this line)_
 
 ## Ideas / maybe-someday
