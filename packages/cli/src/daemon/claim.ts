@@ -1,9 +1,15 @@
 /**
- * Atomic claim + completion writes for agent_jobs rows.
+ * Atomic claim + status writes for agent_jobs rows.
  *
- * Race semantics: the conditional UPDATE with WHERE status='pending' is
- * atomic in Postgres — multiple daemons can fire `claimJob` for the same
- * id, only one gets the row back. Losers see no rows returned and skip.
+ * Named-workers plan step 1: the primary claim path is `claimNextJob`,
+ * which calls the `claim_next_job(p_worker_id)` Postgres function. That
+ * function does `SELECT ... FOR UPDATE SKIP LOCKED` so no two daemons can
+ * claim the same job regardless of how many call concurrently.
+ *
+ * The legacy `tryClaimJob` is kept for the `requested-only` claim mode,
+ * which `claim_next_job` does not yet support (it filters
+ * `assigned_to is null OR = me`; requested-only needs the stricter
+ * `assigned_to = me`). Step 2 unifies the modes by extending the function.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DaemonIdentity } from "./identity.js";
@@ -18,8 +24,26 @@ export interface AgentJobRow {
   requested_by: string | null;
   assigned_to: string | null;
   claimed_by: string | null;
+  claimed_by_worker_id: string | null;
   priority: number;
   notes: string | null;
+  project_id?: string;
+}
+
+export async function claimNextJob(
+  supabase: SupabaseClient,
+  workerId: string,
+): Promise<AgentJobRow | null> {
+  // The DB function is declared `returns setof agent_jobs` (limit 1) so
+  // PostgREST gives back either `[]` or `[{row}]`. A scalar composite
+  // return would marshal "no row" as `{id: null, ...}`, indistinguishable
+  // from a real row.
+  const { data, error } = await supabase.rpc("claim_next_job", {
+    p_worker_id: workerId,
+  });
+  if (error) throw new Error(`claim_next_job: ${error.message}`);
+  const rows = (data as AgentJobRow[] | null) ?? [];
+  return rows[0] ?? null;
 }
 
 export async function tryClaimJob(
@@ -83,6 +107,9 @@ export async function markFailed(
  * On startup, scan for any pending rows the daemon could claim now (so we
  * don't only react to live INSERT events). Returns the ids only — the main
  * loop calls tryClaimJob individually so the race semantics stay identical.
+ *
+ * Used only by the legacy `requested-only` claim path. The "all" mode
+ * drain goes through `claimNextJob` in a loop.
  */
 export async function listClaimableIds(
   supabase: SupabaseClient,

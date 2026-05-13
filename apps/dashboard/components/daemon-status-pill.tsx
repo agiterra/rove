@@ -1,34 +1,43 @@
 /**
- * Header pill — green when ≥1 daemon heartbeated within the last 2min,
+ * Header pill — green when ≥1 worker heartbeated within the last 2min,
  * red when none. Server component; reads via the cookie-bound supabase
  * client so anon visitors get nothing back (caller hides the pill in
  * that case).
+ *
+ * Reads `workers` directly (not the daemon_heartbeats compat view). The
+ * view does not preserve the auth.users foreign-key semantics needed to
+ * recover display names via team_members — the named-workers plan
+ * explicitly authorized swapping this reader to read `workers.github_handle`
+ * during step 1.
  */
 import { createReadClient } from "../lib/supabase/server";
 
 const STALE_AFTER_MS = 2 * 60_000;
 
-interface HeartbeatRow {
-  user_id: string;
-  daemon_name: string;
-  hostname: string | null;
-  last_seen_at: string;
+interface WorkerRow {
+  id: string;
+  name: string;
+  github_handle: string | null;
+  last_heartbeat_at: string | null;
 }
 interface TeamMemberRow {
-  supabase_user_id: string | null;
-  display_name: string | null;
   github_handle: string;
+  display_name: string | null;
 }
 
 export async function DaemonStatusPill() {
   const supabase = await createReadClient();
-  const { data: hbData } = await supabase
-    .from("daemon_heartbeats")
-    .select("user_id, daemon_name, hostname, last_seen_at");
-  const heartbeats = (hbData ?? []) as HeartbeatRow[];
+  const { data: workerData } = await supabase
+    .from("workers")
+    .select("id, name, github_handle, last_heartbeat_at")
+    .is("disabled_at", null)
+    .is("stopped_at", null);
+  const workers = (workerData ?? []) as WorkerRow[];
 
   const cutoff = Date.now() - STALE_AFTER_MS;
-  const online = heartbeats.filter((h) => new Date(h.last_seen_at).getTime() > cutoff);
+  const online = workers.filter(
+    (w) => w.last_heartbeat_at !== null && new Date(w.last_heartbeat_at).getTime() > cutoff,
+  );
 
   if (online.length === 0) {
     return (
@@ -42,19 +51,19 @@ export async function DaemonStatusPill() {
     );
   }
 
-  const userIds = online.map((h) => h.user_id);
-  const { data: tmData } = await supabase
-    .from("team_members")
-    .select("supabase_user_id, display_name, github_handle")
-    .in("supabase_user_id", userIds);
-  const nameByUserId = new Map<string, string>();
-  for (const tm of (tmData ?? []) as TeamMemberRow[]) {
-    if (tm.supabase_user_id) {
-      nameByUserId.set(tm.supabase_user_id, tm.display_name ?? tm.github_handle);
+  const handles = online.map((w) => w.github_handle).filter((h): h is string => Boolean(h));
+  let nameByHandle = new Map<string, string>();
+  if (handles.length > 0) {
+    const { data: tmData } = await supabase
+      .from("team_members")
+      .select("github_handle, display_name")
+      .in("github_handle", handles);
+    for (const tm of (tmData ?? []) as TeamMemberRow[]) {
+      nameByHandle.set(tm.github_handle, tm.display_name ?? tm.github_handle);
     }
   }
   const labels = online
-    .map((h) => nameByUserId.get(h.user_id) ?? h.daemon_name)
+    .map((w) => (w.github_handle && nameByHandle.get(w.github_handle)) ?? w.name)
     .join(", ");
 
   return (

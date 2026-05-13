@@ -1,8 +1,12 @@
 # Plan — Named Workers
 
-**Status**: Proposed, not started. v5 — incorporates four rounds of Codex review.
+**Status**: Step 1 in flight (branch `named-workers-step-1`). v6 — incorporates four rounds of Codex review + one implementation-time correction.
 **Owner**: Brian.
 **Why now**: Today a walk only happens when somebody's daemon is running. The team has no shared awareness of *which* machines are claiming *which* jobs. Phase E (auto-walk on PR) cannot ship until this is solved, because a webhook firing at 3 AM cannot depend on a developer's laptop being open.
+
+## v6 changes (implementation-time correction)
+
+1. **`claim_next_job` returns `setof agent_jobs`, not a scalar composite.** Plan v1–v5 specified `returns agent_jobs`. Caught at first smoke test: PostgREST marshals a NULL scalar-composite return as `{id: null, kind: null, ...}` — an object with all-null fields, indistinguishable from a real row by the client. The daemon then dispatched on a "null" job in a tight loop. Redefined as `returns setof public.agent_jobs` so PostgREST returns `[]` or `[{row}]`; the client now reads `data?.[0] ?? null`. `RETURN NULL` becomes `RETURN;`; the success path uses `RETURN NEXT v_job;`. A follow-up migration (`20260513000100_claim_next_job_setof.sql`) lands the corrected definition so already-applied databases converge.
 
 ## v5 changes (responses to fourth Codex review)
 
