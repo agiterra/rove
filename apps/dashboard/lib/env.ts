@@ -36,6 +36,12 @@ export const env = {
   supabaseServiceRoleKey: () =>
     requireEither("ROVE_SUPABASE_SERVICE_ROLE_KEY", "EVAL_SUPABASE_SERVICE_ROLE_KEY"),
   /**
+   * Server-only — HS256 secret Supabase signs its own auth JWTs with.
+   * We co-opt it to sign per-worker tokens so PostgREST validates them
+   * via the standard auth pipeline. Never expose.
+   */
+  supabaseJwtSecret: () => required("SUPABASE_JWT_SECRET"),
+  /**
    * Dev-only escape hatch. When "1", server pages query via service-role
    * even without a signed-in user. NEVER set in production.
    */
