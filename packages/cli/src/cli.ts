@@ -12,6 +12,11 @@ import { runDaemonCommand } from "./commands/daemon.js";
 import { runInitCommand } from "./commands/init.js";
 import { runSyncCommand } from "./commands/sync.js";
 import { runUiCommand } from "./commands/ui.js";
+import {
+  runWorkersDisableCommand,
+  runWorkersEnableCommand,
+  runWorkersListCommand,
+} from "./commands/workers.js";
 import type { AuthRole } from "./auth-state.js";
 import {
   DEFAULT_DISPATCHER,
@@ -339,6 +344,31 @@ program
         capabilities: claims as Array<"manual" | "localhost" | "webhook"> | undefined,
       }),
     );
+  });
+
+const workers = program
+  .command("workers")
+  .description("Inspect and toggle worker daemons for the active project.");
+
+workers
+  .command("list", { isDefault: true })
+  .description("List workers in the active project.")
+  .action(async () => {
+    process.exit(await runWorkersListCommand());
+  });
+
+workers
+  .command("disable <name>")
+  .description("Soft-disable a worker — the daemon refuses to start until re-enabled.")
+  .action(async (name: string) => {
+    process.exit(await runWorkersDisableCommand(name));
+  });
+
+workers
+  .command("enable <name>")
+  .description("Clear a worker's disabled state.")
+  .action(async (name: string) => {
+    process.exit(await runWorkersEnableCommand(name));
   });
 
 program.parseAsync(process.argv).catch((err) => {
