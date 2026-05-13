@@ -136,6 +136,55 @@ export async function markFailed(
 }
 
 /**
+ * Recovery sweep — releases jobs whose claiming worker has stopped
+ * heartbeating. Called every 30s from every daemon's loop; the first one
+ * to grab eligible rows wins. Returns the count for logging.
+ */
+export async function recoverStaleClaims(
+  supabase: SupabaseClient,
+  projectId: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("recover_stale_claims", {
+    p_project_id: projectId,
+  });
+  if (error) {
+    console.error(`[recovery] ${error.message}`);
+    return 0;
+  }
+  return (data as number) ?? 0;
+}
+
+/**
+ * Graceful shutdown helper — release every job this worker still holds
+ * back to `pending` so peer daemons can pick them up immediately, instead
+ * of waiting up to 90s for the recovery sweep.
+ *
+ * Project-scoped defensively: a misbehaving daemon should never reach
+ * across tenancy even on its own shutdown path. Clears both new and
+ * legacy attribution columns.
+ */
+export async function releaseInFlightClaims(
+  supabase: SupabaseClient,
+  projectId: string,
+  workerId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("agent_jobs")
+    .update({
+      status: "pending",
+      claimed_by_worker_id: null,
+      claimed_by: null,
+      claimed_at: null,
+    })
+    .eq("project_id", projectId)
+    .eq("claimed_by_worker_id", workerId)
+    .in("status", ["claimed", "running"]);
+  if (error) {
+    console.error(`[shutdown] release claims: ${error.message}`);
+  }
+}
+
+/**
  * On startup, scan for any pending rows the daemon could claim now (so we
  * don't only react to live INSERT events). Returns the ids only — the main
  * loop calls tryClaimJob individually so the race semantics stay identical.
