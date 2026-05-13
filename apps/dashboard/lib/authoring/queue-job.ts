@@ -5,6 +5,12 @@
  *
  * Service-role write — full per-user JWTs come with proper multi-tenant
  * tenancy (Phase D).
+ *
+ * Named-workers plan step 2: each insert sets `required_capability` so
+ * `claim_next_job` routes the work to a worker that advertises that
+ * capability. Localhost walks pin to `localhost` (only the user's own
+ * laptop daemon can reach localhost); everything else dashboard-triggered
+ * is `manual`. Webhook-triggered work (Phase E) will use `webhook`.
  */
 import "server-only";
 import { resolveProjectId } from "../project-context";
@@ -32,6 +38,7 @@ export async function queueGenerationJob(
       input: { description },
       requested_by: me.userId === "dev-bypass" ? null : me.userId,
       status: "pending",
+      required_capability: "manual",
     })
     .select("id")
     .single();
@@ -48,10 +55,21 @@ export interface WalkInput {
   timeout_seconds?: number;
 }
 
+function isLocalhostUrl(u: string | undefined): boolean {
+  if (!u) return false;
+  try {
+    const host = new URL(u).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 export async function queueWalkJob(input: WalkInput): Promise<QueuedJob> {
   const me = await requireTeamMember();
   const projectId = await resolveProjectId();
   const supabase = createServiceRoleSupabase();
+  const requiredCapability = isLocalhostUrl(input.target_url) ? "localhost" : "manual";
   const { data, error } = await supabase
     .from("agent_jobs")
     .insert({
@@ -63,6 +81,7 @@ export async function queueWalkJob(input: WalkInput): Promise<QueuedJob> {
       // Walks pin priority above generation so a queued walk beats a queued
       // wizard refresh when daemon capacity is contested.
       priority: 70,
+      required_capability: requiredCapability,
     })
     .select("id")
     .single();
