@@ -134,7 +134,78 @@ The current capability set is `manual` · `localhost` · `webhook`. To add (say)
 
 No schema change is needed beyond the constraint; the `capabilities` jsonb on each worker is already free-form.
 
+## First install (macOS)
+
+This section is for a teammate installing the daemon on their machine for the first time. The whole flow takes one terminal paste and about 30 seconds.
+
+**Prerequisites.** You must already be in the Rove `team_members` table. Ask an existing team member to add you if you don't have dashboard access.
+
+1. **Sign in** at `https://rove-agiterra.vercel.app/` with your GitHub account.
+
+2. **Open `/setup`.** The header chip links directly to `/setup` when no worker is registered for your account.
+
+3. **Fill in the form.**
+   - **Worker name** — defaults to `<hostname>-<github_handle>`. Change it to something legible on the `/workers` page if you prefer (e.g. `brian-laptop`, `office-mini`).
+   - **Kind** — `laptop` for your daily dev machine; `dedicated` for an always-on host.
+
+4. **Click "Generate install command."** A one-liner appears:
+   ```bash
+    curl -fsSL https://rove-agiterra.vercel.app/install | bash -s -- --install-code=<uuid>
+   ```
+   The install code is a **short-lived single-use bearer secret** (5-minute TTL). It is safer than a real credential, but treat it like one — don't share the line with anyone who shouldn't be able to register a worker in your name.
+
+   **Optional — keep the code out of shell history.** Run this first, then prefix the paste with a leading space:
+   ```bash
+   export HISTCONTROL=ignorespace   # bash
+   # or, for zsh:
+   setopt hist_ignore_space
+   ```
+   Most shells skip leading-space commands from history. This is belt-and-suspenders; the 5-minute one-shot window already bounds exposure significantly.
+
+5. **Paste into Terminal.** The script will:
+   - POST the install code to the dashboard and exchange it for a worker JWT over HTTPS.
+   - Write `~/.rove/auth.token` (the JWT, chmod 600) and `~/.rove/env` (worker name, project, Supabase URL — chmod 600). The `~/.rove/` directory itself is chmod 700.
+   - Download `@agiterra/rove-core` and `@agiterra/rove-cli` as tarballs from the dashboard and `npm install` them into `~/.rove/lib/`. No global install; everything is self-contained.
+   - Write `~/Library/LaunchAgents/com.agiterra.rove.daemon.plist` with your worker name, project, and absolute paths to `node` and the CLI baked in. Registers the LaunchAgent and starts the daemon immediately.
+   - Compile `~/Applications/Rove Launcher.app` — an AppleScript applet that handles `rove://` URLs. The dashboard uses `rove://start`, `rove://stop`, `rove://restart`, and `rove://reveal-logs` to drive the daemon without another terminal trip.
+
+6. **Watch the dashboard.** The `/setup` page realtime-subscribes to the `workers` table and flips to "Daemon installed and running on `<your_worker>`" within ~30 seconds once the heartbeat lands.
+
+That's it. Return to the dashboard — the header chip turns cyan and the daemon runs at every login automatically.
+
+**macOS only.** The install script bails immediately on non-Darwin. Linux (`systemd --user`) and Windows (Task Scheduler) follow the same shape but ship after alpha.
+
+### Troubleshooting
+
+- **Daemon isn't appearing online?**
+  - Run `rove auth show-token` to see what the active token says (worker name, project, expiry).
+  - Check `~/.rove/daemon.err` for fatal startup errors. The message `worker token rejected (revoked or expired)` means the token was invalidated — re-run the install one-liner from `/setup` to mint a fresh one.
+  - Run `launchctl print gui/$UID/com.agiterra.rove.daemon` to confirm the agent is loaded and see its last exit code.
+  - Check whether the agent is in the disabled state: `launchctl print-disabled gui/$UID | grep rove`. If it shows `true`, the agent was disabled (either by `launchctl disable` or a previous `rove workers disable`). Re-enable it: `launchctl enable gui/$UID/com.agiterra.rove.daemon`, then re-run the install one-liner. The URL handler (`rove://start`) deliberately does **not** auto-undo a `disable` — that's the intended behavior so a deliberate pause isn't overridden by a website click.
+
+- **Log paths.** The daemon writes to:
+  - `~/.rove/daemon.log` — stdout (normal operation).
+  - `~/.rove/daemon.err` — stderr (errors, startup failures).
+
+  View live: `tail -f ~/.rove/daemon.log`. Or click "Reveal logs" on the `/workers` page, which triggers `rove://reveal-logs` and opens Finder to the log file.
+
+- **Worker stuck "paused" (amber chip)?** The `stopped_at` timestamp is set within the last hour. Click "Resume" on `/workers` — this invokes `rove://start`, which runs `bootstrap` + `kickstart` to bring the daemon back up without needing a terminal.
+
+- **Worker stuck "offline" + can't resume via the chip?** The worker either went beyond the 1-hour paused window or never recovered from a crash. Use the "Restart" button on `/workers` (`rove://restart`). If that also fails, re-run the install one-liner from `/setup` — it's fully idempotent, rotates the token, and restarts everything cleanly.
+
+- **`rove://` prompt never appears?** The first time any page invokes a `rove://` URL, macOS shows an "Open Rove Launcher?" confirmation. Check "Always allow" to make subsequent clicks silent. If the prompt never appears at all, the `lsregister` step at the end of the install script may have failed silently — re-running the install one-liner will re-register the applet.
+
+- **Uninstall.** There is no `rove://uninstall` action (removing the binary that hosts the URL handler from inside the URL handler is awkward). Uninstall is manual:
+  ```bash
+  launchctl bootout gui/$UID ~/Library/LaunchAgents/com.agiterra.rove.daemon.plist 2>/dev/null || true
+  rm -f ~/Library/LaunchAgents/com.agiterra.rove.daemon.plist
+  rm -rf ~/Applications/Rove\ Launcher.app
+  rm -rf ~/.rove
+  ```
+  This removes all local artifacts. The `workers` row in the Rove database is **not** deleted — the daemon never removes its own registration. To fully retire the worker name (so it won't show up on `/workers`), an admin runs `rove workers disable <name>` or removes the row directly.
+
 ## See also
 
 - [`docs/plans/named-workers.md`](plans/named-workers.md) — the design document, with the rationale + the four rounds of review that shaped this implementation.
+- [`docs/plans/install-flow.md`](plans/install-flow.md) — the full install-flow plan (v3/v3.1) with the security model, script pseudocode, and reviewer cheatsheet.
 - [`docs/ROADMAP.md`](ROADMAP.md) — where workers fit in the larger phase plan.
