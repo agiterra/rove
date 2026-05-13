@@ -66,41 +66,73 @@ export async function tryClaimJob(
   return (data as AgentJobRow | null) ?? null;
 }
 
-export async function markRunning(supabase: SupabaseClient, jobId: string): Promise<void> {
-  const { error } = await supabase.from("agent_jobs").update({ status: "running" }).eq("id", jobId);
+/**
+ * Status-mutating UPDATEs use the ownership predicate
+ * `(claimed_by_worker_id = :self AND status = :expected_prior)`. If 0 rows
+ * are affected, the claim was recovered during execution — we log and
+ * return `false` so the caller can discard the result rather than overwrite
+ * the new claimer's progress. The recovery sweep (step 3) is the only
+ * status-mutating writer permitted to bypass this predicate.
+ */
+export async function markRunning(
+  supabase: SupabaseClient,
+  jobId: string,
+  workerId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("agent_jobs")
+    .update({ status: "running" })
+    .eq("id", jobId)
+    .eq("claimed_by_worker_id", workerId)
+    .eq("status", "claimed")
+    .select("id");
   if (error) throw new Error(`mark running ${jobId}: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function markCompleted(
   supabase: SupabaseClient,
   jobId: string,
   result: Record<string, unknown>,
-): Promise<void> {
-  const { error } = await supabase
+  workerId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
     .from("agent_jobs")
     .update({
       status: "completed",
       result,
       finished_at: new Date().toISOString(),
     })
-    .eq("id", jobId);
+    .eq("id", jobId)
+    .eq("claimed_by_worker_id", workerId)
+    .eq("status", "running")
+    .select("id");
   if (error) throw new Error(`mark completed ${jobId}: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function markFailed(
   supabase: SupabaseClient,
   jobId: string,
   message: string,
-): Promise<void> {
-  const { error } = await supabase
+  workerId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
     .from("agent_jobs")
     .update({
       status: "failed",
       error: message,
       finished_at: new Date().toISOString(),
     })
-    .eq("id", jobId);
-  if (error) console.error(`mark failed ${jobId}: ${error.message}`);
+    .eq("id", jobId)
+    .eq("claimed_by_worker_id", workerId)
+    .eq("status", "running")
+    .select("id");
+  if (error) {
+    console.error(`mark failed ${jobId}: ${error.message}`);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
 }
 
 /**

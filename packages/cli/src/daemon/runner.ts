@@ -1,14 +1,17 @@
 /**
  * Daemon main loop.
  *
- * Named-workers plan step 1: on startup the daemon registers a `workers`
- * row and uses `claim_next_job` (via `claimNextJob`) as the primary claim
- * path. The legacy `tryClaimJob` path is retained only for the
- * `requested-only` claim mode, which the v5 `claim_next_job` filter does
- * not yet support strictly. Step 2 unifies the two paths.
+ * Named-workers plan step 2: the daemon advertises an explicit
+ * (name, kind, capabilities) tuple via the `--as` / `--kind` / `--claims`
+ * flags. Capability eligibility is now active — laptops without the
+ * `webhook` capability cannot claim webhook-triggered jobs, which routes
+ * those to dedicated team walkers without requiring priority semantics.
  *
- * Concurrency cap = 1 — generation is fast enough that we don't need to
- * parallelize, and serializing keeps logs readable.
+ * Result-write paths (`markRunning` / `markCompleted` / `markFailed`)
+ * include the ownership predicate so a daemon whose claim was recovered
+ * mid-execution cannot overwrite the new claimer's progress.
+ *
+ * Concurrency cap = 1.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dispatchJob } from "./dispatch.js";
@@ -18,12 +21,20 @@ import {
   tryClaimJob,
   type AgentJobRow,
 } from "./claim.js";
-import { registerWorker, startHeartbeat } from "./heartbeat.js";
+import {
+  registerWorker,
+  startHeartbeat,
+  type WorkerKind,
+} from "./heartbeat.js";
 import { resolveDaemonIdentity, type DaemonIdentity } from "./identity.js";
+import type { WorkerCapability } from "../commands/daemon.js";
 
 export interface DaemonOptions {
   projectId: string;
   claimMode?: "all" | "requested-only";
+  workerName?: string;
+  workerKind?: WorkerKind;
+  capabilities?: WorkerCapability[];
 }
 
 export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions): Promise<void> {
@@ -39,42 +50,45 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
     `[daemon] up as ${identity.daemonName} (user=${identity.userId.slice(0, 8)} mode=${claimMode} project=${opts.projectId})`,
   );
 
-  const workerId = await registerWorker(supabase, identity, opts.projectId);
-  console.log(`[daemon] worker id=${workerId.slice(0, 8)}`);
+  const worker = await registerWorker(supabase, identity, opts.projectId, {
+    name: opts.workerName,
+    kind: opts.workerKind,
+    capabilities: opts.capabilities,
+  });
+  console.log(
+    `[daemon] worker "${worker.workerName}" id=${worker.workerId.slice(0, 8)} kind=${worker.kind} claims=${worker.capabilities.join(",")}`,
+  );
 
-  const heartbeat = startHeartbeat(supabase, workerId);
+  const heartbeat = startHeartbeat(supabase, worker.workerId);
 
   let busy = false;
 
-  // "all" mode: drain via claim_next_job in a loop.
   const drainAll = async () => {
     if (busy) return;
     busy = true;
     try {
       while (true) {
-        const job = await claimNextJob(supabase, workerId);
+        const job = await claimNextJob(supabase, worker.workerId);
         if (!job) break;
-        await dispatchJob(supabase, job);
+        await dispatchJob(supabase, job, worker.workerId);
       }
     } finally {
       busy = false;
     }
   };
 
-  // "requested-only" mode: legacy list-then-try path until step 2 unifies.
   const tryDispatchLegacy = async (jobId: string) => {
     if (busy) return;
     busy = true;
     try {
       const claimed = await tryClaimJob(supabase, identity, jobId);
       if (!claimed) return;
-      await dispatchJob(supabase, claimed);
+      await dispatchJob(supabase, claimed, worker.workerId);
     } finally {
       busy = false;
     }
   };
 
-  // Drain anything pending from before we started.
   if (claimMode === "all") {
     await drainAll();
   } else {
@@ -95,10 +109,6 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
         if (row.project_id && row.project_id !== opts.projectId) return;
 
         if (claimMode === "all") {
-          // Cheap optimization: skip the RPC round-trip if this row is
-          // assigned to someone else. claim_next_job would correctly
-          // filter it out anyway, but draining unnecessarily on every
-          // unrelated INSERT wastes time.
           if (row.assigned_to && row.assigned_to !== identity.userId) return;
           void drainAll();
         } else {
@@ -111,9 +121,6 @@ export async function startDaemon(supabase: SupabaseClient, opts: DaemonOptions)
       console.log(`[daemon] realtime ${status}`);
     });
 
-  // Stay alive until SIGTERM/SIGINT. Step 3 adds graceful-shutdown release
-  // of in-flight claims; for now we rely on the (still-to-come) recovery
-  // sweep.
   await new Promise<void>((resolve) => {
     const shutdown = (signal: string) => {
       console.log(`[daemon] ${signal} received — shutting down`);

@@ -2,8 +2,13 @@ import { loadRoveConfig } from "../config.js";
 import { getSupabaseClient } from "../supabase/client.js";
 import { startDaemon } from "../daemon/runner.js";
 
+export type WorkerCapability = "manual" | "localhost" | "webhook";
+
 export interface DaemonCommandOpts {
   claimMode?: "all" | "requested-only";
+  workerName?: string;
+  workerKind?: "laptop" | "dedicated";
+  capabilities?: WorkerCapability[];
 }
 
 export async function runDaemonCommand(opts: DaemonCommandOpts): Promise<number> {
@@ -13,6 +18,9 @@ export async function runDaemonCommand(opts: DaemonCommandOpts): Promise<number>
     await startDaemon(supabase, {
       projectId: config.projectId,
       claimMode: opts.claimMode,
+      workerName: opts.workerName,
+      workerKind: opts.workerKind,
+      capabilities: opts.capabilities,
     });
     return 0;
   } catch (err) {

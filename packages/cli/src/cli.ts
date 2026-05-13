@@ -300,10 +300,43 @@ program
     }
     return s;
   })
+  .option(
+    "--as <name>",
+    "Stable worker name (e.g. 'brian-laptop', 'agiterra-home-mini'). Defaults to <githubHandle>-<hostname>.",
+  )
+  .option("--kind <kind>", "Worker kind: laptop (default) | dedicated", (s) => {
+    if (s !== "laptop" && s !== "dedicated") {
+      throw new Error(`--kind must be 'laptop' or 'dedicated' (got: ${s})`);
+    }
+    return s;
+  })
+  .option(
+    "--claims <list>",
+    "Comma-separated capabilities this worker will claim: manual,localhost,webhook. " +
+      "Defaults derive from --kind (laptop=manual,localhost; dedicated=manual,webhook).",
+  )
   .action(async (rawOpts: Record<string, unknown>) => {
+    const claims = typeof rawOpts.claims === "string"
+      ? (rawOpts.claims as string)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+    if (claims) {
+      for (const c of claims) {
+        if (c !== "manual" && c !== "localhost" && c !== "webhook") {
+          throw new Error(
+            `--claims must be a subset of {manual,localhost,webhook} (got: ${c})`,
+          );
+        }
+      }
+    }
     process.exit(
       await runDaemonCommand({
         claimMode: rawOpts.claimMode as "all" | "requested-only" | undefined,
+        workerName: rawOpts.as as string | undefined,
+        workerKind: rawOpts.kind as "laptop" | "dedicated" | undefined,
+        capabilities: claims as Array<"manual" | "localhost" | "webhook"> | undefined,
       }),
     );
   });
