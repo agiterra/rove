@@ -1,5 +1,5 @@
 import { loadRoveConfig } from "../config.js";
-import { getSupabaseClient } from "../supabase/client.js";
+import { getDaemonSupabase } from "../supabase/client.js";
 import { startDaemon } from "../daemon/runner.js";
 
 export type WorkerCapability = "manual" | "localhost" | "webhook";
@@ -13,6 +13,9 @@ export interface DaemonCommandOpts {
    * Overrides rove.config.ts → projectId. Lets one machine run daemons
    * against multiple projects without switching cwd or editing config.
    * Validated against the same slug shape `rove init` enforces.
+   *
+   * In worker-token mode the JWT's project_id is canonical — if this flag
+   * disagrees with the JWT's claim, startup aborts with a clear error.
    */
   projectIdOverride?: string;
 }
@@ -36,8 +39,10 @@ export async function runDaemonCommand(opts: DaemonCommandOpts): Promise<number>
         );
       }
     }
-    const supabase = getSupabaseClient();
-    await startDaemon(supabase, {
+
+    const { client: supabase, auth } = getDaemonSupabase();
+
+    await startDaemon(supabase, auth, {
       projectId,
       claimMode: opts.claimMode,
       workerName: opts.workerName,

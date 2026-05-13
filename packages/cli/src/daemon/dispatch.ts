@@ -7,8 +7,12 @@
  * `markFailed`) carry the worker_id of the claiming worker so the ownership
  * predicate inside those updates can detect a recovered claim and drop a
  * stale write rather than overwriting the new claimer's progress.
+ *
+ * Step 3 (worker-tokens): status writes branch on auth mode — in
+ * worker-token mode they go through SECURITY DEFINER RPCs.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { AuthMode } from "../supabase/client.js";
 import { generateFlow, generatePersona } from "./handlers/generate.js";
 import { runWalk } from "./handlers/walk.js";
 import { markCompleted, markFailed, markRunning, type AgentJobRow } from "./claim.js";
@@ -17,16 +21,17 @@ export async function dispatchJob(
   supabase: SupabaseClient,
   job: AgentJobRow,
   workerId: string,
+  auth: AuthMode,
 ): Promise<void> {
   console.log(`[dispatch] ${job.id} kind=${job.kind}`);
   try {
-    const stillOurs = await markRunning(supabase, job.id, workerId);
+    const stillOurs = await markRunning(supabase, job.id, workerId, auth);
     if (!stillOurs) {
       console.warn(`[dispatch] ${job.id} claim was recovered before run; skipping`);
       return;
     }
     const result = await runHandler(job);
-    const wrote = await markCompleted(supabase, job.id, result as Record<string, unknown>, workerId);
+    const wrote = await markCompleted(supabase, job.id, result as Record<string, unknown>, workerId, auth);
     if (!wrote) {
       console.warn(`[dispatch] ${job.id} completed but claim was recovered; discarding result`);
       return;
@@ -35,7 +40,7 @@ export async function dispatchJob(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[dispatch] ${job.id} failed: ${message}`);
-    await markFailed(supabase, job.id, message, workerId);
+    await markFailed(supabase, job.id, message, workerId, auth);
   }
 }
 

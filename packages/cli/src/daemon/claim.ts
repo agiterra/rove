@@ -10,9 +10,15 @@
  * which `claim_next_job` does not yet support (it filters
  * `assigned_to is null OR = me`; requested-only needs the stricter
  * `assigned_to = me`). Step 2 unifies the modes by extending the function.
+ *
+ * Step 3 (worker-tokens): markRunning/markCompleted/markFailed/
+ * releaseInFlightClaims branch on auth mode. In worker-token mode they
+ * call SECURITY DEFINER RPCs; in service-role mode they use direct UPDATEs.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DaemonIdentity } from "./identity.js";
+import type { AuthMode } from "../supabase/client.js";
+import { handleWorkerTokenRejection } from "./worker-error.js";
 
 export interface AgentJobRow {
   id: string;
@@ -41,7 +47,10 @@ export async function claimNextJob(
   const { data, error } = await supabase.rpc("claim_next_job", {
     p_worker_id: workerId,
   });
-  if (error) throw new Error(`claim_next_job: ${error.message}`);
+  if (error) {
+    handleWorkerTokenRejection(error);
+    throw new Error(`claim_next_job: ${error.message}`);
+  }
   const rows = (data as AgentJobRow[] | null) ?? [];
   return rows[0] ?? null;
 }
@@ -73,12 +82,26 @@ export async function tryClaimJob(
  * return `false` so the caller can discard the result rather than overwrite
  * the new claimer's progress. The recovery sweep (step 3) is the only
  * status-mutating writer permitted to bypass this predicate.
+ *
+ * In worker-token mode the RPC enforces the same predicate server-side and
+ * returns a boolean; false means the predicate filtered out the write.
  */
 export async function markRunning(
   supabase: SupabaseClient,
   jobId: string,
   workerId: string,
+  auth: AuthMode,
 ): Promise<boolean> {
+  if (auth.mode === "worker") {
+    const { data, error } = await supabase.rpc("job_mark_running", {
+      p_job_id: jobId,
+    });
+    if (error) {
+      handleWorkerTokenRejection(error);
+      throw new Error(`mark running ${jobId}: ${error.message}`);
+    }
+    return (data as boolean) ?? false;
+  }
   const { data, error } = await supabase
     .from("agent_jobs")
     .update({ status: "running" })
@@ -95,7 +118,19 @@ export async function markCompleted(
   jobId: string,
   result: Record<string, unknown>,
   workerId: string,
+  auth: AuthMode,
 ): Promise<boolean> {
+  if (auth.mode === "worker") {
+    const { data, error } = await supabase.rpc("job_mark_completed", {
+      p_job_id: jobId,
+      p_result: result,
+    });
+    if (error) {
+      handleWorkerTokenRejection(error);
+      throw new Error(`mark completed ${jobId}: ${error.message}`);
+    }
+    return (data as boolean) ?? false;
+  }
   const { data, error } = await supabase
     .from("agent_jobs")
     .update({
@@ -116,7 +151,20 @@ export async function markFailed(
   jobId: string,
   message: string,
   workerId: string,
+  auth: AuthMode,
 ): Promise<boolean> {
+  if (auth.mode === "worker") {
+    const { data, error } = await supabase.rpc("job_mark_failed", {
+      p_job_id: jobId,
+      p_error: message,
+    });
+    if (error) {
+      handleWorkerTokenRejection(error);
+      console.error(`mark failed ${jobId} (rpc): ${error.message}`);
+      return false;
+    }
+    return (data as boolean) ?? false;
+  }
   const { data, error } = await supabase
     .from("agent_jobs")
     .update({
@@ -148,6 +196,7 @@ export async function recoverStaleClaims(
     p_project_id: projectId,
   });
   if (error) {
+    handleWorkerTokenRejection(error);
     console.error(`[recovery] ${error.message}`);
     return 0;
   }
@@ -156,18 +205,28 @@ export async function recoverStaleClaims(
 
 /**
  * Graceful shutdown helper — release every job this worker still holds
- * back to `pending` so peer daemons can pick them up immediately, instead
- * of waiting up to 90s for the recovery sweep.
+ * back to `pending` so peer daemons can pick them up immediately.
  *
- * Project-scoped defensively: a misbehaving daemon should never reach
- * across tenancy even on its own shutdown path. Clears both new and
- * legacy attribution columns.
+ * In worker-token mode uses the worker_release_my_claims RPC.
+ * In service-role mode uses a direct UPDATE (project-scoped).
  */
 export async function releaseInFlightClaims(
   supabase: SupabaseClient,
   projectId: string,
   workerId: string,
+  auth: AuthMode,
 ): Promise<void> {
+  if (auth.mode === "worker") {
+    const { data, error } = await supabase.rpc("worker_release_my_claims");
+    if (error) {
+      handleWorkerTokenRejection(error);
+      console.error(`[shutdown] release claims (rpc): ${error.message}`);
+      return;
+    }
+    const n = (data as number) ?? 0;
+    if (n > 0) console.log(`[shutdown] released ${n} in-flight claim(s)`);
+    return;
+  }
   const { error } = await supabase
     .from("agent_jobs")
     .update({
