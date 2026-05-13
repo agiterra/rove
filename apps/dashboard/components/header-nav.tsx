@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/runs", label: "Runs" },
   { href: "/findings", label: "Findings" },
   { href: "/flows", label: "Flows" },
+  { href: "/workers", label: "Workers" },
 ] as const;
 
 const NEW_ITEMS = [
