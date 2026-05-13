@@ -10,12 +10,12 @@
  * requiring per-dollar backslash escaping inside a TS template literal.
  * Only ${origin} is substituted at request time.
  *
- * File-size exception: longer than the 250-line component cap. This file
+ * File-size exception: longer than the 300-line cap (~390 lines). This file
  * is a cohesive single-purpose artifact — the route handler and the bash
  * script it serves. Splitting them would require fs reads at runtime
  * (import.meta.url resolution differs across Next.js build targets).
  *
- * Steps implemented (install-flow plan v3, step 3 scope):
+ * Steps implemented (install-flow plan v3, steps 1-10 scope + step 4 additions):
  *   1  – shell hygiene (set -euo pipefail)
  *   2  – argparse (--install-code=<uuid> and variants)
  *   3  – sanity checks (Darwin, node, curl)
@@ -25,12 +25,12 @@
  *   7  – write ~/.rove/env (chmod 600)
  *   8  – write ~/.rove/auth.token (chmod 600)
  *   9  – download tarballs from <origin>/install/
- *   10 – npm install into ~/.rove/lib/; verify rove.js exists; print next steps
+ *   10 – npm install into ~/.rove/lib/; verify rove.js exists
+ *   11 – write LaunchAgent plist with literal absolute paths (step 4)
+ *   12 – launchctl bootout → bootstrap → enable → kickstart (step 4)
  *
- * Deferred to later steps:
- *   LaunchAgent plist (step 4)
- *   rove:// URL handler applet (step 5)
- *   launchctl invocations
+ * Deferred to step 5:
+ *   rove:// URL handler applet
  */
 import "server-only";
 import { getDashboardOrigin } from "@/lib/dashboard-origin";
@@ -67,8 +67,8 @@ function buildScript(origin: string): string {
     `# Fetched from: ${origin}/install`,
     `# Usage: curl -fsSL ${origin}/install | bash -s -- --install-code=<uuid>`,
     `#`,
-    `# Implements install-flow plan v3, steps 1-10.`,
-    `# Deferred: LaunchAgent (step 4), rove:// handler (step 5).`,
+    `# Implements install-flow plan v3, steps 1-10 + step 4 (LaunchAgent).`,
+    `# Deferred to step 5: rove:// URL handler applet.`,
     `set -euo pipefail`,
     ``,
     `ORIGIN="${origin}"`,
@@ -245,24 +245,95 @@ function buildScript(origin: string): string {
     `echo "CLI installed at ${S}ROVE_JS"`,
     `echo ""`,
     ``,
-    `# ── step 10: success + next-step note ────────────────────────────────────`,
+    `# ── step 11: write LaunchAgent plist ─────────────────────────────────────`,
+    `# Paths are resolved at install time and substituted literally into the
+    # plist. launchd runs with a sparse PATH; never use env/which inside the
+    # plist. ROVE_WORKER_TOKEN_FILE points at the token file — the token itself
+    # never appears in the plist so launchctl print does not leak it.`,
+    `PLIST_DIR="${S}HOME/Library/LaunchAgents"`,
+    `PLIST_PATH="${S}PLIST_DIR/com.agiterra.rove.daemon.plist"`,
+    ``,
+    `mkdir -p "${S}PLIST_DIR"`,
+    ``,
+    `echo "Writing LaunchAgent plist to ${S}PLIST_PATH ..."`,
+    ``,
+    `# Write XML with all paths substituted by the shell (heredoc with
+    # double-quoted opener so variables expand NOW, not inside launchd).`,
+    `cat > "${S}PLIST_PATH" <<PLIST_EOF`,
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">`,
+    `<plist version="1.0"><dict>`,
+    `  <key>Label</key>          <string>com.agiterra.rove.daemon</string>`,
+    `  <key>ProgramArguments</key>`,
+    `  <array>`,
+    `    <string>${S}NODE_BIN</string>`,
+    `    <string>${S}ROVE_JS</string>`,
+    `    <string>daemon</string>`,
+    `    <string>--as=${S}WORKER_NAME</string>`,
+    `    <string>--project-id=${S}PROJECT_ID</string>`,
+    `  </array>`,
+    `  <key>EnvironmentVariables</key>`,
+    `  <dict>`,
+    `    <key>PATH</key>                              <string>/usr/local/bin:/usr/bin:/bin</string>`,
+    `    <key>ROVE_SUPABASE_URL</key>                 <string>${S}SUPABASE_URL</string>`,
+    `    <key>ROVE_SUPABASE_PUBLISHABLE_KEY</key>     <string>${S}SUPABASE_PUBLISHABLE_KEY</string>`,
+    `    <key>ROVE_WORKER_TOKEN_FILE</key>            <string>${S}HOME/.rove/auth.token</string>`,
+    `    <key>ROVE_DAEMON_GITHUB_HANDLE</key>         <string>${S}GITHUB_HANDLE</string>`,
+    `  </dict>`,
+    `  <key>RunAtLoad</key>      <true/>`,
+    `  <key>KeepAlive</key>`,
+    `  <dict><key>SuccessfulExit</key><false/></dict>`,
+    `  <key>ThrottleInterval</key> <integer>10</integer>`,
+    `  <key>StandardOutPath</key>  <string>${S}HOME/.rove/daemon.log</string>`,
+    `  <key>StandardErrorPath</key> <string>${S}HOME/.rove/daemon.err</string>`,
+    `</dict></plist>`,
+    `PLIST_EOF`,
+    ``,
+    `# Verify the plist is well-formed (plutil ships with macOS).`,
+    `if command -v plutil &>/dev/null; then`,
+    `  plutil -lint "${S}PLIST_PATH" || {`,
+    `    echo "error: plist failed plutil lint — please report this" >&2`,
+    `    exit 1`,
+    `  }`,
+    `fi`,
+    ``,
+    `echo "LaunchAgent plist written."`,
+    `echo ""`,
+    ``,
+    `# ── step 12: launchctl bootstrap + enable (one-time) + kickstart ─────────`,
+    `# Modern launchctl verbs — no legacy load/unload. enable runs once at
+    # install time only; rove://start deliberately omits it so a user who
+    # calls launchctl disable stays disabled until they re-enable explicitly.`,
+    `echo "Registering and starting the daemon via launchctl ..."`,
+    ``,
+    `# Idempotent: bootout any previously loaded agent before re-bootstrapping.`,
+    `launchctl bootout gui/${S}UID "${S}PLIST_PATH" 2>/dev/null || true`,
+    `launchctl bootstrap gui/${S}UID "${S}PLIST_PATH"`,
+    `# Install-time only: mark the agent as enabled in launchd's persistent DB.`,
+    `launchctl enable    gui/${S}UID/com.agiterra.rove.daemon`,
+    `# Force an immediate start (bypasses RunAtLoad delay on re-install).`,
+    `launchctl kickstart -k gui/${S}UID/com.agiterra.rove.daemon`,
+    ``,
+    `echo "Daemon installed and started."`,
+    `echo ""`,
+    ``,
+    `# ── success ───────────────────────────────────────────────────────────────`,
     `echo "=================================================================="`,
-    `echo " Rove worker installed successfully!"`,
+    `echo " Rove worker installed and running!"`,
     `echo "=================================================================="`,
     `echo ""`,
     `echo " Worker name : ${S}WORKER_NAME"`,
     `echo " Project     : ${S}PROJECT_ID"`,
     `echo " Token file  : ~/.rove/auth.token  (chmod 600)"`,
     `echo " Env file    : ~/.rove/env          (chmod 600)"`,
+    `echo " Plist       : ~/Library/LaunchAgents/com.agiterra.rove.daemon.plist"`,
+    `echo " Logs        : ~/.rove/daemon.log  /  ~/.rove/daemon.err"`,
     `echo ""`,
-    `echo " To start the daemon manually, run:"`,
+    `echo " Daemon installed and started. The dashboard at ${origin}/workers"`,
+    `echo " should show your worker online within a few seconds."`,
     `echo ""`,
-    `echo "   ${S}NODE_BIN ${S}ROVE_JS daemon --as=${S}WORKER_NAME --project-id=${S}PROJECT_ID"`,
-    `echo ""`,
-    `echo " The auto-start LaunchAgent will land in a follow-up release."`,
-    `echo " For now, start the daemon in a terminal or with nohup."`,
-    `echo ""`,
-    `echo " Verify auth : ${S}NODE_BIN ${S}ROVE_JS auth show-token"`,
+    `echo " The daemon will restart automatically at login. If it ever stops,"`,
+    `echo " use the dashboard controls to resume — no terminal trip needed."`,
     `echo "=================================================================="`,
   ];
 
