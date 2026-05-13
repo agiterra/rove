@@ -50,10 +50,15 @@ export default async function NewFlowPage({ searchParams }: PageProps) {
 async function checkDaemonOnlineForProject(projectId: string): Promise<boolean> {
   const supabase = await createReadClient();
   const { data } = await supabase
-    .from("daemon_heartbeats")
-    .select("last_seen_at, project_id")
-    .eq("project_id", projectId);
+    .from("workers")
+    .select("last_heartbeat_at")
+    .eq("project_id", projectId)
+    .is("disabled_at", null)
+    .is("stopped_at", null);
   if (!data) return false;
   const cutoff = Date.now() - DAEMON_STALE_AFTER_MS;
-  return data.some((h: { last_seen_at: string }) => new Date(h.last_seen_at).getTime() > cutoff);
+  return data.some(
+    (w: { last_heartbeat_at: string | null }) =>
+      w.last_heartbeat_at !== null && new Date(w.last_heartbeat_at).getTime() > cutoff,
+  );
 }

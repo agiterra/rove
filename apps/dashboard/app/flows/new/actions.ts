@@ -89,22 +89,23 @@ export async function checkDaemonOnlineAction(projectId: string): Promise<{
   }
   const supabase = await createReadClient();
   const { data } = await supabase
-    .from("daemon_heartbeats")
-    .select("user_id, daemon_name, hostname, last_seen_at")
-    .eq("project_id", projectId);
+    .from("workers")
+    .select("id, name, last_heartbeat_at")
+    .eq("project_id", projectId)
+    .is("disabled_at", null)
+    .is("stopped_at", null);
   if (!data) return { online: false, daemonName: null, hostname: null, daemonId: null };
   const cutoff = Date.now() - DAEMON_STALE_AFTER_MS;
   const fresh = data.find(
-    (h: { last_seen_at: string }) => new Date(h.last_seen_at).getTime() > cutoff,
-  ) as
-    | { user_id: string; daemon_name: string; hostname: string | null; last_seen_at: string }
-    | undefined;
+    (w: { last_heartbeat_at: string | null }) =>
+      w.last_heartbeat_at !== null && new Date(w.last_heartbeat_at).getTime() > cutoff,
+  ) as { id: string; name: string; last_heartbeat_at: string } | undefined;
   if (!fresh) return { online: false, daemonName: null, hostname: null, daemonId: null };
   return {
     online: true,
-    daemonName: fresh.daemon_name,
-    hostname: fresh.hostname,
-    daemonId: fresh.user_id,
+    daemonName: fresh.name,
+    hostname: null,
+    daemonId: fresh.id,
   };
 }
 
