@@ -9,7 +9,7 @@
  *   1. Look up the workers row by (project_id, name). Refuse 409 if
  *      it exists and is disabled.
  *   2. Insert the row if it doesn't exist (kind defaults to 'laptop',
- *      capabilities default to manual+localhost).
+ *      capabilities match the worker kind).
  *   3. Revoke every still-live token for this worker — re-minting
  *      retires the prior credential.
  *   4. Sign an HS256 JWT carrying the standard Supabase claim shape
@@ -48,6 +48,12 @@ export interface MintResult {
 
 const TOKEN_TTL_SECONDS = 365 * 24 * 60 * 60;
 
+function defaultCapabilities(kind: "laptop" | "dedicated"): Record<string, true> {
+  return kind === "dedicated"
+    ? { manual: true, webhook: true }
+    : { manual: true, localhost: true };
+}
+
 export async function mintWorkerToken(input: MintInput): Promise<MintResult> {
   const { project_id, worker_name, github_handle, issued_to_handle } = input;
   const worker_kind = input.worker_kind ?? "laptop";
@@ -76,7 +82,7 @@ export async function mintWorkerToken(input: MintInput): Promise<MintResult> {
         name: worker_name,
         kind: worker_kind,
         github_handle,
-        capabilities: { manual: true, localhost: true },
+        capabilities: defaultCapabilities(worker_kind),
       })
       .select("id")
       .single();
