@@ -14,12 +14,48 @@ import type {
   FindingView,
   FooterView,
   HeroView,
+  MetricsView,
+  PlanStepView,
+  ReflectionView,
   RunDetailView,
   RunStatus,
   StepView,
   StepThumb,
+  SurpriseKind,
+  SurpriseView,
   TopBarView,
 } from "./types";
+
+interface PlanRowStep {
+  step?: unknown;
+  description?: unknown;
+  expected_affordance?: unknown;
+}
+
+interface PlanRow {
+  expected_step_count?: unknown;
+  biggest_worry?: unknown;
+  expected_path?: unknown;
+}
+
+interface SurpriseRow {
+  kind?: unknown;
+  step_index?: unknown;
+  expected?: unknown;
+  observed?: unknown;
+  recovered?: unknown;
+}
+
+interface MetricsRow {
+  actual_tool_calls?: unknown;
+  actions?: unknown;
+  snapshots?: unknown;
+  screenshots?: unknown;
+  snapshots_per_action?: unknown;
+  recovery_count?: unknown;
+  errors?: unknown;
+  time_to_first_action_ms?: unknown;
+}
 
 interface RunRow {
   id: string;
@@ -36,6 +72,11 @@ interface RunRow {
   commit_sha: string | null;
   walked_url: string | null;
   initiator_label: string | null;
+  plan?: PlanRow | null;
+  surprises?: SurpriseRow[] | null;
+  largest_expectation_gap?: string | null;
+  persona_success_confidence?: number | null;
+  metrics?: MetricsRow | null;
 }
 
 interface StepRow {
@@ -92,8 +133,134 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     steps: stepViews,
     selectedStepIndex: stepViews.length > 0 ? stepViews[stepViews.length - 1].index : null,
     findings: findingViews,
+    reflection: buildReflection(run),
     footer: buildFooter(run, elapsedLabel),
   };
+}
+
+const SURPRISE_KINDS: ReadonlySet<SurpriseKind> = new Set([
+  "unexpected_detour",
+  "affordance_missing",
+  "ambiguous_label",
+  "hesitation",
+  "recovery",
+  "dead_end",
+  "expectation_mismatch",
+]);
+
+function buildReflection(run: RunRow): ReflectionView {
+  const plan = normalizePlan(run.plan);
+  const surprises = normalizeSurprises(run.surprises);
+  const gap =
+    typeof run.largest_expectation_gap === "string" && run.largest_expectation_gap.trim().length > 0
+      ? run.largest_expectation_gap
+      : null;
+  const confidence =
+    typeof run.persona_success_confidence === "number" &&
+    Number.isFinite(run.persona_success_confidence)
+      ? Math.max(0, Math.min(1, run.persona_success_confidence))
+      : null;
+  const metrics = normalizeMetrics(run.metrics);
+
+  return {
+    hasContent: Boolean(plan || surprises.length > 0 || gap || confidence != null || metrics),
+    plan,
+    surprises,
+    largestExpectationGap: gap,
+    personaSuccessConfidence: confidence,
+    metrics,
+  };
+}
+
+function normalizePlan(raw: PlanRow | null | undefined): ReflectionView["plan"] {
+  if (!raw || typeof raw !== "object") return null;
+  const expectedStepCount = typeof raw.expected_step_count === "number" ? raw.expected_step_count : null;
+  const biggestWorry =
+    typeof raw.biggest_worry === "string" && raw.biggest_worry.trim().length > 0
+      ? raw.biggest_worry
+      : null;
+  const expectedPath = Array.isArray(raw.expected_path)
+    ? (raw.expected_path as PlanRowStep[]).map(toPlanStep).filter((s): s is PlanStepView => s != null)
+    : [];
+  if (expectedStepCount == null && !biggestWorry && expectedPath.length === 0) return null;
+  return {
+    expectedStepCount: expectedStepCount ?? expectedPath.length,
+    biggestWorry,
+    expectedPath,
+  };
+}
+
+function toPlanStep(raw: PlanRowStep): PlanStepView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const description = typeof raw.description === "string" ? raw.description : "";
+  if (description.length === 0) return null;
+  const step = typeof raw.step === "number" ? raw.step : 0;
+  const expectedAffordance =
+    typeof raw.expected_affordance === "string" && raw.expected_affordance.trim().length > 0
+      ? raw.expected_affordance
+      : null;
+  return { step, description, expectedAffordance };
+}
+
+function normalizeSurprises(raw: SurpriseRow[] | null | undefined): SurpriseView[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((s) => {
+      if (!s || typeof s !== "object") return null;
+      const kindRaw = typeof s.kind === "string" ? (s.kind as SurpriseKind) : null;
+      if (!kindRaw || !SURPRISE_KINDS.has(kindRaw)) return null;
+      const stepIndex = typeof s.step_index === "number" ? s.step_index : 0;
+      const expected = typeof s.expected === "string" ? s.expected : "";
+      const observed = typeof s.observed === "string" ? s.observed : "";
+      const recovered = Boolean(s.recovered);
+      if (expected.length === 0 || observed.length === 0) return null;
+      return { kind: kindRaw, stepIndex, expected, observed, recovered } satisfies SurpriseView;
+    })
+    .filter((s): s is SurpriseView => s != null);
+}
+
+function normalizeMetrics(raw: MetricsRow | null | undefined): MetricsView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const toolCalls = numOrNull(raw.actual_tool_calls);
+  const actions = numOrNull(raw.actions);
+  const snapshots = numOrNull(raw.snapshots);
+  const screenshots = numOrNull(raw.screenshots);
+  const recoveryCount = numOrNull(raw.recovery_count);
+  const errors = numOrNull(raw.errors);
+  const snapshotsPerAction =
+    typeof raw.snapshots_per_action === "number" && Number.isFinite(raw.snapshots_per_action)
+      ? raw.snapshots_per_action
+      : null;
+  const timeToFirstActionMs =
+    typeof raw.time_to_first_action_ms === "number" && Number.isFinite(raw.time_to_first_action_ms)
+      ? raw.time_to_first_action_ms
+      : null;
+  if (
+    toolCalls == null &&
+    actions == null &&
+    snapshots == null &&
+    screenshots == null &&
+    recoveryCount == null &&
+    errors == null &&
+    snapshotsPerAction == null &&
+    timeToFirstActionMs == null
+  ) {
+    return null;
+  }
+  return {
+    toolCalls: toolCalls ?? 0,
+    actions: actions ?? 0,
+    snapshots: snapshots ?? 0,
+    screenshots: screenshots ?? 0,
+    snapshotsPerAction,
+    recoveryCount: recoveryCount ?? 0,
+    errors: errors ?? 0,
+    timeToFirstActionMs,
+  };
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 function normalizeStatus(raw: string, goalReached: boolean | null): RunStatus {

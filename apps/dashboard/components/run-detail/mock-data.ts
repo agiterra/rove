@@ -112,6 +112,7 @@ import type {
   FindingView,
   FooterView,
   HeroView,
+  ReflectionView,
   RunDetailView,
   StepView,
   TopBarView,
@@ -178,12 +179,61 @@ export function buildMockRunDetailView(): RunDetailView {
     startedLabel: RUN_META.startedAgo,
   };
 
+  const reflection: ReflectionView = {
+    hasContent: true,
+    plan: {
+      expectedStepCount: 22,
+      biggestWorry:
+        "The filter UI on /runs might be hidden behind a hover-only menu, which would block keyboard-driven users.",
+      expectedPath: [
+        { step: 1, description: "Sign in", expectedAffordance: "Primary auth CTA on /signin" },
+        { step: 2, description: "Land on the dashboard home", expectedAffordance: "Side nav with project context" },
+        { step: 3, description: "Open the Runs page", expectedAffordance: '"Runs" nav item' },
+        { step: 4, description: "Apply a filter", expectedAffordance: "Filter pill or search input" },
+        { step: 5, description: "Open a recent run", expectedAffordance: "Row click → run detail" },
+        { step: 6, description: "Trigger a fresh walk", expectedAffordance: '"Run walk" primary button' },
+        { step: 7, description: "Watch the walk progress", expectedAffordance: "Live filmstrip + status pill" },
+        { step: 8, description: "Open a flagged finding", expectedAffordance: "Findings card → drawer" },
+      ],
+    },
+    surprises: [
+      {
+        kind: "affordance_missing",
+        stepIndex: 6,
+        expected: "Filter pill labeled 'flow' on the Runs page",
+        observed: "No filter UI visible until a magnifier icon was opened",
+        recovered: true,
+      },
+      {
+        kind: "expectation_mismatch",
+        stepIndex: 10,
+        expected: "Toast confirms walk launch within 2 seconds",
+        observed: "No toast — only the status pill changed; relied on the filmstrip to confirm",
+        recovered: false,
+      },
+    ],
+    largestExpectationGap:
+      "The Runs filter UI was hidden behind an icon-only button with no accessible name — keyboard-only users would not discover it. The plan assumed a visible filter pill.",
+    personaSuccessConfidence: 0.62,
+    metrics: {
+      toolCalls: 28,
+      actions: 11,
+      snapshots: 12,
+      screenshots: 5,
+      snapshotsPerAction: 1.09,
+      recoveryCount: 1,
+      errors: 1,
+      timeToFirstActionMs: 1820,
+    },
+  };
+
   return {
     topBar,
     hero,
     steps: stepViews,
     selectedStepIndex: SELECTED_STEP_INDEX,
     findings: findingViews,
+    reflection,
     footer,
   };
 }

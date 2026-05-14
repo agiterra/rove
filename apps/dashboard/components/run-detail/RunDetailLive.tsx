@@ -8,6 +8,7 @@ import { Filmstrip } from "./Filmstrip";
 import { TabBar } from "./TabBar";
 import { DetailSplit } from "./DetailSplit";
 import { FindingsStream } from "./FindingsStream";
+import { Reflection } from "./Reflection";
 import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
 import type { RunDetailView } from "./types";
@@ -93,7 +94,9 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
             <FindingsStream findings={view.findings} findingHref={findingHref} />
           </div>
         ) : null}
-        {tab === "reflection" ? <ReflectionPanel view={view} /> : null}
+        {tab === "reflection" ? (
+          <Reflection view={view.reflection} runStatus={view.hero.status} />
+        ) : null}
         {tab !== "findings" ? <FindingsStream findings={view.findings} findingHref={findingHref} /> : null}
         <RunFooter view={view.footer} />
       </main>
@@ -255,33 +258,3 @@ function Cell({
   );
 }
 
-function ReflectionPanel({ view }: { view: RunDetailView }) {
-  // Reflection lives on the run row's plan/surprises/reflection columns,
-  // not on the view. For now this panel is intentionally minimal — full
-  // plan-vs-actual rendering follows in a later PR. We surface what's
-  // already in the hero view (status + findings) so the tab isn't empty.
-  return (
-    <div
-      className="mt-5 px-7 py-6"
-      style={{
-        background: "var(--color-panel)",
-        border: "1px solid var(--color-border)",
-        borderRadius: 14,
-      }}
-    >
-      <p
-        className="font-mono uppercase mb-3 text-[var(--color-text-faint)]"
-        style={{ fontSize: 11, letterSpacing: "0.18em" }}
-      >
-        AGENT REFLECTION
-      </p>
-      <p style={{ color: "#c9d2e5", fontSize: 15, lineHeight: 1.6, maxWidth: 760, marginTop: 0 }}>
-        {view.hero.status === "running"
-          ? "Walk in progress — reflection will populate once the agent finishes."
-          : view.hero.status === "done"
-            ? `Walk completed. ${view.findings.length} finding${view.findings.length === 1 ? "" : "s"} filed.`
-            : "Walk did not complete cleanly. Inspect filmstrip + findings for failure context."}
-      </p>
-    </div>
-  );
-}

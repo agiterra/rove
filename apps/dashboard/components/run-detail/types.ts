@@ -79,11 +79,61 @@ export interface TopBarView {
   workerStatus: "online" | "offline" | "unknown";
 }
 
+export type SurpriseKind =
+  | "unexpected_detour"
+  | "affordance_missing"
+  | "ambiguous_label"
+  | "hesitation"
+  | "recovery"
+  | "dead_end"
+  | "expectation_mismatch";
+
+export interface PlanStepView {
+  step: number;
+  description: string;
+  expectedAffordance: string | null;
+}
+
+export interface SurpriseView {
+  kind: SurpriseKind;
+  stepIndex: number;
+  expected: string;
+  observed: string;
+  recovered: boolean;
+}
+
+export interface MetricsView {
+  toolCalls: number;
+  actions: number;
+  snapshots: number;
+  screenshots: number;
+  snapshotsPerAction: number | null;
+  recoveryCount: number;
+  errors: number;
+  timeToFirstActionMs: number | null;
+}
+
+export interface ReflectionView {
+  /** True if the run has any reflection data to render (plan / surprises / gap / confidence / metrics). */
+  hasContent: boolean;
+  plan: {
+    expectedStepCount: number;
+    biggestWorry: string | null;
+    expectedPath: PlanStepView[];
+  } | null;
+  surprises: SurpriseView[];
+  largestExpectationGap: string | null;
+  /** 0..1. */
+  personaSuccessConfidence: number | null;
+  metrics: MetricsView | null;
+}
+
 export interface RunDetailView {
   topBar: TopBarView;
   hero: HeroView;
   steps: StepView[];
   selectedStepIndex: number | null;
   findings: FindingView[];
+  reflection: ReflectionView;
   footer: FooterView;
 }

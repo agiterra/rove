@@ -83,7 +83,7 @@
 | Filmstrip (default) | DetailSplit (preview + aria tree) | 🟡 | See §5 |
 | Steps | Inline `StepsList` table (in `RunDetailLive.tsx`) | ✅ | — |
 | Findings (count chip) | `findings.length` | ✅ | — |
-| Reflection | Placeholder `ReflectionPanel` | ❌ | See §7 — wire real reflection content |
+| Reflection | `Reflection` reads `view.reflection` (plan / surprises / gap / confidence / metrics) | ✅ | — |
 | Tab click → switch | `useState<TabId>` in `RunDetailLive` | ✅ | — |
 | Active tab cyan underline + glow | `.tab.active::after` CSS in TabBar | ✅ | — |
 | Keyboard nav (arrow keys move between tabs, Enter activates) | Not implemented | ❌ | Add `onKeyDown` to TabBar; standard radio-group pattern with `aria-selected` already set |
@@ -132,13 +132,13 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 
 | Element | Data source | Status | TODO (commits to a new layout for this tab) |
 |---|---|---|---|
-| Plan summary — "the agent expected to take N steps" | `runs.plan.expected_step_count`, `runs.plan.biggest_worry` | ❌ | New panel: `components/run-detail/Reflection.tsx` reads `view.plan`; renders eyebrow `PRE-WALK PLAN`, headline of the expected step count, the biggest_worry text in italics |
-| Plan steps table | `runs.plan.expected_path` (`WalkPlanStep[]`) | ❌ | Table inside Reflection panel: `# / description / expected_affordance` |
-| Surprises list | `runs.surprises` (`Surprise[]`) | ❌ | Card list — `kind` badge + `expected` vs `observed` columns + `recovered: yes/no` |
-| Reflection text — "largest expectation gap" | `runs.largest_expectation_gap` | ❌ | Paragraph below surprises |
-| Reflection numeric — persona success confidence | `runs.persona_success_confidence` (0–1) | ❌ | Big-number tile: `{Math.round(x * 100)}%` + label "agent's self-rated confidence" |
-| Metrics strip | `runs.metrics` (`TrajectoryMetrics` jsonb) | ❌ | Render a 7-tile strip if showing `actual_tool_calls`, `actions`, `snapshots`, `screenshots`, `snapshots_per_action`, `recovery_count`, `errors`, and `time_to_first_action_ms`; otherwise explicitly choose the old 6-tile set and omit screenshots/time-to-first. Do not claim "6 tiles" while listing seven metrics. |
-| "Walk in progress — reflection populates when complete" empty state | Render when `runs.status === "running"` AND `run.plan` is null | ✅ | (already handled, refine copy) |
+| Plan summary — "the agent expected to take N steps" | `runs.plan.expected_step_count`, `runs.plan.biggest_worry` | ✅ | `PlanPanel` in `components/run-detail/Reflection.parts.tsx` |
+| Plan steps table | `runs.plan.expected_path` (`WalkPlanStep[]`) | ✅ | `PlanTable` inside `PlanPanel` |
+| Surprises list | `runs.surprises` (`Surprise[]`) | ✅ | `SurprisesPanel` — kind badge + step ref + expected/observed columns + recovered pill |
+| Reflection text — "largest expectation gap" | `runs.largest_expectation_gap` | ✅ | Rendered inside `ReflectionPanel` |
+| Reflection numeric — persona success confidence | `runs.persona_success_confidence` (0–1) | ✅ | `ConfidenceTile` — big number + progress bar, tone tiers at 0.7 / 0.4 |
+| Metrics strip | `runs.metrics` (`TrajectoryMetrics` jsonb) | ✅ | `MetricsStrip` — 8 tiles across 2 rows: tool calls / actions / snapshots / screenshots / snaps-per-action / recoveries / errors / time-to-first-action |
+| "Walk in progress — reflection populates when complete" empty state | Render when `view.reflection.hasContent === false` | ✅ | `EmptyState` in `Reflection.tsx`; copy varies by runStatus (running / pending / done-with-no-data) |
 
 ## 8. Findings stream
 
@@ -207,14 +207,14 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 |---|---|---|
 | Sign screenshot URLs server-side (batch + per-key fallback) | ✅ already shipped | `app/runs/[id]/page.tsx` |
 | Mint signed URLs for `finding_screenshots` (separate from step screenshots) | New | Extend `app/runs/[id]/page.tsx` to fetch `finding_screenshots` joined on `findings.id`; sign all keys; pass into adapter as `signedFindingScreenshotUrls` |
-| Extend run-detail view model | New | `components/run-detail/types.ts` + `adapters.ts`; add plan, surprises, metrics, step args, result summary, aria snapshot, and finding screenshot URL slots before wiring dependent UI |
+| Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
 | Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
 | Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |
 | `extractActionTarget(toolName, args, ariaSnapshot?)` helper | New | `components/run-detail/adapters.ts`; recognizes `browser_click` + `browser_type` arg shapes from `@playwright/mcp` (`target`, optional `element`, text metadata) |
 | `parseAriaSnapshot(text)` parser | New | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a raw-text node. |
 | `aria-snapshot ↔ action target` matcher | New | `components/run-detail/highlightAriaTarget.ts`; given parsed tree + `args.target` / `args.element`, returns the node id (or null) that should render with `lw-tree-highlight` |
-| Reflection panel | New | `components/run-detail/Reflection.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
-| MetricsStrip restyle | New | `components/run-detail/MetricsStrip.tsx`; explicitly choose six old metrics or render all planned metrics without lying about tile count |
+| Reflection panel | ✅ shipped | `components/run-detail/Reflection.tsx` + `Reflection.parts.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
+| MetricsStrip restyle | ✅ shipped | `MetricsStrip` inside `Reflection.parts.tsx`; renders all 8 trajectory metrics in a 2-row 4-col grid (no "6 tiles" misclaim) |
 | Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
 | 1Hz timer ticker | New | `RunDetailLive` `useEffect(setInterval(1000))` while `view.hero.status === "running"` |
 | Auto-scroll filmstrip to running tile | New | `Filmstrip` ref + `useEffect` watching the running step's index |
