@@ -124,7 +124,7 @@
 | Selected-row highlight | `selectedIndex` state, cyan-soft tint | ✅ | — |
 | Click row → swap to Filmstrip tab + scroll filmstrip to that tile | `onPickStep` in `RunDetailLive` sets `selectedIdx` and switches `tab` to `filmstrip`. Filmstrip auto-scroll is wired in §3. | ✅ | — |
 | Empty state (no steps) | `view.steps.length === 0`; static copy | ✅ | Preserve dashed container and copy |
-| Row focus treatment | `.focus-rove` on a `display: contents` button | 🟡 | Verify focus outline is visible in browser; if not, replace contents-button with grid rows that can receive visible focus |
+| Row focus treatment | Each row is its own `<button>` with `display: grid` + `grid-template-columns`; `.focus-rove` produces a visible focus ring. (Previous `display: contents` button had no box to receive the ring.) | ✅ | — |
 
 ## 7. Reflection tab
 

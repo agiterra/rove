@@ -190,6 +190,7 @@ function StepsList({
       </div>
     );
   }
+  const cols = "56px 1fr 280px 80px 90px";
   return (
     <div
       className="mt-5 overflow-hidden"
@@ -201,46 +202,46 @@ function StepsList({
     >
       <div
         className="grid font-mono"
-        style={{
-          gridTemplateColumns: "56px 1fr 280px 80px 90px",
-          fontSize: 12.5,
-        }}
+        style={{ gridTemplateColumns: cols, fontSize: 11, color: "var(--color-text-faint)" }}
       >
         <Head>#</Head>
         <Head>TOOL</Head>
         <Head>URL</Head>
         <Head right>DUR</Head>
         <Head right>STATUS</Head>
-        {view.steps.map((s) => {
-          const isSelected = s.index === selectedIndex;
-          const bg = isSelected ? "rgba(63,201,203,0.06)" : "transparent";
-          return (
-            <button
-              key={s.index}
-              type="button"
-              onClick={() => onPick(s.index)}
-              className="contents focus-rove"
-              style={{ display: "contents" }}
-            >
-              <Cell bg={bg} color="var(--color-text)">
-                {String(s.index).padStart(2, "0")}
-              </Cell>
-              <Cell bg={bg} color="#c9d2e5">
-                {s.toolName}
-              </Cell>
-              <Cell bg={bg} color="var(--color-text-muted)" truncate>
-                {s.url || "—"}
-              </Cell>
-              <Cell bg={bg} color="var(--color-text-faint)" right>
-                {s.durationLabel}
-              </Cell>
-              <Cell bg={bg} color={s.status === "errored" ? "#fca5b5" : "#6ee2e4"} right>
-                {s.status}
-              </Cell>
-            </button>
-          );
-        })}
       </div>
+      {view.steps.map((s) => {
+        const isSelected = s.index === selectedIndex;
+        const bg = isSelected ? "rgba(63,201,203,0.06)" : "transparent";
+        return (
+          <button
+            key={s.index}
+            type="button"
+            onClick={() => onPick(s.index)}
+            className="focus-rove font-mono w-full text-left grid"
+            style={{
+              gridTemplateColumns: cols,
+              fontSize: 12.5,
+              background: bg,
+              border: 0,
+              borderBottom: "1px solid #161c2e",
+              cursor: "pointer",
+            }}
+          >
+            <RowCell color="var(--color-text)">{String(s.index).padStart(2, "0")}</RowCell>
+            <RowCell color="#c9d2e5">{s.toolName}</RowCell>
+            <RowCell color="var(--color-text-muted)" truncate>
+              {s.url || "—"}
+            </RowCell>
+            <RowCell color="var(--color-text-faint)" right>
+              {s.durationLabel}
+            </RowCell>
+            <RowCell color={s.status === "errored" ? "#fca5b5" : "#6ee2e4"} right>
+              {s.status}
+            </RowCell>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -262,35 +263,30 @@ function Head({ children, right = false }: { children: React.ReactNode; right?: 
   );
 }
 
-function Cell({
+function RowCell({
   children,
-  bg,
   color,
   right = false,
   truncate = false,
 }: {
   children: React.ReactNode;
-  bg: string;
   color: string;
   right?: boolean;
   truncate?: boolean;
 }) {
   return (
-    <div
+    <span
       style={{
         padding: "14px",
-        borderBottom: "1px solid #161c2e",
-        background: bg,
         color,
         textAlign: right ? "right" : "left",
         overflow: truncate ? "hidden" : undefined,
         textOverflow: truncate ? "ellipsis" : undefined,
         whiteSpace: truncate ? "nowrap" : undefined,
-        cursor: "pointer",
       }}
     >
       {children}
-    </div>
+    </span>
   );
 }
 
