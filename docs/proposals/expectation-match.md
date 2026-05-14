@@ -175,7 +175,7 @@ expectation findings — the rest of the prior still applies.
 
 ## Schema
 
-**Migration**: `infra/supabase/supabase/migrations/<timestamp>_expectation_match.sql`
+**Migration**: `infra/supabase/supabase/migrations/20260514120000_expectation_match.sql`
 
 ```sql
 alter table public.runs
@@ -190,6 +190,8 @@ create index if not exists run_steps_plan_delta_verdict_idx
 
 -- Findings already have heuristic_id text; no schema change needed.
 -- Just start emitting heuristic_id values prefixed agent.expectation_match.*
+-- Silencing + issue-export come from the substrate (see
+-- finding-lifecycle-substrate.md); no schema additions here.
 ```
 
 ## Dashboard surface
@@ -331,35 +333,126 @@ the substrate that both new proposals depend on.
 
 ## Sequencing
 
-1. **Day 1 morning** — migration + adapter to read `prior_plan` and
-   `plan_delta` into the existing run-detail view; mock data first.
-2. **Day 1 afternoon** — prompt changes in `packages/core/src/prompt.ts`:
-   plan-capture prompt block + per-step verdict emission instruction.
-3. **Day 2 morning** — persona extension (`prior_archetype`), flow YAML
-   `prior_overrides`, schema validation in `authoring-schemas.ts`.
-4. **Day 2 afternoon** — Reflection tab "Plan vs reality" section +
-   filmstrip verdict chips + `expectation_match` finding lens.
-5. **Day 3** — dogfood on Rove's own dashboard with a "find the workers
-   page" flow + a "set up a new project" flow; iterate on the verdict
-   prompt language until the deltas are useful (not noisy).
+Assumes Day 1 substrate (`finding-lifecycle-substrate.md`) and Days
+2-3 affordance-gaps (`affordance-gaps.md`) have shipped. This is the
+journey-level companion to the page-level work landed previously.
+
+1. **Day 4 morning** — migration `20260514120000_expectation_match.sql`;
+   adapter to read `prior_plan` and `plan_delta` into the existing
+   run-detail view; mock data updated in `mock-data.ts`.
+2. **Day 4 afternoon** — prompt changes in
+   `packages/core/src/prompt.ts`: plan-capture prompt block before the
+   first `browser_navigate`, per-step verdict emission instruction.
+3. **Day 5 morning** — persona extension (`prior_archetype` field on
+   `PersonaConstraints` in `packages/core/src/types.ts`); flow YAML
+   `prior_overrides`; schema validation in
+   `packages/core/src/authoring-schemas.ts`; defaults set on built-in
+   personas (`built-in.ts`).
+4. **Day 5 afternoon** — Reflection-tab "Plan vs reality" section
+   (consumes substrate's empty/loading/error shells); filmstrip
+   verdict chips on `Filmstrip.tsx`; archetype configurator on
+   `/projects/[id]`; substrate's `FindingSilenceButton` +
+   `FindingSendToIssueButton` wired per finding; substrate's
+   `FindingTrendChart` on `/projects/[id]` with
+   `heuristicPrefix="agent.expectation_match"`.
+5. **Day 5 EOD — dogfood**:
+   - Author `examples/flows/dashboard-setup-new-project.flow.yaml`
+   - Run with `internal-user` persona,
+     `prior_archetype: "saas-dashboard"`
+   - Verify the prior_plan was captured + the reflection tab renders
+   - Confirm at least one `agent.expectation_match.deviation` and
+     one `agent.expectation_match.affordance` fired
 
 ## Open questions
 
-- **Plan-revision frequency**: should the agent be allowed to fully
-  rewrite the plan mid-walk, or only mark deltas against the original?
-  Recommendation: keep the original frozen (so deltas accumulate),
-  allow a single "plan-revised" snapshot at most every 5 steps.
-- **Multi-persona walks of the same flow**: should priors be merged
-  across personas (showing where every archetype agreed reality
-  diverged) or kept per-persona? Recommendation: per-persona for v1;
-  cross-persona aggregation is a Phase D2 dashboard view.
-- **False-positive priors**: agents will hallucinate priors that don't
-  match the consumer's reality even when reality is fine. Mitigation:
-  the `prior_overrides` flow field, plus a "downvote this expectation"
-  affordance on each delta in the dashboard that updates a
-  `prior_corrections` table for future walks.
-- **Cost**: capturing the plan adds ~300-800 tokens to every walk.
-  Worth it. Stays small relative to per-step screenshot cost.
+- **Plan-revision frequency** [non-blocking, default: keep the
+  original frozen; allow ONE plan-revised snapshot at most every 5
+  steps]: should the agent fully rewrite the plan mid-walk, or only
+  mark deltas against the original? Frozen original preserves the
+  honesty of the diff.
+- **Multi-persona walks of the same flow** [deferred to Phase D2]:
+  should priors be merged across personas, or kept per-persona?
+  Per-persona for v1; cross-persona aggregation is a separate
+  dashboard view.
+- **False-positive priors** [non-blocking, default: `prior_overrides`
+  in flow YAML is primary mitigation; per-delta "downvote" in
+  dashboard is secondary]: agents hallucinate priors that don't match
+  reality. A `prior_corrections` learned table is a future feature;
+  not v1.
+- **Cost** [non-blocking, default: accept ~300-800 tokens per walk
+  for plan capture]: small relative to per-step screenshot cost.
+
+## Definition of done (closes audit F6 + F9)
+
+### Component-level
+
+- [ ] Migration `20260514120000_expectation_match.sql` applied to
+      local + hosted Supabase; `runs.prior_plan jsonb`,
+      `runs.prior_plan_captured_at timestamptz`, `run_steps.plan_delta
+      jsonb` columns exist
+- [ ] Walk prompt's plan-capture phase emits a valid YAML/JSON
+      `prior_plan` before the first `browser_navigate`; structured
+      fallback if the agent produces malformed output
+- [ ] `runs.prior_plan` populated for every new walk; mock data in
+      `mock-data.ts` updated with a realistic prior plan
+- [ ] Per-step verdict emission populated on `run_steps.plan_delta`
+      with one of `match | extension | surprise | deviation`
+- [ ] Auto-finding emission: every `deviation` fires a `findings`
+      row with `heuristic_id = 'agent.expectation_match.<kind>'`,
+      severity inferred from category (route > affordance > copy)
+- [ ] Filmstrip verdict chips render for all four verdicts on
+      `Filmstrip.tsx`; clicking a chip jumps to that step's detail
+      with the inline expected/observed diff
+- [ ] Reflection-tab "Plan vs reality" section renders with
+      substrate's empty / loading / error states
+- [ ] `<DetailSplit>` step-detail pane renders the inline
+      expected-vs-observed diff
+- [ ] Project settings archetype configurator on `/projects/[id]`
+      writes `projects.prior_archetype` and is picked up by the next
+      walk
+- [ ] Flow YAML `prior_overrides` validates via zod in
+      `authoring-schemas.ts`
+- [ ] `PersonaConstraints.prior_archetype` added in `types.ts`; built-in
+      personas updated in `built-in.ts`; `.claude/rules/personas-and-flows.md`
+      reflects the new field
+- [ ] Substrate's `FindingSilenceButton` + `FindingSendToIssueButton`
+      render on expectation-match findings and work end-to-end
+- [ ] Substrate's `FindingTrendChart` renders on `/projects/[id]`
+      with `heuristicPrefix="agent.expectation_match"`
+
+### Dogfood spec
+
+- **Flow file** (NEW):
+  `examples/flows/dashboard-setup-new-project.flow.yaml`
+- **Persona**: `internal-user` with
+  `prior_archetype: "saas-dashboard"`
+- **Goal**: "Sign in to Rove and set up a brand-new project called
+  'demo-project'"
+- **Expected findings**:
+  - ≥ 1 `agent.expectation_match.deviation` — likely surfaces around
+    the auth + redirect behavior or unfamiliar nav structure
+    (the saas-dashboard prior expects in-app project creation; our
+    `/projects/new` route has its own opinions)
+  - ≥ 1 `agent.expectation_match.affordance` — the persona's
+    expected affordances on the project settings page vs. what we
+    actually expose
+- **Exit gate**:
+  - **Fail** if no `prior_plan` was captured (the capture phase
+    didn't run — investigate prompt + adapter)
+  - **Fail** if 0 deviations AND 0 affordance mismatches (the
+    verdict-emission phase didn't run, OR the persona perfectly
+    matched our app — investigate)
+  - **Pass** if `prior_plan` captured + rendered in the reflection
+    tab + ≥ 1 deviation + ≥ 1 affordance mismatch + the verdict
+    chips render correctly on the filmstrip
+
+### Substrate consumption
+
+- [ ] Expectation-match findings render with substrate components
+      `FindingSilenceButton`, `FindingSendToIssueButton`
+- [ ] `/projects/[id]` consumes substrate's `FindingTrendChart` for
+      this proposal's heuristic family alongside the
+      affordance-gaps trend chart
 
 ## Why this is the wedge
 
