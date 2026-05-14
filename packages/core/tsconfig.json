@@ -8,8 +8,7 @@
     "target": "ES2022",
     "declaration": true,
     "noEmit": false,
-    "skipLibCheck": true,
-    "baseUrl": "."
+    "skipLibCheck": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/__tests__/**", "**/*.test.*", "**/*.spec.*"]
