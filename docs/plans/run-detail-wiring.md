@@ -80,7 +80,7 @@
 
 | Tab | Content source | Status | TODO |
 |---|---|---|---|
-| Filmstrip (default) | DetailSplit (preview + aria tree) | 🟡 | See §5 |
+| Filmstrip (default) | DetailSplit (preview + aria tree) | ✅ | — |
 | Steps | Inline `StepsList` table (in `RunDetailLive.tsx`) | ✅ | — |
 | Findings (count chip) | `findings.length` | ✅ | — |
 | Reflection | `Reflection` reads `view.reflection` (plan / surprises / gap / confidence / metrics) | ✅ | — |
@@ -197,7 +197,7 @@ Lives in `packages/cli`. This plan **contracts** these changes; it does NOT ship
 | Per-step update on tool response | ✅ shipped | Proxy PATCHes the row with `direction='result'`/`'error'`, `result_summary`, `aria_snapshot` (snapshot tools only), `url_after` (navigate), `duration_ms`. |
 | Screenshot upload at capture | ✅ shipped | After a successful `browser_take_screenshot`, the proxy reads the newest file from `--live-screenshots-dir`, uploads it to `walks/runs/<run_id>/step-<NN>.png` via the Storage REST API, then PATCHes `screenshot_key`. Graceful drain on child exit. |
 | Finding insert at file-time | `packages/cli/src/commands/run.ts` + dispatcher stdout streaming + reusable Supabase sink helper | Today findings are parsed only after the dispatcher exits. Streaming requires an incremental stdout parser upstream of `routeToSinks`; the sink can expose/reuse `insertFinding`, but it is not the hook point by itself. |
-| `runs.status` transitions | Existing sink path creates `running` and completes/fails at end, but queued jobs do not know the run id until the child run pipeline creates it | 🟡 | Once the run/job identity contract lands, keep current run status writes and expose the run id in `agent_jobs.result` early enough for the dashboard. |
+| `runs.status` transitions | `commands/run.ts` pre-creates the row with `status='running'` (Track B2). The supabase sink patches to `completed`/`failed` at end. Queued walks expose their run id via `agent_jobs.result.run_id` as before — the dashboard reads it via `resolveRunWorkerStatus`. | ✅ | — |
 
 Without B2, the dashboard wiring above renders correctly for **completed** walks (the post-walk batch populates all rows) but a **running** walk on `/runs/[id]` will show an empty filmstrip until the daemon's batch sync fires.
 
@@ -207,7 +207,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 |---|---|---|
 | Sign screenshot URLs server-side (batch + per-key fallback) | ✅ already shipped | `app/runs/[id]/page.tsx` |
 | Mint signed URLs for `finding_screenshots` (separate from step screenshots) | ✅ shipped | `app/runs/[id]/page.tsx → signFirstFindingScreenshots()` fetches first-ordinal storage_key per finding, signs in `walks` bucket, passes `signedFindingScreenshotUrls` (Record<findingId, url>) to the adapter. |
-| Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
+| Extend run-detail view model | ✅ shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence (§7), step args + actionTarget (§5), aria snapshot (§5), finding screenshot URLs (§8), flow budget (§2), worker status (§1) all flow through. |
 | Resolve `current worker` for the run | ✅ shipped | `lib/supabase/resolve-run-worker.ts` joins through `agent_jobs.result->>run_id` (no schema change needed). Returns `online`/`offline`/`unknown`. |
 | Persist and resolve flow budget | ✅ shipped | Migration `20260514000000_flows_budget.sql` adds `flows.budget jsonb`. `parseFlowFile` extracts `budget.max_steps`/`budget.max_seconds` from YAML; CLI store writes via `upsertFlowWithYaml` (sync-authoritative) and conditionally via `upsertFlow` (sink-path never clobbers a synced value). Dashboard server reads `flows.budget`, hands `flowBudgetSecondsMax` to the adapter. |
 | `extractActionTarget(toolName, args)` helper | ✅ shipped | `components/run-detail/adapters.ts`; recognizes Playwright MCP `target` / `ref` / `selector` + `element` for action tools; `url` for navigation. |
