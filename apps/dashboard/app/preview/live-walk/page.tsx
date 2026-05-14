@@ -14,13 +14,20 @@ export const metadata: Metadata = {
 };
 
 export default function LiveWalkPreviewPage() {
+  // Fixed full-viewport overlay so the preview escapes the dashboard's
+  // root <main className="max-w-7xl mx-auto px-6 py-10"> container. The
+  // preview is a standalone visual artifact, not a page inside the
+  // signed-in dashboard chrome.
   return (
-    <div className="lw-preview-root" style={{ marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)" }}>
+    <div
+      className="fixed inset-0 overflow-y-auto"
+      style={{ background: "var(--color-bg)", zIndex: 100 }}
+    >
       <BackgroundAurora />
       <TopBar />
       <main
-        className="mx-auto"
-        style={{ maxWidth: 1280, padding: "28px 32px 64px", position: "relative", zIndex: 1 }}
+        className="mx-auto relative"
+        style={{ maxWidth: 1280, padding: "28px 32px 64px", zIndex: 1 }}
       >
         <Hero />
         <Filmstrip />
@@ -37,7 +44,7 @@ function BackgroundAurora() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0"
+      className="pointer-events-none absolute inset-0"
       style={{
         zIndex: 0,
         background:
