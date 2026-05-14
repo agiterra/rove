@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopBar } from "@/components/run-detail/TopBar";
 import { Hero } from "@/components/run-detail/Hero";
 import { Filmstrip } from "@/components/run-detail/Filmstrip";
@@ -9,8 +9,9 @@ import { DetailSplit } from "@/components/run-detail/DetailSplit";
 import { FindingsStream } from "@/components/run-detail/FindingsStream";
 import { Reflection } from "@/components/run-detail/Reflection";
 import { RunFooter } from "@/components/run-detail/RunFooter";
+import { formatElapsed } from "@/components/run-detail/adapters";
 import { NOW_DOING } from "@/components/run-detail/mock-data";
-import type { RunDetailView } from "@/components/run-detail/types";
+import type { HeroView, RunDetailView } from "@/components/run-detail/types";
 
 type TabId = "filmstrip" | "steps" | "findings" | "reflection";
 
@@ -18,7 +19,8 @@ interface PreviewLiveWalkProps {
   view: RunDetailView;
 }
 
-export function PreviewLiveWalk({ view }: PreviewLiveWalkProps) {
+export function PreviewLiveWalk({ view: initialView }: PreviewLiveWalkProps) {
+  const view = useTickingView(initialView);
   const [tab, setTab] = useState<TabId>("filmstrip");
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
     view.selectedStepIndex ?? view.steps[view.steps.length - 1]?.index ?? null,
@@ -74,6 +76,22 @@ export function PreviewLiveWalk({ view }: PreviewLiveWalkProps) {
       </main>
     </div>
   );
+}
+
+function useTickingView(view: RunDetailView): RunDetailView {
+  const { startedAtMs, finishedAtMs } = view.hero;
+  const isLive = finishedAtMs == null;
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isLive) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [isLive]);
+  if (!isLive) return view;
+  const sec = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+  const label = formatElapsed(sec);
+  const hero: HeroView = { ...view.hero, elapsedLabel: label, timerLabel: label };
+  return { ...view, hero };
 }
 
 function BackgroundAurora() {

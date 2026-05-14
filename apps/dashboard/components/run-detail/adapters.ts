@@ -385,7 +385,15 @@ function buildHero(run: RunRow, status: RunStatus, steps: StepView[], elapsedLab
     remainingLabel: null,
     nowDoing,
     timerLabel: elapsedLabel,
+    startedAtMs: new Date(run.started_at).getTime(),
+    finishedAtMs: run.finished_at ? new Date(run.finished_at).getTime() : null,
   };
+}
+
+/** Re-formats `seconds` as `MM:SS`. Exported so `RunDetailLive` can
+ * compute its 1Hz tick without depending on the adapter's internals. */
+export function formatElapsed(seconds: number): string {
+  return formatDuration(Math.max(0, Math.floor(seconds)));
 }
 
 function buildHeroStatusBits(

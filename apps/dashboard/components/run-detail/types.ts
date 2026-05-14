@@ -77,6 +77,10 @@ export interface HeroView {
   nowDoing: NowDoing | null;
   /** Always-on timer (elapsed for done, live for running). */
   timerLabel: string;
+  /** Epoch ms for client-side 1Hz ticker (running walks only). */
+  startedAtMs: number;
+  /** Epoch ms when the walk finished, or null while running. */
+  finishedAtMs: number | null;
 }
 
 export interface FooterView {

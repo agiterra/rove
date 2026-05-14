@@ -41,7 +41,7 @@
 | Eyebrow `RUN · <flow_id> · <persona_id>` | `runs.flow_id`, `runs.persona_id` | ✅ | — |
 | NowDoing pill — verb (`Clicking`, `Reading`, `Typing into`, `Navigating to`, `Capturing`) | Derived from latest `run_steps.tool_name` via `humanizeVerb()` in `adapters.ts` | ✅ | — |
 | NowDoing pill — target (`"Run walk"`, `/admin/foo`) | `deriveNowDoingTarget(step)` in `adapters.ts`: prefers `step.actionTarget.element`, falls back to `step.actionTarget.target`, falls back to `shortTarget(step.url)`. `extractActionTarget(tool_name, args)` recognizes Playwright MCP `target`/`ref`/`selector` + `element`. | ✅ | — |
-| NowDoing pill — timer | `runs.started_at` → `now()` (running) / `runs.finished_at` (done). Computed client-side; ticks via 1Hz interval | 🟡 | Wire 1Hz ticker in `RunDetailLive` for running walks; freeze on terminal status. Do not put the ticking value inside the `aria-live` region, or it will announce every second. |
+| NowDoing pill — timer | `runs.started_at` → `now()` (running) / `runs.finished_at` (done). 1Hz `useTickingView` in `RunDetailLive` recomputes the hero `elapsedLabel` + `timerLabel` while `hero.finishedAtMs == null`. Timer rendered with `aria-hidden`; verb + target are the live region. | ✅ | — |
 | NowDoing pill — sweep animation | `.lw-sweep::after` keyframes in `globals.css` | ✅ | — |
 | NowDoing pill — visibility | Only render when `status === "running"` | ✅ | — |
 | Hero aurora / streak / edge layers | Static CSS (`.lw-hero-*` in `globals.css`) with intensity from `view.hero.status` | ✅ | Preserve reduced-motion fallback and avoid adding data dependencies |
@@ -216,7 +216,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Reflection panel | ✅ shipped | `components/run-detail/Reflection.tsx` + `Reflection.parts.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
 | MetricsStrip restyle | ✅ shipped | `MetricsStrip` inside `Reflection.parts.tsx`; renders all 8 trajectory metrics in a 2-row 4-col grid (no "6 tiles" misclaim) |
 | Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
-| 1Hz timer ticker | New | `RunDetailLive` `useEffect(setInterval(1000))` while `view.hero.status === "running"` |
+| 1Hz timer ticker | ✅ shipped | `useTickingView` in `RunDetailLive` (and mirrored in `PreviewLiveWalk`); ticks while `hero.finishedAtMs == null` |
 | Auto-scroll filmstrip to running tile | New | `Filmstrip` ref + `useEffect` watching the running step's index |
 | Steps-tab click → switch to Filmstrip tab | ✅ shipped | `RunDetailLive.tsx` `onPickStep` now calls `setTab("filmstrip")` |
 | Worker status pill | New | `TopBar` consumes `view.topBar.workerStatus`; `online` / `offline` / `unknown` already typed |

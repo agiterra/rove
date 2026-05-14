@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { TopBar } from "./TopBar";
 import { Hero } from "./Hero";
@@ -11,7 +11,8 @@ import { FindingsStream } from "./FindingsStream";
 import { Reflection } from "./Reflection";
 import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
-import type { RunDetailView } from "./types";
+import { formatElapsed } from "./adapters";
+import type { HeroView, RunDetailView } from "./types";
 
 interface RunDetailLiveProps {
   runId: string;
@@ -33,7 +34,8 @@ type TabId = "filmstrip" | "steps" | "findings" | "reflection";
  */
 export function RunDetailLive({ runId, projectId, initialView }: RunDetailLiveProps) {
   const liveView = useLiveRun({ runId, projectId, initialView });
-  const view = liveView ?? initialView;
+  const baseView = liveView ?? initialView;
+  const view = useTickingView(baseView);
 
   const [tab, setTab] = useState<TabId>("filmstrip");
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
@@ -116,6 +118,29 @@ function BreadcrumbRow() {
       </Link>
     </div>
   );
+}
+
+/**
+ * 1Hz ticker. While a walk is running (no `finishedAtMs`), re-derive
+ * hero `elapsedLabel` and `timerLabel` from `now() - startedAtMs` every
+ * second. Once `finishedAtMs` is set, the labels freeze.
+ */
+function useTickingView(view: RunDetailView): RunDetailView {
+  const { startedAtMs, finishedAtMs } = view.hero;
+  const isLive = finishedAtMs == null;
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!isLive) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [isLive]);
+
+  if (!isLive) return view;
+  const elapsedSec = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+  const label = formatElapsed(elapsedSec);
+  const hero: HeroView = { ...view.hero, elapsedLabel: label, timerLabel: label };
+  return { ...view, hero };
 }
 
 function BackgroundAurora() {

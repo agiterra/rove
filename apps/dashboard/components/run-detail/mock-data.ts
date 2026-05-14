@@ -189,6 +189,10 @@ export function buildMockRunDetailView(): RunDetailView {
     remainingLabel: RUN_META.remainingLabel,
     nowDoing: NOW_DOING,
     timerLabel: RUN_META.elapsedLabel,
+    // Frozen at 00:01:32 — finishedAtMs is non-null so the ticker won't
+    // advance in the preview, even though status === "running".
+    startedAtMs: Date.now() - 92_000,
+    finishedAtMs: Date.now(),
   };
 
   const topBar: TopBarView = {
