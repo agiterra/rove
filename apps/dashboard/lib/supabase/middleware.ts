@@ -54,7 +54,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     path === "/install" ||
     path.startsWith("/install/") ||
     path === "/api/install/exchange" ||
-    path === "/api/install/codes/prune";
+    path === "/api/install/codes/prune" ||
+    path.startsWith("/preview/");
 
   const devBypass = process.env.DEV_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";
 

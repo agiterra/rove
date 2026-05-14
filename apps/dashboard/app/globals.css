@@ -214,3 +214,630 @@ select {
   -webkit-background-clip: text;
   color: transparent;
 }
+
+/*
+ * Live walk — running-state indicators. A ping ring expands and fades
+ * around a solid dot to imply "this is happening right now". Slow enough
+ * to feel attentive, not nervous. Reduced-motion users get a static dot.
+ */
+@keyframes livedot-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes livedot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.animate-livedot-ping {
+  animation: livedot-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.animate-livedot-pulse {
+  animation: livedot-pulse 1.6s ease-in-out infinite;
+}
+
+/*
+ * Canonical focus ring — applied to every interactive element in the
+ * live-walk surfaces. Single class so a future audit greps for one name
+ * and gets the full surface.
+ */
+.focus-rove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Live-walk preview — ported from Claude Design's "Live Walk.html"
+ * handoff bundle (chats/chat1.md). Scoped to .lw-* class names so
+ * none of this leaks into the rest of the dashboard while the preview
+ * lives at /preview/live-walk.
+ */
+
+/* The cyan-bright "outline" inside the dot pulse — same color family as the
+   single-dot ping above, but tighter ring so it reads as a status indicator
+   on a small filmstrip tile. */
+@keyframes lw-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(63, 201, 203, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(63, 201, 203, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 201, 203, 0);
+  }
+}
+@keyframes lw-sweep {
+  0%,
+  25% {
+    transform: translateX(-100%);
+  }
+  75%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes lw-running-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(63, 201, 203, 0.22),
+      0 0 18px -8px rgba(63, 201, 203, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(63, 201, 203, 0.55),
+      0 0 36px -2px rgba(63, 201, 203, 0.55);
+  }
+}
+@keyframes lw-pulse-bg {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 201, 203, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px -2px rgba(63, 201, 203, 0.45);
+  }
+}
+
+.lw-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  flex-shrink: 0;
+  display: inline-block;
+}
+.lw-dot.lw-pulse {
+  animation: lw-pulse-ring 1.8s ease-out infinite;
+}
+.lw-dot.lw-rose {
+  background: var(--color-severity-critical);
+}
+.lw-dot.lw-amber {
+  background: var(--color-severity-minor);
+}
+.lw-dot.lw-slate {
+  background: var(--color-severity-nit);
+}
+
+.lw-tile-running {
+  animation: lw-running-glow 2.6s ease-in-out infinite;
+}
+
+.lw-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(63, 201, 203, 0.14), transparent);
+  transform: translateX(-100%);
+  animation: lw-sweep 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.lw-tree-highlight {
+  background: rgba(63, 201, 203, 0.1);
+  border: 1px solid rgba(63, 201, 203, 0.4);
+  border-radius: 6px;
+  animation: lw-pulse-bg 1.8s ease-in-out infinite;
+}
+
+/* Indent rails for the accessibility tree. Pure-CSS connector lines. */
+.lw-rail {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.lw-rail.lw-rail-line::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+.lw-rail.lw-rail-elbow::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 50%;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+.lw-rail.lw-rail-elbow::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 7px;
+  height: 1px;
+  background: var(--color-border-strong);
+}
+.lw-rail.lw-rail-tee::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border-strong);
+}
+.lw-rail.lw-rail-tee::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 7px;
+  height: 1px;
+  background: var(--color-border-strong);
+}
+
+/*
+ * Live-walk hero. The bright cyan top edge, perimeter halo, aurora wash,
+ * skewed-streak, and bottom glow are all painted in CSS so the React
+ * components stay thin. --lw-glow + --lw-aurora govern intensity.
+ */
+.lw-hero {
+  /* Default glow is dialed down ~30% so a finished or paused walk reads
+     calmly. Pages with status="running" set --lw-glow back to 1 inline
+     on the .lw-hero element to ramp the perimeter halo to full. */
+  --lw-glow: 0.7;
+  --lw-aurora: 1;
+  position: relative;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #0e1426 0%, #0c1222 60%, #0b1020 100%);
+  border: 1px solid rgba(63, 201, 203, calc(0.55 * var(--lw-glow)));
+  padding: 28px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(63, 201, 203, calc(0.18 * var(--lw-glow))),
+    0 0 36px -4px rgba(63, 201, 203, calc(0.35 * var(--lw-glow))),
+    0 30px 80px -20px rgba(16, 44, 87, 0.55),
+    inset 0 0 60px -20px rgba(63, 201, 203, calc(0.18 * var(--lw-glow)));
+}
+.lw-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(63, 201, 203, calc(0.5 * var(--lw-glow))) 0%,
+    rgba(110, 226, 228, calc(0.95 * var(--lw-glow))) 50%,
+    rgba(63, 201, 203, calc(0.5 * var(--lw-glow))) 100%
+  );
+  z-index: 2;
+  filter: blur(0.3px);
+}
+.lw-hero-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 16px;
+  opacity: var(--lw-aurora);
+}
+.lw-hero-aurora::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  right: -15%;
+  width: 90%;
+  height: 140%;
+  background: radial-gradient(
+    closest-side,
+    rgba(110, 226, 228, 0.55) 0%,
+    rgba(63, 201, 203, 0.28) 30%,
+    transparent 70%
+  );
+  filter: blur(28px);
+}
+.lw-hero-aurora::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: 15%;
+  width: 65%;
+  height: 130%;
+  background: radial-gradient(
+    closest-side,
+    rgba(63, 201, 203, 0.32) 0%,
+    rgba(16, 44, 87, 0.25) 40%,
+    transparent 75%
+  );
+  filter: blur(36px);
+}
+.lw-hero-streak {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 16px;
+  opacity: calc(0.75 * var(--lw-aurora));
+}
+.lw-hero-streak::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: 25%;
+  right: -5%;
+  height: 55%;
+  background: radial-gradient(
+    ellipse 80% 70% at 60% 0%,
+    rgba(110, 226, 228, 0.45) 0%,
+    rgba(110, 226, 228, 0.18) 25%,
+    transparent 60%
+  );
+  filter: blur(14px);
+  transform: skewY(-6deg);
+}
+.lw-hero-edge {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(63, 201, 203, calc(0.85 * var(--lw-glow))) 50%,
+    transparent 100%
+  );
+  filter: blur(2px);
+}
+.lw-hero-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(110, 226, 228, calc(0.9 * var(--lw-glow))) 50%,
+    transparent 100%
+  );
+}
+
+/*
+ * Tankloop preview — light-theme inset rendered inside the dark detail
+ * panel. Class-scoped so the inherited dark theme doesn't bleed in.
+ */
+.tk {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 132px 1fr 200px;
+  background: #f6f7f9;
+  color: #1a1f2c;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+.tk-side {
+  background: #fff;
+  border-right: 1px solid #e7e9ee;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tk-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #1a1f2c;
+  padding: 4px 8px 14px;
+}
+.tk-brand .mk {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #3fc9cb, #102c57);
+  display: inline-block;
+}
+.tk-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: #6b7280;
+  font-size: 11.5px;
+}
+.tk-nav-item .ni {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+.tk-nav-item .ni svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  fill: none;
+}
+.tk-nav-item.tk-active {
+  background: #eef0f5;
+  color: #1a1f2c;
+  font-weight: 500;
+}
+.tk-side-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #e7e9ee;
+  margin-left: -10px;
+  margin-right: -10px;
+  padding: 10px 14px 0;
+}
+.tk-side-foot .av {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #a78bfa, #6366f1);
+  display: inline-block;
+}
+.tk-main {
+  padding: 16px 20px;
+  overflow: hidden;
+}
+.tk-bcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+.tk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #eef0f5;
+  color: #4b5563;
+  font-size: 10.5px;
+}
+.tk-cancel {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid #d8dbe2;
+  border-radius: 5px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 10.5px;
+}
+.tk-h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 4px 0 4px;
+  color: #0d1322;
+}
+.tk-sub {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin: 0 0 16px;
+  max-width: 280px;
+  line-height: 1.45;
+}
+.tk-card {
+  background: #fff;
+  border: 1px solid #e7e9ee;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.tk-card .ttl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1a1f2c;
+  margin-bottom: 8px;
+}
+.tk-card .meta {
+  font-size: 10.5px;
+  color: #9aa2b1;
+  font-weight: 400;
+}
+.tk-progress {
+  height: 6px;
+  background: #eef0f5;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.tk-progress .bar {
+  height: 100%;
+  width: 32%;
+  background: linear-gradient(90deg, #3fc9cb, #102c57);
+  border-radius: 999px;
+}
+.tk-step-line {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #6b7280;
+}
+.tk-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f1f5;
+  font-size: 11px;
+  color: #1a1f2c;
+}
+.tk-check:last-of-type {
+  border-bottom: none;
+}
+.tk-check .box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #10b981;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+.tk-check .box svg {
+  width: 9px;
+  height: 9px;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  fill: none;
+}
+.tk-cta {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  height: 32px;
+  border-radius: 6px;
+  background: #1f5fff;
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow:
+    0 0 0 3px rgba(31, 95, 255, 0.18),
+    0 2px 8px -2px rgba(31, 95, 255, 0.4);
+  position: relative;
+}
+.tk-right {
+  border-left: 1px solid #e7e9ee;
+  padding: 16px;
+  background: #fafbfc;
+  overflow: hidden;
+}
+.tk-right h4 {
+  font-size: 11.5px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: #1a1f2c;
+}
+.tk-kv {
+  margin-bottom: 10px;
+}
+.tk-kv .k {
+  font-size: 10px;
+  color: #9aa2b1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.tk-kv .v {
+  font-size: 11.5px;
+  color: #1a1f2c;
+  word-break: break-all;
+}
+.tk-findings-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  font-size: 11px;
+  color: #4b5563;
+}
+.tk-findings-row .bg {
+  display: inline-grid;
+  place-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.tk-findings-row .count {
+  margin-left: auto;
+  color: #1a1f2c;
+  font-weight: 500;
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+.tk-viewall {
+  margin-top: 10px;
+  width: 100%;
+  height: 24px;
+  border: 1px solid #d8dbe2;
+  border-radius: 5px;
+  background: #fff;
+  color: #4b5563;
+  font-size: 10.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-livedot-ping,
+  .animate-livedot-pulse {
+    animation: none;
+  }
+  .lw-dot.lw-pulse,
+  .lw-tile-running,
+  .lw-tree-highlight {
+    animation: none;
+  }
+  .lw-sweep::after {
+    animation: none;
+    transform: translateX(-100%);
+  }
+  .kinetic-hover {
+    transition-property: background-color, border-color;
+  }
+  .kinetic-hover:hover {
+    transform: none;
+  }
+}

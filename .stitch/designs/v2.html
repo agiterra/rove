@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ROVE // Live Walk Monitor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..700&amp;family=Geist+Sans:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            background-color: #07090f;
+            background-image: radial-gradient(circle at 0% 0%, rgba(63, 201, 203, 0.08) 0%, transparent 40%);
+        }
+        .now-doing-pulse {
+            animation: pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .cyan-inner-glow {
+            box-shadow: inset 0 1px 0 0 rgba(63, 201, 203, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f1422;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1f2740;
+            border-radius: 2px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #3fc9cb;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#3fc9cb",
+                    "secondary": "#aec7fb",
+                    "primary-fixed": "#75f6f8",
+                    "border": "#1f2740",
+                    "panel-elevated": "#141a2a",
+                    "on-tertiary-fixed": "#311300",
+                    "tertiary-fixed": "#ffdbc7",
+                    "on-primary-container": "#005152",
+                    "outline-variant": "#3c4949",
+                    "surface-tint": "#54d9db",
+                    "major": "#fb923c",
+                    "primary": "#62e5e7",
+                    "surface-container-low": "#191b22",
+                    "text-muted": "#8a93ab",
+                    "on-secondary-fixed": "#001a40",
+                    "tertiary": "#ffc7a5",
+                    "surface-dim": "#11131a",
+                    "on-error-container": "#ffdad6",
+                    "critical": "#f43f5e",
+                    "on-primary-fixed": "#002020",
+                    "text-faint": "#5a6480",
+                    "on-secondary-fixed-variant": "#2e4673",
+                    "tertiary-fixed-dim": "#ffb689",
+                    "on-secondary": "#15305b",
+                    "outline": "#869393",
+                    "surface-container-high": "#282a31",
+                    "text-primary": "#e8edf7",
+                    "secondary-fixed": "#d7e2ff",
+                    "on-primary": "#003738",
+                    "error-container": "#93000a",
+                    "on-surface-variant": "#bbc9c9",
+                    "on-tertiary-container": "#753600",
+                    "on-background": "#e1e2eb",
+                    "inverse-primary": "#00696b",
+                    "surface-container-highest": "#33353c",
+                    "on-surface": "#e1e2eb",
+                    "accent-sky": "#6ea8ff",
+                    "tertiary-container": "#ffa060",
+                    "on-tertiary-fixed-variant": "#733500",
+                    "panel": "#0f1422",
+                    "surface-container-lowest": "#0c0e14",
+                    "on-primary-fixed-variant": "#004f50",
+                    "surface-container": "#1d1f26",
+                    "inverse-surface": "#e1e2eb",
+                    "secondary-fixed-dim": "#aec7fb",
+                    "on-secondary-container": "#9db5e8",
+                    "minor": "#facc15",
+                    "inverse-on-surface": "#2e3037",
+                    "border-strong": "#2c3654",
+                    "secondary-container": "#2e4673",
+                    "surface": "#11131a",
+                    "background": "#11131a",
+                    "primary-fixed-dim": "#54d9db",
+                    "nit": "#94a3b8",
+                    "on-error": "#690005",
+                    "surface-bright": "#373940",
+                    "surface-variant": "#33353c",
+                    "bg-secondary": "#0b0f18",
+                    "on-tertiary": "#512400",
+                    "error": "#ffb4ab"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "px-16": "16px",
+                    "px-8": "8px",
+                    "px-4": "4px",
+                    "px-32": "32px",
+                    "px-24": "24px",
+                    "px-48": "48px",
+                    "gutter": "24px",
+                    "px-2": "2px",
+                    "px-12": "12px",
+                    "container-max": "1280px"
+            },
+            "fontFamily": {
+                    "mono": ["Geist Mono"],
+                    "lead": ["Geist Sans"],
+                    "eyebrow": ["Geist Sans"],
+                    "h3": ["Geist Sans"],
+                    "h1": ["Geist Sans"],
+                    "h2": ["Geist Sans"],
+                    "body": ["Geist Sans"],
+                    "body-sm": ["Geist Sans"],
+                    "caption": ["Geist Sans"],
+                    "display": ["Geist Sans"]
+            },
+            "fontSize": {
+                    "mono": ["13px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "lead": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "eyebrow": ["11px", {"lineHeight": "1.0", "letterSpacing": "0.18em", "fontWeight": "500"}],
+                    "h3": ["20px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "h1": ["40px", {"lineHeight": "1.1", "fontWeight": "600"}],
+                    "h2": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body": ["14px", {"lineHeight": "1.55", "fontWeight": "400"}],
+                    "body-sm": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "caption": ["12px", {"lineHeight": "1.0", "fontWeight": "400"}],
+                    "display": ["56px", {"lineHeight": "1.05", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="font-body text-text-primary antialiased">
+<!-- Top Sticky Bar -->
+<header class="fixed top-0 w-full z-50 bg-panel border-b border-border h-16 flex justify-between items-center px-gutter">
+<div class="flex items-center space-x-px-16">
+<div class="flex items-center space-x-px-8">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">deployed_code</span>
+<span class="font-h3 text-h3 font-bold text-primary tracking-tight">ROVE</span>
+</div>
+<div class="h-4 w-px bg-border"></div>
+<nav class="flex items-center space-x-px-8 text-text-muted font-mono text-body-sm">
+<span>Runs</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-text-primary">f5b81aef</span>
+</nav>
+</div>
+<div class="flex items-center space-x-px-12">
+<div class="px-px-8 py-px-4 bg-secondary-container rounded text-on-secondary-container font-mono text-[11px] uppercase tracking-wider">
+                project: tankloop
+            </div>
+<div class="flex items-center space-x-px-8 px-px-8 py-px-4 bg-surface-container rounded border border-border">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container shadow-[0_0_8px_rgba(63,201,203,0.8)]"></span>
+<span class="font-mono text-[11px] text-text-primary uppercase tracking-wider">Worker online</span>
+</div>
+<button class="material-symbols-outlined text-text-faint hover:text-primary transition-colors">settings</button>
+<button class="material-symbols-outlined text-text-faint hover:text-primary transition-colors">terminal</button>
+</div>
+</header>
+<main class="pt-24 pb-12 px-gutter max-w-container-max mx-auto space-y-px-24">
+<!-- Elevated Hero Panel -->
+<section class="bg-panel border border-border-strong rounded-xl cyan-inner-glow shadow-[0_12px_40px_rgba(16,44,87,0.35)] p-px-24">
+<div class="grid grid-cols-12 gap-px-24">
+<div class="col-span-8 flex flex-col justify-between">
+<div>
+<p class="font-mono text-eyebrow text-text-faint mb-px-12 uppercase">RUN · eval_dashboard.discover_flows · claude_browser_agent</p>
+<h1 class="font-h1 text-h1 text-text-primary mb-px-4">Walking the app</h1>
+<p class="text-text-muted font-body">Step 8 of an estimated 25 · 1m 32s elapsed</p>
+</div>
+<div class="mt-px-32 flex items-center space-x-px-16">
+<div class="bg-surface-container-highest rounded-lg px-px-16 py-px-12 border border-border flex items-center space-x-px-16">
+<div class="flex items-center space-x-px-8">
+<span class="w-2 h-2 rounded-full bg-primary-container now-doing-pulse"></span>
+<span class="font-eyebrow text-text-faint uppercase">Clicking</span>
+</div>
+<span class="font-mono text-primary-container text-lead">"Run walk"</span>
+<div class="w-px h-4 bg-border"></div>
+<span class="font-mono text-text-primary">00:01:32</span>
+</div>
+</div>
+</div>
+<div class="col-span-4 grid grid-cols-2 gap-px-8">
+<div class="p-px-12 bg-surface-container-low border border-border rounded-lg">
+<p class="font-eyebrow text-text-faint uppercase mb-px-4">Target URL</p>
+<p class="font-mono text-body-sm text-text-primary truncate">app.tankloop.io/dashboard</p>
+</div>
+<div class="p-px-12 bg-surface-container-low border border-border rounded-lg">
+<p class="font-eyebrow text-text-faint uppercase mb-px-4">Persona</p>
+<p class="font-mono text-body-sm text-text-primary">claude_agent</p>
+</div>
+<div class="p-px-12 bg-surface-container-low border border-border rounded-lg">
+<p class="font-eyebrow text-text-faint uppercase mb-px-4">Flow ID</p>
+<p class="font-mono text-body-sm text-text-primary">discover_flows</p>
+</div>
+<div class="p-px-12 bg-surface-container-low border border-border rounded-lg flex flex-col justify-center">
+<div class="inline-flex items-center space-x-px-8 bg-primary-container/10 border border-primary-container/20 rounded-full px-px-8 py-px-2 w-fit">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+<span class="text-[11px] font-bold text-primary-container uppercase">Walking...</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Tab Bar -->
+<div class="border-b border-border flex items-center space-x-px-32">
+<button class="pb-px-8 font-body text-body text-primary-container border-b-2 border-primary-container">Filmstrip</button>
+<button class="pb-px-8 font-body text-body text-text-faint hover:text-text-primary transition-colors">Steps</button>
+<button class="pb-px-8 font-body text-body text-text-faint hover:text-text-primary transition-colors flex items-center">
+                Findings
+                <span class="ml-px-8 px-px-6 py-px-1 bg-primary-container/10 text-primary-container text-[11px] rounded-full">3</span>
+</button>
+<button class="pb-px-8 font-body text-body text-text-faint hover:text-text-primary transition-colors">Reflection</button>
+</div>
+<!-- Filmstrip Row -->
+<div class="flex overflow-x-auto custom-scrollbar space-x-px-16 pb-px-16">
+<!-- Step 1-4 -->
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="aspect-[16/9] rounded-lg bg-surface-container border border-border overflow-hidden relative mb-px-8">
+<img class="w-full h-full object-cover grayscale opacity-60" data-alt="A dark, high-contrast user interface screenshot with minimalist technical controls. The scene displays a clean administrative dashboard with cyan highlights and sharp typography, set against a deep obsidian background. Soft atmospheric lighting accents the professional software interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjFCyzExKS8jCOhyy1dxOlFGsCFnK_4lrv5M7uqNo7bBXU4Lb5gI9jhL5BbocwWfg1bp6IVzzsrb67DpjLu5yfWr2OaGQ8aYWhyzas-w3f19V9v_9D8-btcHTNNhLZgRM5CwuHAvASAOhSA-iYAFj1fVP4s_Td9KOFuQ1Ok-hLCkKsCjfwjkEHG-IBf3h69ULsPFyj3HmtunUtoe7ACcGO3SXJs5tO95XUKK3GOGHyRXqW9haWtbYTH3sStZr7T1tUhwHtRdiEI0A"/>
+<div class="absolute top-2 left-2 px-px-4 py-px-2 bg-black/60 rounded font-mono text-[10px] text-text-primary border border-white/10">#01</div>
+<div class="absolute bottom-2 right-2 h-4 w-4 rounded-full bg-primary-container border-2 border-panel flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+</div>
+<div class="flex justify-between font-mono text-[11px] text-text-faint">
+<span class="uppercase">wait</span>
+<span>1.2s</span>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="aspect-[16/9] rounded-lg bg-surface-container border border-border overflow-hidden relative mb-px-8">
+<img class="w-full h-full object-cover grayscale opacity-60" data-alt="A futuristic web application interface showing data visualization components. The visual style is monochromatic dark navy with glowing cyan accents. Sharp lines and high-density technical information create a sophisticated developer tool aesthetic. The lighting is low-key and moody." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1Vkat1oiurNuATruh-Of7LdwYaWNSDQ4UXuK-VqQ1t3Ekx5IXTEsUH_A71ST9VclURaX_c2IX39T-vOouzKO2Uhm7A6nRtvv0gUlCNkyai77d4xUpKs_LBCXeD5s8Nu4L6EV8GrWiaSYhQLCRgWfbuOgD5Q4W9JQLW3CFiPeGK42kAhKQF-gi6ZzCQ86cQZwugJFnhUVzevw3j-FJXusVb6wfZ6PgpNWF8marzCiq2MchGg6zO1pgKYhCDievJ5bUXlEXvcnyEOg"/>
+<div class="absolute top-2 left-2 px-px-4 py-px-2 bg-black/60 rounded font-mono text-[10px] text-text-primary border border-white/10">#02</div>
+<div class="absolute bottom-2 right-2 h-4 w-4 rounded-full bg-primary-container border-2 border-panel flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-on-primary-container font-bold">check</span>
+</div>
+</div>
+<div class="flex justify-between font-mono text-[11px] text-text-faint">
+<span class="uppercase">navigate</span>
+<span>4.5s</span>
+</div>
+</div>
+<!-- Step 5: Error -->
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="aspect-[16/9] rounded-lg bg-surface-container border border-critical overflow-hidden relative mb-px-8">
+<img class="w-full h-full object-cover grayscale opacity-40" data-alt="A technical software screen displaying an error state. The interface uses a deep charcoal background with vibrant rose-red warning indicators. Sophisticated code-like structures are visible in the layout, conveying a high-tech terminal feel with professional visual density and precise alignment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwM6QPEnTxUT4GUv0Xqhjt6cfBgRcZ4ULOJnSmW6qo6pwC59tWSO0r3fywUHyVDXR0OAeCO2nUloZcChYaIK6RqSzKfELgzzUf4-nx82gDnj2QmRIKVN6_F8-eQf3q6L4i5xkVm6DoMcmnoqYshmRHbYzmh4iRTY8ygEu8Cw0P1GlqhYlMhONcMd8owlyo2BvABVcpoa_IS6A8AyOmIy3i_LCjvAu2ZpO9PXImZo3KpcocLHtZdtc6DRwGRu0kra-Q0rDve4gyA3o"/>
+<div class="absolute top-2 left-2 px-px-4 py-px-2 bg-critical/20 rounded font-mono text-[10px] text-critical border border-critical/40">#05</div>
+<div class="absolute bottom-2 right-2 h-4 w-4 rounded-full bg-critical border-2 border-panel flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-white font-bold">close</span>
+</div>
+</div>
+<div class="flex justify-between font-mono text-[11px] text-critical">
+<span class="uppercase">click</span>
+<span>0.8s</span>
+</div>
+</div>
+<!-- Steps 6-7 abbreviated for brevity -->
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="aspect-[16/9] rounded-lg bg-surface-container border border-border overflow-hidden relative mb-px-8">
+<div class="w-full h-full bg-panel-elevated flex items-center justify-center text-text-faint font-mono text-[10px]">RECOVERY_FRAME</div>
+<div class="absolute top-2 left-2 px-px-4 py-px-2 bg-black/60 rounded font-mono text-[10px] text-text-primary border border-white/10">#06</div>
+</div>
+<div class="flex justify-between font-mono text-[11px] text-text-faint">
+<span class="uppercase">scroll</span>
+<span>1.1s</span>
+</div>
+</div>
+<!-- Step 8: Active -->
+<div class="flex-shrink-0 w-[220px] group cursor-pointer scale-105 origin-bottom">
+<div class="aspect-[16/9] rounded-lg bg-panel-elevated border-2 border-primary-container overflow-hidden relative mb-px-8 shadow-[0_0_15px_rgba(63,201,203,0.3)]">
+<img class="w-full h-full object-cover" data-alt="A focused view of an active digital interface interaction. A glowing cyan highlight surrounds a primary action button on a dark navy professional software dashboard. The composition is clean and technical, emphasizing a high-performance flight-deck aesthetic with sharp focus and cinematic low-key lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhJI_NseuC_tvvaKUbLfH5fLqp4O6DNFRtNB6XOBg1iIrb8rVHnWb0BYhdQ4YfSGYtbZjiQjzaF8A0kAi4Jxn3rJ3qJoGm3D6pSq77_q0HVsa970Gp4B8WkZ7erWAIQx8ekAfSycX9AAVrMlXEkGmYS9lMtHvsuL3BM7lmXH9g-dJZQLH4WriMIKh_csUrTrI8Oq0e9HxX3hMerl3Eev56RUhH5GzKipXikvwyBuoVYp3LkV4pTVYouquGM6lp1wnua9slOlm__SU"/>
+<div class="absolute top-2 left-2 px-px-4 py-px-2 bg-primary-container text-on-primary-container rounded font-mono text-[10px] font-bold">#08</div>
+<div class="absolute bottom-2 right-2 h-4 w-4 rounded-full bg-primary-container border-2 border-panel now-doing-pulse"></div>
+</div>
+<div class="flex justify-between font-mono text-[11px] text-primary-container">
+<span class="uppercase font-bold">click</span>
+<span>LIVE</span>
+</div>
+</div>
+<!-- Step 9: Awaiting -->
+<div class="flex-shrink-0 w-[220px]">
+<div class="aspect-[16/9] rounded-lg border-2 border-dashed border-border flex items-center justify-center mb-px-8 bg-surface-container-lowest/50">
+<span class="material-symbols-outlined text-text-faint">hourglass_empty</span>
+</div>
+<div class="font-mono text-[11px] text-text-faint uppercase">Awaiting step...</div>
+</div>
+</div>
+<!-- Main Workspace Split -->
+<div class="grid grid-cols-12 gap-px-24 h-[600px]">
+<!-- Left: Screenshot Preview -->
+<div class="col-span-8 bg-panel border border-border rounded-xl flex flex-col overflow-hidden">
+<div class="p-px-16 border-b border-border flex justify-between items-center bg-surface-container-low">
+<span class="font-mono text-body-sm text-text-muted">step 08 — clicking "Run walk"</span>
+<div class="flex space-x-px-8">
+<button class="material-symbols-outlined text-text-faint hover:text-text-primary">zoom_in</button>
+<button class="material-symbols-outlined text-text-faint hover:text-text-primary">fullscreen</button>
+</div>
+</div>
+<div class="flex-grow bg-black flex items-center justify-center p-px-32 relative">
+<img class="max-w-full max-h-full rounded shadow-2xl" data-alt="A high-fidelity wide-angle view of a futuristic professional software dashboard. The interface is dominated by dark navy and charcoal tones with sharp cyan interactive elements. The layout features dense data tables, geometric icons, and sophisticated typography, creating a premium command-center or flight-deck visual experience with controlled ambient highlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7NW3biwDe3rNv24X8cQMg9Q1lLxy2BEKS6vPBy22PAzl2Z_kZ8vN-MkTWY_JTEb4YcupMaKqAM8V9cuWO_pCW4udYF4-2m1Xou2leDgQKp4ji6Agx0yaztuwnBh6sJ-PKMquQe6_9ortyinaGziMeLciyNT-MkeN5RIUBoHL9zUGr7PRv8qcDFgp7MPhmd-TmLXmAyvcuYgygGYSaxCyW83gq_crA-aZdT12vtrnb7wBiTBGWOPIam8TnksIKQlh2bC7If_YA0HA"/>
+<!-- Floating Highlight Overlay Simulation -->
+<div class="absolute top-1/2 left-1/2 -translate-x-12 -translate-y-8 w-24 h-10 border-2 border-primary-container bg-primary-container/10 rounded cursor-pointer ring-4 ring-primary-container/20"></div>
+</div>
+<div class="p-px-16 bg-surface-container-low border-t border-border flex items-center space-x-px-12">
+<div class="flex items-center space-x-px-8 px-px-12 py-px-4 bg-panel border border-border rounded text-text-faint font-mono text-[11px]">
+<span class="material-symbols-outlined text-[14px]">touch_app</span>
+<span>SELECTOR: #btn-run-walk</span>
+</div>
+<div class="flex items-center space-x-px-8 px-px-12 py-px-4 bg-panel border border-border rounded text-text-faint font-mono text-[11px]">
+<span class="material-symbols-outlined text-[14px]">link</span>
+<span>ORIGIN: tankloop.io</span>
+</div>
+</div>
+</div>
+<!-- Right: Accessibility Tree -->
+<div class="col-span-4 bg-panel border border-border rounded-xl flex flex-col overflow-hidden">
+<div class="p-px-16 border-b border-border bg-surface-container-low">
+<h2 class="font-eyebrow text-text-faint uppercase">Accessibility Tree</h2>
+</div>
+<div class="flex-grow p-px-16 overflow-y-auto font-mono text-[13px] text-text-muted space-y-px-4">
+<div class="flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+<span class="text-secondary">WebArea</span> "Tankloop Dashboard"
+                    </div>
+<div class="pl-px-16 space-y-px-4">
+<div class="flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+<span class="text-secondary">banner</span>
+</div>
+<div class="pl-px-16 flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-secondary">heading</span> "Overview"
+                        </div>
+<div class="flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+<span class="text-secondary">main</span>
+</div>
+<div class="pl-px-16 space-y-px-4">
+<div class="flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-secondary">group</span> "Metric Grid"
+                            </div>
+<!-- Highlighted Item -->
+<div class="flex items-center space-x-px-8 bg-primary-container/10 text-primary-container px-px-8 py-px-4 rounded -mx-px-8 border-l-2 border-primary-container">
+<span class="material-symbols-outlined text-[16px]">ads_click</span>
+<span><span class="font-bold">button</span> "Run walk"</span>
+</div>
+<div class="flex items-center space-x-px-8 opacity-50">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-secondary">button</span> "Cancel"
+                            </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Findings Stream -->
+<section class="space-y-px-16">
+<div class="flex items-center space-x-px-12">
+<h2 class="font-eyebrow text-text-primary uppercase tracking-[0.2em]">Findings filed this walk</h2>
+<span class="h-5 w-5 rounded-full bg-primary-container/10 flex items-center justify-center text-[11px] font-bold text-primary-container border border-primary-container/20">3</span>
+</div>
+<div class="space-y-px-8">
+<!-- Row 1 -->
+<div class="group bg-surface-container-low border border-border p-px-12 rounded-lg flex items-center hover:border-border-strong hover:bg-panel-elevated transition-all cursor-pointer">
+<div class="w-24 flex-shrink-0">
+<span class="px-px-8 py-px-2 bg-critical text-on-error rounded text-[10px] font-bold uppercase tracking-wider">Critical</span>
+</div>
+<div class="flex-grow flex items-center space-x-px-24">
+<span class="font-body text-body text-text-primary">Broken link detected in footer navigation (404)</span>
+<span class="font-mono text-[11px] text-primary-container bg-primary-container/5 px-px-8 py-px-2 rounded border border-primary-container/10">agent.link-integrity</span>
+</div>
+<div class="w-16 h-10 rounded bg-black overflow-hidden border border-border">
+<img class="w-full h-full object-cover opacity-50 grayscale" data-alt="A close-up view of a complex technical dashboard showing a highlighted broken link or error state. The visual uses a sophisticated palette of deep navy and bright rose red. The composition is precise and emphasizes professional software debugging tools." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbCVnWVw9BT7LG5u7wlS88oWSvozdWiTQxhLhmLvJK7NZ71nDi4HonIzBPkTNGHmcT3_OPdwMvgq2__bDuREej8hu3bjhdiX_gvyk6635iYrb9Np19o3knpkUPDyeY9Za7ojQHXXPuZm7IT3no56G1IKi-yC2yn6sTp6Z6E-dJA4Megu6_D6j9fo-Tcxr9wIjkmtsnVwA9380KJhAa8ZUoSy-VkfcFDPrGbHVR4v4W_DqisWVwGpnJDCe3GziJQUBImJL5m99OAwg"/>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="group bg-surface-container-low border border-border p-px-12 rounded-lg flex items-center hover:border-border-strong hover:bg-panel-elevated transition-all cursor-pointer">
+<div class="w-24 flex-shrink-0">
+<span class="px-px-8 py-px-2 bg-major text-white rounded text-[10px] font-bold uppercase tracking-wider">Major</span>
+</div>
+<div class="flex-grow flex items-center space-x-px-24">
+<span class="font-body text-body text-text-primary">Button "Run walk" missing ARIA-label attribute</span>
+<span class="font-mono text-[11px] text-primary-container bg-primary-container/5 px-px-8 py-px-2 rounded border border-primary-container/10">agent.accessibility-tree</span>
+</div>
+<div class="w-16 h-10 rounded bg-black overflow-hidden border border-border">
+<img class="w-full h-full object-cover opacity-50 grayscale" data-alt="A zoomed-in interface element on a technical screen. The image showcases high-density data and code-like structures in a dark, professional UI setting. Muted orange highlights draw focus to a specific architectural detail within the software dashboard's layout." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCutRmRfbhExXtpKuccWTL89Kz57foWQf_ywPgmnS2NAJgkpWoh5PQINhsTqJIXyQ3ME0cr0kfMjBNxq9UC-aOaqXl60P3BXZHI8Kxywt3wcLSqI1w3deCh4Xap8KcxvrHbnCbspbZpxKMDr4YscBRjxZCVHa4vkjWoNiJFUwycAVa8bW-w9-FyVTXdt4qNhXtjgB8JcbxFr2x_Jvwcpjj2pKjOzxzmZ60OWUEu-kyer5I_JXcjgYH3aK6lPuQXDTb20kiWOABiDhc"/>
+</div>
+</div>
+<!-- Row 3 -->
+<div class="group bg-surface-container-low border border-border p-px-12 rounded-lg flex items-center hover:border-border-strong hover:bg-panel-elevated transition-all cursor-pointer">
+<div class="w-24 flex-shrink-0">
+<span class="px-px-8 py-px-2 bg-minor text-white rounded text-[10px] font-bold uppercase tracking-wider">Minor</span>
+</div>
+<div class="flex-grow flex items-center space-x-px-24">
+<span class="font-body text-body text-text-primary">Low contrast ratio (3.2:1) on secondary text elements</span>
+<span class="font-mono text-[11px] text-primary-container bg-primary-container/5 px-px-8 py-px-2 rounded border border-primary-container/10">agent.visual-regression</span>
+</div>
+<div class="w-16 h-10 rounded bg-black overflow-hidden border border-border">
+<img class="w-full h-full object-cover opacity-50 grayscale" data-alt="A macro shot of a sophisticated data visualization UI, focusing on subtle contrast and text clarity. The design aesthetic is clinical and technical, with a focus on professional information density. Deep charcoal and amber tones dominate the color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFFl-W-LlemrbBbF1CLnysy5tC-wRFs09lBx-9pVbs2unHOT3QFl__eQ-2IMwwzEQeZhBObvfNdD3QahouvffYqSYxN-Y-wpKT2u4peY9FeZSii_UlMLsB0f4yhnC7PdFVgRx2RA3wKfISj4O0Q943Jz0Pr3HtO4EOq-twaj4Whxmt1f1QoHygHkVJjHqLzME22n6riDdGU8nCKUrkOqrAJ71JOXEdEiEO7Rhl0j-dia5B6khrP03FykH6HbeKPaaCC4sFDv1zz6I"/>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 w-full h-8 bg-bg-secondary border-t border-border-strong flex items-center justify-between px-px-24 z-40">
+<div class="flex items-center space-x-px-16 font-mono text-text-faint text-[10px]">
+<span>commit 64ccef7</span>
+<div class="w-1 h-1 rounded-full bg-border"></div>
+<span>branch main</span>
+<div class="w-1 h-1 rounded-full bg-border"></div>
+<span>daemon WrangleMeThis-Mac</span>
+<div class="w-1 h-1 rounded-full bg-border"></div>
+<span>run f5b81aef</span>
+</div>
+<div class="flex items-center space-x-px-16 font-mono text-text-faint text-[10px]">
+<span>© 2024 AGENT_OS OPERATIONAL SYSTEMS</span>
+<span class="text-primary-container">LATENCY: 24MS</span>
+<span>NODE: US-EAST-1</span>
+</div>
+</footer>
+</body></html>
