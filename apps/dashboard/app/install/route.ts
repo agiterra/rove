@@ -401,21 +401,20 @@ function buildScript(origin: string): string {
     ``,
     `echo "URL handler written at ${S}URL_HANDLER"`,
     ``,
-    `# ── step 14: generate AppleScript applet (paths substituted before compile) ─`,
-    `# AppleScript compiled scripts cannot expand shell variables at runtime.
-    # We substitute the absolute path NOW (heredoc with double-quoted opener)
-    # so the compiled .scpt carries the literal path. (reviewer cheatsheet #15)`,
+    `# ── step 14: generate AppleScript applet ───────────────────────────────`,
+    `# Resolve ~/.rove/url-handler.sh inside AppleScript and pass both the
+    # handler path and incoming URL through quoted form. This keeps home
+    # directories with spaces working and avoids URL-controlled shell text.`,
     `APPLET_DIR="${S}HOME/Applications"`,
     `APPLET_PATH="${S}APPLET_DIR/Rove Launcher.app"`,
     `APPLET_TMP="/tmp/rove-launcher.applescript"`,
     ``,
     `mkdir -p "${S}APPLET_DIR"`,
     ``,
-    `# Double-quoted heredoc: $URL_HANDLER expands here in the shell, not inside
-    # the compiled AppleScript. The result is a literal absolute path baked in.`,
-    `cat > "${S}APPLET_TMP" <<OSA`,
+    `cat > "${S}APPLET_TMP" <<'OSA'`,
     `on open location this_url`,
-    `  do shell script "${S}URL_HANDLER " & quoted form of this_url`,
+    `  set handler_path to POSIX path of (path to home folder) & ".rove/url-handler.sh"`,
+    `  do shell script quoted form of handler_path & " " & quoted form of this_url`,
     `end open location`,
     `OSA`,
     ``,
