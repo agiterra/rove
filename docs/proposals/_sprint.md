@@ -6,7 +6,7 @@
 **Owner**: Brian + Alex.
 **Read first**: [`docs/theses/negative-space.md`](../theses/negative-space.md). The rest of this doc assumes you've read it.
 
-This is the "Monday morning" entry point. If you are starting work on the sprint, this is the file you open. It is intentionally short and indexes the proposal docs, not duplicates them. The proposal docs are authoritative.
+This is the kickoff entry point. When you sit down to start the sprint, this is the file you open. It is intentionally short and indexes the proposal docs, not duplicates them. The proposal docs are authoritative.
 
 ---
 
@@ -192,7 +192,7 @@ Per-doc open-question status:
 
 ---
 
-## How to start (Monday morning)
+## How to start
 
 ```bash
 # 1. Re-read the thesis (it's short, ~10 min)

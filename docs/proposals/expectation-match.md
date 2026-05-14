@@ -355,7 +355,7 @@ journey-level companion to the page-level work landed previously.
    `FindingSendToIssueButton` wired per finding; substrate's
    `FindingTrendChart` on `/projects/[id]` with
    `heuristicPrefix="agent.expectation_match"`.
-5. **Day 5 EOD — dogfood**:
+5. **Day 5 close — dogfood**:
    - Author `examples/flows/dashboard-setup-new-project.flow.yaml`
    - Run with `internal-user` persona,
      `prior_archetype: "saas-dashboard"`

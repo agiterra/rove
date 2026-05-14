@@ -15,7 +15,7 @@ Single source of truth for **features and ideas not yet started**. If Brian asks
 
 ### Next sprint
 
-**Start here**: [`docs/proposals/_sprint.md`](proposals/_sprint.md) — Monday-morning entry point with build order, migration sequence, file checklist, sprint-level DoD. Estimated 6 days. Walker-audited at `docs/audits/2026-05-14-sprint-plan-walker-audit.md`.
+**Start here**: [`docs/proposals/_sprint.md`](proposals/_sprint.md) — kickoff entry point with build order, migration sequence, file checklist, sprint-level DoD. Estimated 6 days. Walker-audited at `docs/audits/2026-05-14-sprint-plan-walker-audit.md`.
 
 - **📜 [On Negative Space — Alex's thesis](theses/negative-space.md)** — Read first. Framing for the entire sprint. Codified pre-ship check at [`.claude/rules/pre-ship-check.md`](../.claude/rules/pre-ship-check.md).
 - **Day 1 — [Finding-lifecycle substrate](proposals/finding-lifecycle-substrate.md)** — Silence/un-silence + send-to-GitHub-issue + trend chart + empty/loading/error state primitives. Both downstream proposals consume this. ~1 day.
