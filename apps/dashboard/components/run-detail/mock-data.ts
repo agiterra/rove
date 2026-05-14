@@ -235,6 +235,14 @@ export function buildMockRunDetailView(): RunDetailView {
     ariaSnapshot: s.index === 8 ? MOCK_ARIA_SNAPSHOT : null,
     typedText: s.toolName === "browser_type" && s.index === 6 ? "walk" : null,
     resultSummary: null,
+    dialog:
+      s.index === 10
+        ? {
+            type: "confirm",
+            message: "Delete this workspace? This action cannot be undone.",
+            personaPerceived: false,
+          }
+        : null,
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({

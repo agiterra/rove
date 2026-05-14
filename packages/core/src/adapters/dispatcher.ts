@@ -57,6 +57,13 @@ export interface DispatcherInput {
     projectId: string;
     supabaseUrl: string;
     supabaseServiceRoleKey: string;
+    /** Persona id for finding attribution + native-dialog policy lookup. */
+    personaId?: string;
+    /**
+     * How the proxy treats native browser dialogs surfaced via the MCP
+     * "Modal state" section. Defaults to "perceive_and_act" when omitted.
+     */
+    personaPolicy?: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
   };
 }
 

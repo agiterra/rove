@@ -41,6 +41,19 @@ export interface StepView {
   typedText: string | null;
   /** Tool response summary — counts, status lines, etc. Free-form. */
   resultSummary: string | null;
+  /**
+   * Native browser dialog (alert/confirm/prompt/beforeunload) the proxy
+   * intercepted while this step was active. Rendered as a chip on the
+   * filmstrip tile. Null when no dialog fired during this step.
+   */
+  dialog: DialogView | null;
+}
+
+export interface DialogView {
+  type: "alert" | "confirm" | "prompt" | "beforeunload";
+  message: string;
+  /** False when the agent never saw the modal state (perceive_blind). */
+  personaPerceived: boolean;
 }
 
 export interface FindingView {

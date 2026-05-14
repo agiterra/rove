@@ -30,6 +30,18 @@ export interface PersonaConstraints {
    * actually do" guidance based on the runtime.
    */
   agent_runtime?: AgentRuntime;
+  /**
+   * How the proxy handles native browser dialogs (alert/confirm/prompt) for
+   * this persona:
+   *   - "perceive_and_act"  — human personas see the modal state in the MCP
+   *     tool response and decide what to do (default for humans).
+   *   - "perceive_blind"    — agent personas don't see the modal state; the
+   *     proxy silently dismisses the dialog. The absence-of-perception is
+   *     the finding (agent.accessibility_tree_completeness).
+   *   - "dismiss_silently"  — replay/snapshot mode: dismiss with no finding
+   *     and no synthetic observation.
+   */
+  native_dialog_policy?: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
 }
 
 export interface Persona {

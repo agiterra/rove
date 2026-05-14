@@ -12,6 +12,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: false,
       hovers_allowed: false,
       retries_per_step: 1,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You have used this app twice. You do not poke around. Click only obviously labeled buttons or links. Avoid keyboard shortcuts and hover-only affordances. If something is not visible after one look, treat it as undiscoverable and report it.",
@@ -28,6 +29,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: true,
       hovers_allowed: true,
       retries_per_step: 1,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You are fast. Use keyboard shortcuts. Submit forms with Enter when possible. Use Tab navigation. Hover to reveal secondary affordances. Flag any unnecessary clicks or missing keyboard support as a finding.",
@@ -44,6 +46,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: false,
       hovers_allowed: false,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You are operating from a phone in a truck cab with one thumb. Targets under 44px are too small — flag them. There are no hover states. Keyboard shortcuts are irrelevant. Glare and rushed taps are normal — be tolerant of fat-finger errors and report any UI that punishes them.",
@@ -61,6 +64,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       hovers_allowed: false,
       keyboard_navigation_only: true,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You navigate by keyboard only — Tab, Shift-Tab, Enter, Space, arrow keys. You rely on the accessibility tree (role, name, state). Every interactive element must be reachable, named, and have a sensible role. Flag missing labels, focus traps, invisible focus rings, and reading-order surprises.",
@@ -77,6 +81,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: true,
       hovers_allowed: false,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You browse at 200% zoom with a high-contrast preference. Truncated labels, ellipses on critical info, low-contrast secondary text, and tiny status icons are all blockers. Flag any text that disappears or wraps badly at zoom, and any color-only state indicator.",
@@ -93,6 +98,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: false,
       hovers_allowed: false,
       retries_per_step: 1,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "This is your first time in the app. You have no mental model of where things live. If a primary action is not visible from the entry route, that is a finding. If empty states do not tell you what to do next, that is a finding. Do not infer — report what is missing.",
@@ -109,6 +115,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: true,
       hovers_allowed: true,
       retries_per_step: 3,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You poke at edges. Submit empty forms. Paste 10kb of text into single-line inputs. Click the primary button three times in a row. Navigate away mid-edit. Expect every error path to be handled gracefully — file a finding for each one that is not.",
@@ -125,6 +132,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: true,
       hovers_allowed: true,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You are setting up the workspace for your team. Walk through settings as if nothing has been configured yet. Flag any required field that lacks guidance, any setting whose effect is unclear, and any defaults that look dangerous (destructive, irreversible, or surprising).",
@@ -143,6 +151,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: false,
       hovers_allowed: false,
       retries_per_step: 1,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You have used this app for less than a week. You click only obviously labeled buttons. Keyboard shortcuts and hover-only affordances are invisible to you. If something is not visible on the first look, treat it as undiscoverable and report it.",
@@ -159,6 +168,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: true,
       hovers_allowed: true,
       retries_per_step: 1,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You use this app every day. Use keyboard shortcuts wherever possible. Submit forms with Enter. Use Tab navigation. Hover to reveal secondary affordances. Flag any unnecessary click, missing keyboard support, or interaction that costs you time.",
@@ -175,6 +185,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       shortcuts_allowed: false,
       hovers_allowed: false,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_and_act",
     },
     promptAddendum:
       "You are operating from a phone with one thumb. Targets under 44px are too small — flag them. There are no hover states. Keyboard shortcuts are irrelevant. Be tolerant of fat-finger errors and report any UI that punishes them.",
@@ -192,6 +203,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       hovers_allowed: false,
       keyboard_navigation_only: true,
       retries_per_step: 2,
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You navigate by keyboard only — Tab, Shift-Tab, Enter, Space, arrow keys. Every interactive element must be reachable, with a visible focus ring, and respond to the expected key. Flag focus traps, invisible focus rings, focus-order surprises, and any control that requires a mouse to operate.",
@@ -217,6 +229,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       hovers_allowed: false,
       retries_per_step: 2,
       agent_runtime: "claude_computer_use",
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You are Claude operating via computer-use. You read the accessibility tree to find affordances; you do NOT scan visually. You cannot reliably hover. You cannot guess what 'the button next to the search' means without stable identifiers. You cannot solve CAPTCHAs. File findings on: missing roles/names, hover-only critical actions, state changes that don't update the a11y tree, missing or unstable selectors, anti-bot blocks that would stop a legitimate agent.",
@@ -234,6 +247,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       hovers_allowed: false,
       retries_per_step: 2,
       agent_runtime: "chatgpt_operator",
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You are ChatGPT Operator, browsing the page visually + via the DOM. You expect each step's action target to be unambiguous from the rendered page. Modal layering, off-screen elements, lazy-loaded content, and overlays that intercept clicks all trip you up. File findings on: unstable layouts, hidden-but-interactive elements, modals without a clear close action, anti-bot interstitials, and any flow that requires keyboard-only input.",
@@ -251,6 +265,7 @@ export const BUILT_IN_PERSONAS: Persona[] = [
       hovers_allowed: false,
       retries_per_step: 1,
       agent_runtime: "playwright_codegen",
+      native_dialog_policy: "perceive_blind",
     },
     promptAddendum:
       "You are an LLM authoring a Playwright test for this flow. You need stable, unambiguous selectors — prefer role+name, data-testid, or aria-label. File findings on: critical actions without stable selectors, role/name ambiguity (multiple buttons named 'Save'), elements that only respond to native mouse events, and any action whose success isn't observable from the DOM (visual-only feedback).",

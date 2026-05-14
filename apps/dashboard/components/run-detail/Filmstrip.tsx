@@ -160,6 +160,7 @@ function Tile({
           <StatusDot status={step.status} />
           <StatusText status={step.status} />
         </div>
+        {step.dialog ? <DialogChip dialog={step.dialog} /> : null}
         <div className="flex items-center justify-between gap-1.5 font-mono text-[var(--color-text-muted)]" style={{ fontSize: 11 }}>
           <span className="truncate">{step.toolName}</span>
           <span className="text-[var(--color-text-faint)] shrink-0">
@@ -169,6 +170,26 @@ function Tile({
       </div>
       {errored ? null : null}
     </button>
+  );
+}
+
+function DialogChip({ dialog }: { dialog: NonNullable<StepView["dialog"]> }) {
+  const label = `\u{1F6D1} fired ${dialog.type}()`;
+  const tooltip = dialog.personaPerceived
+    ? `Native ${dialog.type}() dialog: "${dialog.message}"`
+    : `Native ${dialog.type}() dialog (agent never saw it): "${dialog.message}"`;
+  return (
+    <div
+      title={tooltip}
+      className="font-mono truncate"
+      style={{
+        fontSize: 10.5,
+        color: dialog.personaPerceived ? "var(--color-text-muted)" : "#fca5b5",
+        opacity: 0.95,
+      }}
+    >
+      {label}
+    </div>
   );
 }
 

@@ -171,6 +171,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     ``,
     buildKeyboardNavigationSection(persona, toolPrefix),
     ``,
+    buildNativeDialogsSection(persona, toolPrefix),
+    ``,
     `Phase C — Reflect, adversarially.`,
     `After the walk, ask yourself: "If this app shipped tomorrow, what specific`,
     `reasons would a different user of this persona FAIL to accomplish this goal?"`,
@@ -422,4 +424,21 @@ function buildKeyboardNavigationSection(persona: Persona, toolPrefix: string): s
   }
 
   return common.join("\n");
+}
+
+// ── Native dialogs (additive, 2026-05-14) ────────────────────────────────────
+// New section. Edit here, not inside buildWalkPrompt. The header literal
+// `### Native dialogs` is the anchor downstream tests / parallel agents
+// look for; keep it stable.
+function buildNativeDialogsSection(persona: Persona, toolPrefix: string): string {
+  const handleDialog = `${toolPrefix}handle_dialog`;
+  const lines = [
+    `### Native dialogs`,
+    ``,
+    `If your tool calls suddenly stop affecting the page, call ${handleDialog}`,
+    `to query — the page may be blocked by a browser-native alert/confirm/prompt.`,
+    `Rove surfaces dialog events to human personas automatically; agent personas`,
+    `will not be told about them — that absence is the finding.`,
+  ];
+  return lines.join("\n");
 }

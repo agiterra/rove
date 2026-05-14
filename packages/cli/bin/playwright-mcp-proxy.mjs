@@ -8,6 +8,7 @@
  * Invocation (set in the dispatcher's MCP config):
  *   node playwright-mcp-proxy.mjs --log <path>
  *     [--live-run-id <uuid> --live-project-id <slug> --live-screenshots-dir <path>]
+ *     [--live-persona-id <id> --live-persona-policy <policy>]
  *     -- <forwarded args>
  *
  * Forwarded args are passed verbatim to the bundled `@playwright/mcp` CLI.
@@ -24,6 +25,16 @@
  * round-trip is also written to `run_steps` in real time (insert at request,
  * update at response). Screenshots are uploaded to the walks bucket as soon
  * as the local file appears under --live-screenshots-dir.
+ *
+ * Native dialogs — when @playwright/mcp surfaces a "Modal state" section in
+ * a tool response, the proxy:
+ *   1. Records the dialog as `dialog_payload` on the run_step that triggered it.
+ *   2. Files a finding per persona policy (perceive_and_act / perceive_blind
+ *      / dismiss_silently — set via --live-persona-policy).
+ *   3. Issues an out-of-band browser_handle_dialog call to clear the dialog
+ *      (action: dismiss, the safer default for confirm/prompt) and, for
+ *      perceive_blind personas, strips the Modal state line from the
+ *      response forwarded to the agent so the next call sees a responsive DOM.
  */
 
 import { spawn } from "node:child_process";
@@ -58,6 +69,12 @@ if (!logPath) {
 const liveRunId = pickOpt("--live-run-id");
 const liveProjectId = pickOpt("--live-project-id");
 const liveScreenshotsDir = pickOpt("--live-screenshots-dir");
+const livePersonaId = pickOpt("--live-persona-id");
+const livePersonaPolicyRaw = pickOpt("--live-persona-policy");
+const VALID_POLICIES = new Set(["perceive_and_act", "perceive_blind", "dismiss_silently"]);
+const livePersonaPolicy = VALID_POLICIES.has(livePersonaPolicyRaw)
+  ? livePersonaPolicyRaw
+  : "perceive_and_act";
 const liveSupabaseUrl = process.env.ROVE_SUPABASE_URL ?? null;
 const liveSupabaseKey = process.env.ROVE_SUPABASE_SERVICE_ROLE_KEY ?? null;
 const liveEnabled = !!(liveRunId && liveProjectId && liveSupabaseUrl && liveSupabaseKey);
@@ -76,6 +93,7 @@ function logLine(dir, raw) {
   }
   logStream.write(JSON.stringify({ t: new Date().toISOString(), dir, raw: parsed }) + "\n");
   if (liveEnabled) onJsonRpc(dir, parsed);
+  return parsed;
 }
 
 // ── Track B2 live-step writes ───────────────────────────────────────────
@@ -89,6 +107,13 @@ function logLine(dir, raw) {
 const pending = new Map();
 let stepCounter = 0;
 const inFlight = []; // bookkeeping for graceful shutdown
+
+// ── Out-of-band tools/call bookkeeping (for native-dialog handling) ────
+// JSON-RPC ids the proxy issued itself. We swallow their responses instead
+// of forwarding to the agent. Numbers in the 10_000_000+ range to stay
+// clear of Claude's incrementing ids.
+let proxyIdSeq = 10_000_000;
+const proxyIssuedIds = new Set();
 
 function onJsonRpc(dir, msg) {
   if (!msg || typeof msg !== "object") return;
@@ -124,12 +149,26 @@ function onJsonRpc(dir, msg) {
     const ariaSnapshot = isSnapshotTool(match.toolName) ? extractText(result) : null;
     const urlAfter = match.toolName === "browser_navigate" && match.args?.url ? String(match.args.url) : null;
 
+    const dialog = !isError ? parseModalState(extractText(result)) : null;
+    const dialogPayload = dialog
+      ? {
+          type: dialog.type,
+          message: dialog.message,
+          default_value: dialog.defaultValue ?? "",
+          default_action_taken: "dismiss",
+          fired_at: finishedAt,
+          dismissed_at: new Date().toISOString(),
+          persona_perceived: livePersonaPolicy === "perceive_and_act",
+        }
+      : null;
+
     const update = {
       direction: isError ? "error" : "result",
       result_summary: resultSummary,
       aria_snapshot: ariaSnapshot,
       url_after: urlAfter,
       duration_ms: Number.isFinite(durationMs) ? durationMs : null,
+      ...(dialogPayload ? { dialog_payload: dialogPayload } : {}),
     };
 
     const work = match.rowIdPromise.then(async (rowId) => {
@@ -146,8 +185,22 @@ function onJsonRpc(dir, msg) {
           process.stderr.write(`mcp-proxy: screenshot upload failed: ${err?.message ?? err}\n`);
         }
       }
+      if (dialogPayload) {
+        try {
+          await fileDialogFinding({ stepIndex: match.stepIndex, dialog });
+        } catch (err) {
+          process.stderr.write(`mcp-proxy: file dialog finding failed: ${err?.message ?? err}\n`);
+        }
+      }
     });
     inFlight.push(work);
+
+    if (dialogPayload) {
+      // Side-channel: dismiss the dialog so the agent's next tool call sees
+      // a responsive page. Safer default is dismiss (don't auto-confirm a
+      // destructive action even when papering over).
+      issueDismissDialog();
+    }
   }
 }
 
@@ -169,6 +222,46 @@ function summarizeResult(toolName, payload) {
   if (!text) return null;
   if (isSnapshotTool(toolName)) return `${text.length.toLocaleString()} chars`;
   return text.length > 140 ? text.slice(0, 137) + "…" : text;
+}
+
+// ── Modal-state parsing ────────────────────────────────────────────────
+// @playwright/mcp emits a "### Modal state" section when a native dialog is
+// pending. Format:
+//   ### Modal state
+//   - ["confirm" dialog with message "Are you sure?"]: can be handled by browser_handle_dialog
+//
+// Returns `{ type, message, defaultValue }` or null when no dialog section.
+const DIALOG_LINE_RE =
+  /^- \["([a-z]+)" dialog(?: with message "((?:[^"\\]|\\.)*)")?(?: with default value "((?:[^"\\]|\\.)*)")?\]/m;
+function parseModalState(text) {
+  if (!text || typeof text !== "string") return null;
+  const sectionIdx = text.indexOf("### Modal state");
+  if (sectionIdx === -1) return null;
+  const tail = text.slice(sectionIdx);
+  const m = tail.match(DIALOG_LINE_RE);
+  if (!m) return null;
+  return {
+    type: m[1],
+    message: unescapeJsonish(m[2] ?? ""),
+    defaultValue: unescapeJsonish(m[3] ?? ""),
+  };
+}
+
+function unescapeJsonish(s) {
+  return s.replace(/\\(.)/g, "$1");
+}
+
+// Strip the "### Modal state" section from a response text so the agent
+// doesn't see it (used for perceive_blind / dismiss_silently policies).
+// Sections are separated by blank lines in the MCP text payload.
+function stripModalStateSection(text) {
+  if (!text || typeof text !== "string") return text;
+  const idx = text.indexOf("### Modal state");
+  if (idx === -1) return text;
+  // find end of section — next "### " heading or end-of-text
+  let end = text.indexOf("\n### ", idx + 1);
+  if (end === -1) end = text.length;
+  return (text.slice(0, idx) + text.slice(end)).replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
 }
 
 async function sb(method, path, body) {
@@ -205,6 +298,63 @@ async function insertCallRow({ stepIndex, toolName, args }) {
 
 async function updateRow(rowId, patch) {
   await sb("PATCH", `run_steps?id=eq.${encodeURIComponent(rowId)}`, patch);
+}
+
+async function fileDialogFinding({ stepIndex, dialog }) {
+  if (livePersonaPolicy === "dismiss_silently") return;
+  const destructive = dialog.type === "confirm" || dialog.type === "beforeunload";
+  let heuristic;
+  let severity;
+  let title;
+  let description;
+  if (livePersonaPolicy === "perceive_blind") {
+    heuristic = "agent.accessibility_tree_completeness";
+    severity = destructive ? "critical" : "major";
+    title = `Native ${dialog.type}() blocks agent — no DOM-perceivable equivalent`;
+    description =
+      `A native ${dialog.type}() dialog fired with message "${dialog.message}". A real agent ` +
+      `runtime cannot perceive browser-native chrome — this action is invisible to it and ` +
+      `the page is blocked until the dialog is handled. Surface this control as an in-page ` +
+      `modal with a proper aria-role so the agent's accessibility tree includes it.`;
+  } else {
+    // perceive_and_act: file only when destructive (Nielsen "user control and freedom").
+    if (!destructive) return;
+    heuristic = "nielsen-5";
+    severity = "major";
+    title = `Native ${dialog.type}() used for destructive action`;
+    description =
+      `A native ${dialog.type}() dialog fired with message "${dialog.message}". Native dialogs ` +
+      `lack a clear undo path and can't be styled or audited. Use an in-page confirm modal ` +
+      `with an explicit Cancel default and (where the action is irreversible) an undo affordance.`;
+  }
+  // Best-effort: write directly to findings. We don't know the run's
+  // findings schema in v1 — guard with a try/catch above.
+  await sb("POST", "findings", {
+    run_id: liveRunId,
+    project_id: liveProjectId,
+    severity,
+    title,
+    description,
+    step_index: stepIndex,
+    heuristic,
+    evidence: `Dialog type=${dialog.type}, message="${dialog.message}", persona=${livePersonaId ?? "unknown"}, policy=${livePersonaPolicy}`,
+  });
+}
+
+function issueDismissDialog() {
+  const id = ++proxyIdSeq;
+  proxyIssuedIds.add(id);
+  const rpc = {
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: { name: "browser_handle_dialog", arguments: { accept: false } },
+  };
+  try {
+    child.stdin.write(JSON.stringify(rpc) + "\n");
+  } catch (err) {
+    process.stderr.write(`mcp-proxy: dismiss-dialog write failed: ${err?.message ?? err}\n`);
+  }
 }
 
 async function uploadScreenshotForStep(match) {
@@ -294,7 +444,9 @@ process.stdin.on("end", () => {
   child.stdin.end();
 });
 
-// child stdout → parent stdout, tee to log
+// child stdout → parent stdout. Line-buffered: we may rewrite a tool-call
+// response (strip modal state for blind personas) or suppress a proxy-issued
+// response (browser_handle_dialog we sent out-of-band).
 let outBuf = "";
 child.stdout.on("data", (chunk) => {
   const s = chunk.toString("utf8");
@@ -303,10 +455,34 @@ child.stdout.on("data", (chunk) => {
   while ((nl = outBuf.indexOf("\n")) !== -1) {
     const line = outBuf.slice(0, nl);
     outBuf = outBuf.slice(nl + 1);
-    if (line.length > 0) logLine("out", line);
+    if (line.length === 0) continue;
+    const parsed = logLine("out", line);
+    if (parsed && typeof parsed === "object" && proxyIssuedIds.has(parsed.id)) {
+      proxyIssuedIds.delete(parsed.id);
+      continue;
+    }
+    const outLine = maybeRewriteOutLine(parsed, line);
+    process.stdout.write(outLine + "\n");
   }
-  process.stdout.write(chunk);
 });
+
+function maybeRewriteOutLine(parsed, fallbackLine) {
+  if (livePersonaPolicy === "perceive_and_act") return fallbackLine;
+  if (!parsed || typeof parsed !== "object") return fallbackLine;
+  const result = parsed.result;
+  if (!result || typeof result !== "object" || !Array.isArray(result.content)) {
+    return fallbackLine;
+  }
+  let mutated = false;
+  const newContent = result.content.map((c) => {
+    if (!c || c.type !== "text" || typeof c.text !== "string") return c;
+    if (!c.text.includes("### Modal state")) return c;
+    mutated = true;
+    return { ...c, text: stripModalStateSection(c.text) };
+  });
+  if (!mutated) return fallbackLine;
+  return JSON.stringify({ ...parsed, result: { ...result, content: newContent } });
+}
 
 // child stderr → parent stderr, log lines for debugging
 let errBuf = "";
@@ -323,7 +499,13 @@ child.stderr.on("data", (chunk) => {
 });
 
 child.on("close", (code) => {
-  if (outBuf.length > 0) logLine("out", outBuf);
+  if (outBuf.length > 0) {
+    const parsed = logLine("out", outBuf);
+    if (!(parsed && typeof parsed === "object" && proxyIssuedIds.has(parsed.id))) {
+      const outLine = maybeRewriteOutLine(parsed, outBuf);
+      process.stdout.write(outLine + "\n");
+    }
+  }
   if (errBuf.length > 0) logLine("err", errBuf);
   // Best-effort drain of in-flight PATCH + screenshot uploads.
   Promise.allSettled(inFlight).finally(() => {

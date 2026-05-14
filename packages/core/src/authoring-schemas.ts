@@ -63,3 +63,24 @@ export const personaDraftSchema = z.object({
   prompt_addendum: z.string().min(8).max(800),
 });
 export type PersonaDraft = z.infer<typeof personaDraftSchema>;
+
+// ── Native-dialog expectations (additive, 2026-05-14) ───────────────────────
+// Flow YAML may declare a dialog the persona expects to fire (or NOT to fire).
+// The sink checks the dialog_payload on run_steps against this expectation
+// and emits an `agent.expectation_match.confirm` style finding on a miss.
+export const expectedNativeDialogSchema = z.object({
+  type: z.enum(["alert", "confirm", "prompt", "beforeunload"]),
+  text_matches: z.string().min(1).max(280).optional(),
+  must_fire_before_step: z.string().min(1).max(120).optional(),
+});
+export type ExpectedNativeDialog = z.infer<typeof expectedNativeDialogSchema>;
+
+export const flowExpectationsSchema = z.object({
+  native_dialog: expectedNativeDialogSchema.optional(),
+});
+export type FlowExpectations = z.infer<typeof flowExpectationsSchema>;
+
+export const flowDraftWithExpectationsSchema = flowDraftSchema.extend({
+  expectations: flowExpectationsSchema.optional(),
+});
+export type FlowDraftWithExpectations = z.infer<typeof flowDraftWithExpectationsSchema>;
