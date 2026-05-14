@@ -73,7 +73,9 @@ export default function SignInPage({
 function Hint({ emoji, label }: { emoji: string; label: string }) {
   return (
     <li className="text-[11px] text-[var(--color-text-muted)]">
-      <div className="text-base mb-1">{emoji}</div>
+      <div aria-hidden className="text-base mb-1">
+        {emoji}
+      </div>
       {label}
     </li>
   );
@@ -81,7 +83,15 @@ function Hint({ emoji, label }: { emoji: string; label: string }) {
 
 function GitHubMark() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      role="img"
+      aria-hidden="true"
+    >
+      <title>GitHub</title>
       <path
         fillRule="evenodd"
         clipRule="evenodd"

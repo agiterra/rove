@@ -13,6 +13,7 @@ Single source of truth for **features and ideas not yet started**. If Brian asks
 
 ## Features
 
+- **Public/read-only path for unauthenticated agents** — surfaced by our own dogfood walk on 2026-05-14: an `agent` persona that lands on `/` gets redirected to `/signin` and stops. The `agent.captcha_friendly` rubric flags this as critical and `agent.predictable_urls` as minor. Phase D-2 question — when we have an external consumer, we'll want some surface (a docs page, a sample report, a public "what is Rove" route) that an agent can read without auth. Don't fix in alpha; revisit when the first external project lands. Findings IDs: `01c36645` (CRITICAL), `71305040` (MINOR), run `6499a26f-26f1-4870-829e-14ee9ba0d791`.
 - **Web-driven local worker install** — `/setup` page + one-paste install one-liner + macOS launchd auto-start + `rove://` recovery handler. Plan: [`docs/plans/install-flow.md`](plans/install-flow.md). Blocked on worker-tokens.
 - **Per-worker JWT auth** (path B before the dashboard install flow) — replace the daemon's service-role key with a per-worker JWT minted by the dashboard, so the install one-liner can hand out a credential that's safe to leak. Plan: [`docs/plans/worker-tokens.md`](plans/worker-tokens.md). Blocks the dashboard install flow.
 - ~~**Named workers**~~ — shipped 2026-05-13 in PRs #1–#5 + step-6 docs. See [`docs/walkers.md`](walkers.md) for usage; [`docs/plans/named-workers.md`](plans/named-workers.md) for the design rationale.

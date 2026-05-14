@@ -26,6 +26,7 @@ export function AppMark({ size = "md" }: { size?: keyof typeof SIZES }) {
         priority
       />
       <span
+        aria-hidden
         className="text-[var(--color-text)] uppercase tracking-[0.22em]"
         style={{ fontSize: dim.wordmark }}
       >
