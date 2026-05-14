@@ -12,6 +12,7 @@ const ITEMS = [
 ] as const;
 
 const NEW_ITEMS = [
+  { href: "/projects/new", label: "Project" },
   { href: "/flows/new", label: "Flow" },
   { href: "/personas/new", label: "Persona" },
 ] as const;

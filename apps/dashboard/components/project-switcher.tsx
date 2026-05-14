@@ -1,12 +1,12 @@
 /**
- * Header project switcher. Reads the distinct list of project_ids from the
- * Rove store (server-side via the cookie-bound client, RLS-gated), shows
- * the active project as a pill, and on click reveals a popover listing
- * the others.
+ * Header project switcher. Reads from public.projects (the canonical
+ * registry) and joins run counts from public.runs for the badge label.
+ * Renders the active slug as a pill; the click-to-open menu lives in the
+ * thin client component ./project-switcher-menu.tsx.
  *
- * Server-renders the data, but the click-to-open behavior is a thin
- * client component (./project-switcher-menu.tsx). Cookie write is via
- * a tiny POST route so the URL stays clean.
+ * If projects is empty (fresh deploy, no migration backfill yet), falls
+ * back to surfacing the active slug so the page never renders an empty
+ * dropdown.
  */
 import { resolveProjectId } from "../lib/project-context";
 import { createReadClient } from "../lib/supabase/server";
@@ -21,23 +21,24 @@ export async function ProjectSwitcher() {
   const supabase = await createReadClient();
   const active = await resolveProjectId();
 
-  // Pull distinct project_ids from runs + agent_jobs; if both empty, surface
-  // the active one anyway so the user can confirm what they're scoped to.
-  const [{ data: runRows }, { data: jobRows }] = await Promise.all([
+  const [{ data: projectRows }, { data: runRows }] = await Promise.all([
+    supabase.from("projects").select("id, display_name"),
     supabase.from("runs").select("project_id"),
-    supabase.from("agent_jobs").select("project_id"),
   ]);
+
   const counts = new Map<string, number>();
   for (const r of (runRows ?? []) as { project_id: string | null }[]) {
     if (r.project_id) counts.set(r.project_id, (counts.get(r.project_id) ?? 0) + 1);
   }
-  for (const r of (jobRows ?? []) as { project_id: string | null }[]) {
-    if (r.project_id && !counts.has(r.project_id)) counts.set(r.project_id, 0);
-  }
-  if (!counts.has(active)) counts.set(active, 0);
 
-  const projects: ProjectOption[] = Array.from(counts.entries())
-    .map(([id, runCount]) => ({ id, runCount }))
+  const slugs = new Set<string>();
+  for (const p of (projectRows ?? []) as { id: string }[]) slugs.add(p.id);
+  // Always surface the active slug, even if projects didn't return it
+  // (could happen on a fresh deploy before the user creates anything).
+  slugs.add(active);
+
+  const projects: ProjectOption[] = Array.from(slugs)
+    .map((id) => ({ id, runCount: counts.get(id) ?? 0 }))
     .sort((a, b) => b.runCount - a.runCount || a.id.localeCompare(b.id));
 
   return <ProjectSwitcherMenu active={active} projects={projects} />;
