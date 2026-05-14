@@ -26,13 +26,13 @@
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Rove brand mark (gradient `R` glyph + 'ROVE' wordmark) | Static — `components/app-mark.tsx` reads `/brand/Rove_Icon_NoFill.png` | ✅ | — |
-| Breadcrumb "Runs ›" | Static label; links to `/runs?p=<project>` | 🟡 | Add `<Link href="/runs?p=...">` wrapper |
+| Breadcrumb "Runs ›" | `Link href="/runs?p=<project>"` in `TopBar` — project pulled from `view.topBar.project`. | ✅ | — |
 | Breadcrumb run id (short) | `runs.id.slice(0, 8)` | ✅ | — |
-| Secondary breadcrumb row (`← all runs`) | Static label; links to `/runs` today | 🟡 | Preserve focus ring; make href project-aware (`/runs?p=<project>`) when `TopBar` project routing lands |
+| Secondary breadcrumb row (`← all runs`) | `Link href="/runs?p=<project>"` in `RunDetailLive.BreadcrumbRow`. | ✅ | — |
 | Project pill (`project: tankloop`) | `resolveProjectId(searchParams)` from `lib/project-context.ts` | 🟡 | Click → open `ProjectSwitcher` menu. Replace inline `<span>` with `<ProjectSwitcher size="sm">` from `components/project-switcher.tsx` |
 | User pill (`alex`) | `supabase.auth.getUser().user_metadata.user_name`, falls back to `email.split('@')[0]` | ✅ | — |
 | Worker status pill (`Worker online`, pulsing dot) | Not derivable from `runs` today. `initiator_label` is the requester label, not the daemon. | ❌ | First add an explicit run↔job/worker link (`runs.agent_job_id` or `runs.worker_id`, or make queued walks use a daemon-provided run id and store it in `agent_jobs.result`). Then resolve `agent_jobs.claimed_by_worker_id → workers.id`; online if `last_heartbeat_at > now() - 90s` and not stopped/disabled. |
-| Click brand mark | `Link href="/runs"` | 🟡 | Wrap in `<Link>` |
+| Click brand mark | `Link href="/runs?p=<project>"` wrap in `TopBar`. | ✅ | — |
 
 ## 2. Hero
 
@@ -50,7 +50,7 @@
 | Subline `Step N of estimated M · 1m 32s elapsed · 3m 28s remaining budget` | `runs.actual_step_count` or `run_steps.length`, `runs.predicted_step_count`, computed elapsed. No budget DB source exists yet. | 🟡 | Do not join a nonexistent `flows.budget_seconds_max`. Add a schema/sync PR for `flows.budget jsonb` or `flows.budget_seconds_max int`, populated from YAML `budget.max_seconds`; only then expose remaining budget. Until then hide the budget chunk. |
 | Metric tile — `target URL` | `runs.walked_url` | ✅ | — |
 | Metric tile — `persona` | `runs.persona_id` → `prettyPersona(id)` | ✅ | — |
-| Metric tile — `flow id` | Currently `runs.id` (wrong); should be `runs.flow_id` | 🟡 | Fix label semantics: this tile shows `runs.flow_id` (the slug); add a fourth row `run id` below with the run uuid short form OR move run-id to footer only (already there) and replace this tile with `started`/`branch` |
+| Metric tile — `flow id` | `runs.flow_id` (the slug) — display already correct, eyebrow + tile both render the slug. Run-uuid short form lives in the footer. | ✅ | — |
 | Metric tile — `status` pill | Derived `statusPill` in adapter | ✅ | — |
 | Metric tile icons | Static inline SVGs in `Hero.tsx` | ✅ | Keep display-only; no data source |
 

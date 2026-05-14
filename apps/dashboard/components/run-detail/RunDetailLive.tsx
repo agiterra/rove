@@ -75,7 +75,7 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
         className="mx-auto relative"
         style={{ maxWidth: 1280, padding: "28px 32px 64px", zIndex: 1 }}
       >
-        <BreadcrumbRow />
+        <BreadcrumbRow project={view.topBar.project} />
         <Hero view={view.hero} />
         <Filmstrip
           steps={view.steps}
@@ -117,11 +117,11 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
   );
 }
 
-function BreadcrumbRow() {
+function BreadcrumbRow({ project }: { project: string }) {
   return (
     <div className="mb-4 -mt-1">
       <Link
-        href="/runs"
+        href={`/runs?p=${encodeURIComponent(project)}`}
         className="inline-flex items-center gap-1 text-[12px] font-mono text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus-rove rounded-[6px] px-1 py-0.5 transition-colors"
       >
         ← all runs

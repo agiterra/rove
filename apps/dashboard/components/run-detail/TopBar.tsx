@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { AppMark } from "@/components/app-mark";
 import type { TopBarView } from "./types";
 
 export function TopBar({ view }: { view: TopBarView }) {
+  const runsHref = `/runs?p=${encodeURIComponent(view.project)}`;
   return (
     <header
       className="sticky top-0 z-50 backdrop-blur-md"
@@ -11,12 +13,19 @@ export function TopBar({ view }: { view: TopBarView }) {
       }}
     >
       <div className="max-w-[1280px] mx-auto h-16 px-8 flex items-center gap-7">
-        <AppMark size="sm" />
+        <Link href={runsHref} className="focus-rove rounded-md" aria-label="Back to runs">
+          <AppMark size="sm" />
+        </Link>
         <nav
           aria-label="Breadcrumb"
           className="ml-3 flex items-center gap-2.5 font-mono text-[13px] text-[var(--color-text-muted)]"
         >
-          <span>Runs</span>
+          <Link
+            href={runsHref}
+            className="focus-rove rounded-[6px] px-1 py-0.5 hover:text-[var(--color-text)] transition-colors"
+          >
+            Runs
+          </Link>
           <span className="text-[var(--color-text-faint)]">›</span>
           <span className="text-[var(--color-text)]">{view.runIdShort}</span>
         </nav>
