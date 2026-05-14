@@ -44,6 +44,20 @@ export interface DispatcherInput {
    * (~/Downloads, the CWD, etc.).
    */
   screenshotsDir?: string;
+  /**
+   * Track B2 (Phase D live-walk): when set, the MCP proxy writes per-step
+   * `run_steps` rows in real time so the dashboard's filmstrip lights up
+   * during a running walk. Requires `runId`, `projectId`, and a Supabase
+   * URL + service-role key to be passed through to the proxy.
+   *
+   * Omit to keep the legacy post-walk batch-sync behavior.
+   */
+  liveStepWrites?: {
+    runId: string;
+    projectId: string;
+    supabaseUrl: string;
+    supabaseServiceRoleKey: string;
+  };
 }
 
 export interface DispatcherResult {

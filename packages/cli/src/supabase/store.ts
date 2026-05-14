@@ -65,21 +65,30 @@ export class SupabaseStore {
     if (error) throw new Error(`upsertFlow(${flow.flowId}): ${error.message}`);
   }
 
+  /**
+   * Idempotent. Called twice in the live-step-writes path: once upfront
+   * by `commands/run.ts` (so per-step inserts have a parent row), once at
+   * sink time (which is the legacy entry-point and still the only caller
+   * for runs without live writes). The upsert keys on `id`.
+   */
   async createRun(input: CreateRunInput): Promise<void> {
-    const { error } = await this.db.from("runs").insert({
-      id: input.runId,
-      project_id: this.projectId,
-      flow_id: input.flowId,
-      persona_id: input.personaId,
-      dispatcher: input.dispatcher,
-      initiator_label: input.initiatorLabel ?? null,
-      commit_sha: input.commitSha ?? null,
-      branch: input.branch ?? null,
-      artifacts_storage_prefix: `runs/${input.runId}`,
-      started_at: input.startedAt.toISOString(),
-      status: "running",
-      kind: input.kind ?? "flow",
-    });
+    const { error } = await this.db.from("runs").upsert(
+      {
+        id: input.runId,
+        project_id: this.projectId,
+        flow_id: input.flowId,
+        persona_id: input.personaId,
+        dispatcher: input.dispatcher,
+        initiator_label: input.initiatorLabel ?? null,
+        commit_sha: input.commitSha ?? null,
+        branch: input.branch ?? null,
+        artifacts_storage_prefix: `runs/${input.runId}`,
+        started_at: input.startedAt.toISOString(),
+        status: "running",
+        kind: input.kind ?? "flow",
+      },
+      { onConflict: "id" },
+    );
     if (error) throw new Error(`createRun(${input.runId}): ${error.message}`);
   }
 

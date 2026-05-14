@@ -163,7 +163,7 @@ export class SupabaseSink implements SinkAdapter {
     if (!trajectory) return null;
     await this.store.writeTrajectory({
       runId: input.runId,
-      steps: trajectory.steps,
+      steps: input.liveStepsAlreadyWritten ? [] : trajectory.steps,
       metrics: trajectory.metrics,
     });
     return trajectory;

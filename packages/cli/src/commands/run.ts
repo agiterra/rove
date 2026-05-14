@@ -111,6 +111,22 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
 
   const { commitSha, branch } = readGitContext(ws.rootDir);
 
+  // Track B2 — if Supabase creds are available AND the supabase sink is
+  // enabled, pre-create the run row and let the MCP proxy stream
+  // per-step writes into it. The dashboard's filmstrip lights up in real
+  // time. Without this, run_steps are batch-written by the sink at end.
+  const liveStepWrites = await maybePrepareLiveStepWrites({
+    runId,
+    projectId: config.projectId,
+    flowId: flow.flowId,
+    personaId: persona.id,
+    dispatcherId: opts.dispatcher,
+    sinks: opts.sinks,
+    commitSha,
+    branch,
+    startedAt: new Date(),
+  });
+
   const dispatcher = createDispatcher(opts.dispatcher, {
     userDataDirPath: authProfilePath,
     isolation,
@@ -137,6 +153,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     cwd: ws.rootDir,
     trajectoryLogPath,
     screenshotsDir,
+    liveStepWrites: liveStepWrites ?? undefined,
   });
   const finishedAt = new Date();
 
@@ -170,6 +187,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     trajectoryLogPath,
     commitSha,
     branch,
+    liveStepsAlreadyWritten: liveStepWrites != null,
   });
   for (let i = 0; i < sinks.length; i++) {
     console.log(renderSinkResult(sinks[i].label, sinkResults[i]));
@@ -212,6 +230,57 @@ function git(cwd: string, args: string[]): string | null {
   const r = spawnSync("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });
   if (r.status !== 0) return null;
   return r.stdout.trim() || null;
+}
+
+/**
+ * Pre-create the run row and return live-step credentials when Supabase
+ * env vars are available AND the supabase sink is enabled. Returns null
+ * to fall back to legacy batch-write behavior.
+ *
+ * The sink's createRun is now idempotent (upsert), so re-stamping the row
+ * post-walk doesn't error.
+ */
+async function maybePrepareLiveStepWrites(input: {
+  runId: string;
+  projectId: string;
+  flowId: string;
+  personaId: string;
+  dispatcherId: DispatcherId;
+  sinks: SinkId[];
+  commitSha?: string;
+  branch?: string;
+  startedAt: Date;
+}): Promise<{ runId: string; projectId: string; supabaseUrl: string; supabaseServiceRoleKey: string } | null> {
+  if (!input.sinks.includes("supabase")) return null;
+  const { readRoveSupabaseEnv } = await import("../supabase/env.js");
+  const env = readRoveSupabaseEnv();
+  if (!env) return null;
+  const { getSupabaseClient } = await import("../supabase/client.js");
+  const { SupabaseStore } = await import("../supabase/store.js");
+  const store = new SupabaseStore(getSupabaseClient(), input.projectId);
+  try {
+    await store.createRun({
+      runId: input.runId,
+      flowId: input.flowId,
+      personaId: input.personaId,
+      dispatcher: input.dispatcherId,
+      commitSha: input.commitSha,
+      branch: input.branch,
+      startedAt: input.startedAt,
+    });
+  } catch (err) {
+    console.error(
+      `⚠ Could not pre-create run row for live writes (${(err as Error)?.message ?? err}). ` +
+        `Falling back to post-walk batch sync.`,
+    );
+    return null;
+  }
+  return {
+    runId: input.runId,
+    projectId: input.projectId,
+    supabaseUrl: env.url,
+    supabaseServiceRoleKey: env.serviceRoleKey,
+  };
 }
 
 /** Append `?p=<projectId>` to a target URL, preserving any existing query. */

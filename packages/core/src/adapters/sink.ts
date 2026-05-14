@@ -59,6 +59,12 @@ export interface SinkInput {
    * matching columns on `runs`.
    */
   kind?: "flow" | "change_review";
+  /**
+   * True when the MCP proxy already wrote per-step `run_steps` rows in
+   * real time. SupabaseSink skips its post-walk insert in that case and
+   * only updates `runs.metrics` from the parsed trajectory.
+   */
+  liveStepsAlreadyWritten?: boolean;
 }
 
 export interface SinkResult {

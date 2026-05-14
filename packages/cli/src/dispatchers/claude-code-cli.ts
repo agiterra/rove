@@ -130,6 +130,7 @@ export class ClaudeCodeCliDispatcher implements DispatcherAdapter {
         userDataDirPath: this.opts.userDataDirPath,
         trajectoryLogPath: input.trajectoryLogPath,
         screenshotsDir: input.screenshotsDir,
+        liveStepWrites: input.liveStepWrites,
       });
       args.push("--mcp-config", mcpConfigPath, "--strict-mcp-config");
     }
@@ -195,6 +196,7 @@ async function writeMcpConfig(opts: {
   userDataDirPath?: string;
   trajectoryLogPath?: string;
   screenshotsDir?: string;
+  liveStepWrites?: DispatcherInput["liveStepWrites"];
 }): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "rove-mcp-"));
   // Args destined for @playwright/mcp itself (NOT the npx wrapper — the
@@ -215,21 +217,32 @@ async function writeMcpConfig(opts: {
   // resolve via package.json and derive the bin file from its directory.
   const command = process.execPath;
   let args: string[];
+  let proxyEnv: Record<string, string> | undefined;
   if (opts.trajectoryLogPath) {
-    args = [
-      proxyScriptPath(),
-      "--log",
-      opts.trajectoryLogPath,
-      "--",
-      ...playwrightServerArgs,
-    ];
+    const proxyArgs = [proxyScriptPath(), "--log", opts.trajectoryLogPath];
+    if (opts.liveStepWrites) {
+      proxyArgs.push(
+        "--live-run-id",
+        opts.liveStepWrites.runId,
+        "--live-project-id",
+        opts.liveStepWrites.projectId,
+        "--live-screenshots-dir",
+        opts.screenshotsDir ?? "",
+      );
+      proxyEnv = {
+        ROVE_SUPABASE_URL: opts.liveStepWrites.supabaseUrl,
+        ROVE_SUPABASE_SERVICE_ROLE_KEY: opts.liveStepWrites.supabaseServiceRoleKey,
+      };
+    }
+    proxyArgs.push("--", ...playwrightServerArgs);
+    args = proxyArgs;
   } else {
     args = [resolveMcpCli(), ...playwrightServerArgs];
   }
 
   const config = {
     mcpServers: {
-      playwright: { command, args },
+      playwright: { command, args, ...(proxyEnv ? { env: proxyEnv } : {}) },
     },
   };
   const filePath = join(dir, "mcp-config.json");

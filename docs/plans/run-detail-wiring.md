@@ -59,7 +59,7 @@
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Section header `STEP FILMSTRIP · N STEPS` + counts | `run_steps.length`, status breakdown derived | ✅ | — |
-| Tile screenshot | `run_steps.screenshot_key` → signed URL minted server-side (10min TTL) by `signScreenshotUrls()` in `app/runs/[id]/page.tsx`. Falls back to a striped `no screenshot` placeholder. | 🟡 | **Daemon-side write needed** — see Track B2 §11. Until then, every step renders the placeholder. |
+| Tile screenshot | `run_steps.screenshot_key` → signed URL minted server-side (10min TTL) by `signScreenshotUrls()` in `app/runs/[id]/page.tsx`. The MCP proxy now uploads each `browser_take_screenshot` result to the walks bucket in real time and stamps the row (Track B2). Falls back to a striped placeholder when neither finding nor step screenshot is present. | ✅ | — |
 | Tile thumbnail (light-theme mock) | `MockThumb` from `components/run-detail/MockThumbs.tsx` (12 hand-drawn SVGs) | ✅ | Only used on `/preview/live-walk`. Real `/runs/[id]` doesn't show mock thumbs. |
 | Step number `#04` | `run_steps.step_index` zero-padded | ✅ | — |
 | Status dot (cyan/cyan-pulsing/rose) | `run_steps.direction` → `done` / `running` / `errored` via `toStepView()` | ✅ | — |
@@ -95,7 +95,7 @@
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Caption `step 08 — clicking "Run walk"` | `selectedStep.index`, `selectedStep.toolName`. On the live route the verb-only caption renders (no `liveTarget`); the preview route passes the mock `liveTarget`. NowDoing target lives in the hero pill (wired via `extractActionTarget`); duplicating it in the caption is preview-only. | ✅ | — |
-| Screenshot (16:9, white-bg) | `step.thumb` → `<img>` for signed URL, `<MockThumb>` for preview, striped placeholder otherwise | 🟡 | Same daemon-side block as §3 — Track B2 |
+| Screenshot (16:9, white-bg) | `step.thumb` → `<img>` for signed URL, `<MockThumb>` for preview, striped placeholder otherwise. Track B2 proxy now stamps `screenshot_key` in real time. | ✅ | — |
 | No selected step empty state | `selectedStep === null` | ✅ | Keep copy static; this is reached when there are no step rows |
 | Inline Tankloop preview (preview route only) | `inlineTankloop` prop. `TankloopPreview` is static HTML/CSS, not data-driven | ✅ | Preview-only fixture; see §15 for explicit non-wiring scope |
 | Preview cursor overlay (preview route only) | Static `PreviewCursor` SVG | ✅ | Preview-only fixture; no real-data wiring |
@@ -193,9 +193,9 @@ Lives in `packages/cli`. This plan **contracts** these changes; it does NOT ship
 | Commitment | File | Contract |
 |---|---|---|
 | Run/job/worker identity | `packages/cli/src/commands/run.ts`, `packages/cli/src/daemon/handlers/walk.ts`, migrations | Make queued walks use a daemon-known run id (or persist `runs.agent_job_id`) so `/runs/[id]` can resolve the worker and the queued job can deep-link to the run while it is still running. |
-| Per-step `run_steps` insert at `tools/call` request time | Reworked `packages/cli/bin/playwright-mcp-proxy.mjs` | The proxy already sees JSON-RPC request lines, but it has no Supabase client, `run_id`, or `project_id`. Add explicit proxy args/env for those values, maintain `jsonrpc id → step row id`, insert `direction='call'`, `tool_name`, `args`, `step_index=<incrementing>`, `screenshot_key=null`. |
-| Per-step update on tool response | Reworked `packages/cli/bin/playwright-mcp-proxy.mjs` | The proxy already sees response lines, but live update requires pairing by JSON-RPC id. Update the pending row to `direction='result'` or `'error'` with `result_summary`, `aria_snapshot` when the response includes a snapshot, `url_after`, `duration_ms`. |
-| Screenshot upload at capture | Reworked MCP proxy + storage upload helper | `browser_take_screenshot` writes into MCP `--output-dir`; do not assume PNG bytes are in the response. Read the local file after the response, upload to `walks/runs/<run_id>/step-<NN>.png`, then stamp `run_steps.screenshot_key`. |
+| Per-step `run_steps` insert at `tools/call` request time | ✅ shipped | `playwright-mcp-proxy.mjs` accepts `--live-run-id`/`--live-project-id` + `ROVE_SUPABASE_*` env, maintains a jsonrpc-id → row-id map, POSTs `run_steps` with `direction='call'` on each request. |
+| Per-step update on tool response | ✅ shipped | Proxy PATCHes the row with `direction='result'`/`'error'`, `result_summary`, `aria_snapshot` (snapshot tools only), `url_after` (navigate), `duration_ms`. |
+| Screenshot upload at capture | ✅ shipped | After a successful `browser_take_screenshot`, the proxy reads the newest file from `--live-screenshots-dir`, uploads it to `walks/runs/<run_id>/step-<NN>.png` via the Storage REST API, then PATCHes `screenshot_key`. Graceful drain on child exit. |
 | Finding insert at file-time | `packages/cli/src/commands/run.ts` + dispatcher stdout streaming + reusable Supabase sink helper | Today findings are parsed only after the dispatcher exits. Streaming requires an incremental stdout parser upstream of `routeToSinks`; the sink can expose/reuse `insertFinding`, but it is not the hook point by itself. |
 | `runs.status` transitions | Existing sink path creates `running` and completes/fails at end, but queued jobs do not know the run id until the child run pipeline creates it | 🟡 | Once the run/job identity contract lands, keep current run status writes and expose the run id in `agent_jobs.result` early enough for the dashboard. |
 
