@@ -1,0 +1,35 @@
+# eval_dashboard.install_walker
+# Dogfood flow — Rove walking its own freshly-shipped install UX. Authored
+# 2026-05-13 to evaluate the install-flow surfaces shipped in PRs #13–#18.
+#
+# Scope note: a browser-only Rove walk can generate the install command and
+# evaluate the web UX around install/status/control surfaces. It cannot execute
+# the local macOS installer or cause a fresh daemon heartbeat by itself. A full
+# end-to-end install proof still needs a human or harness to run the one-liner.
+#
+# Run this with an authenticated dashboard persona such as `admin_setup`.
+# The current CLI intentionally walks `agent` personas anonymously, so
+# `claude_browser_agent` will stop at the sign-in wall instead of exercising
+# the auth-gated /setup install flow.
+
+flow_id: eval_dashboard.install_walker
+goal: "Land on /setup, generate an install command, observe the realtime status panel, then navigate to /workers and verify the dashboard offers a browser-visible worker action path for whatever worker state exists"
+
+entry_route: "/setup"
+
+budget:
+  max_steps: 25
+  max_seconds: 180
+
+steps: []
+
+success_predicate:
+  - "The /setup page renders with a 'Set up worker' heading and a form for worker name + kind"
+  - "Form submission produces a curl one-liner in a monospace code block with a Copy button"
+  - "The realtime status panel below the install command shows a 'Waiting for daemon…' state with a pulsing indicator"
+  - "The waiting state clearly explains that the local installer must be run before the daemon can become online"
+  - "The /workers page has an explicit browser-visible next action for the current state: install/setup when no worker exists, Resume/Restart/Reveal logs when a worker is stopped or stale, or Pause/Reveal logs when a worker is online"
+  - "Every actionable control on /setup and /workers is reachable via the accessibility tree (has an accessible name, is in tab order, has role=button or equivalent)"
+  - "The header chip's state (no-worker / offline / paused / online) is conveyed by both color AND text — not by color alone"
+  - "Page titles via document.title are non-empty and project-distinct on both /setup and /workers"
+  - "Navigation between /setup and /workers uses predictable, semantic URLs that an agent can reason about without hover-only menus"
