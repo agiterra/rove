@@ -47,6 +47,27 @@ export interface StepView {
    * filmstrip tile. Null when no dialog fired during this step.
    */
   dialog: DialogView | null;
+  /**
+   * Per-step verdict against the walker's frozen prior plan. Drives the
+   * filmstrip VerdictChip and the inline expected-vs-observed diff in
+   * the step detail pane. Null on walks that pre-date expectation-match.
+   * See `docs/proposals/expectation-match.md`.
+   */
+  planDelta?: PlanDelta | null;
+}
+
+export type PlanVerdict = "match" | "extension" | "surprise" | "deviation";
+
+export interface PlanDelta {
+  verdict: PlanVerdict;
+  /** One-sentence delta the walker emitted. */
+  whatRevised?: string | null;
+  /** Free-form JSON the walker proposed as the minimal patch to the plan. */
+  revisedPlanDiff?: Record<string, unknown> | null;
+  /** Expected affordance/route, taken from the prior plan. Optional. */
+  expected?: string | null;
+  /** Observed affordance/route. Optional — usually only set on deviation/surprise. */
+  observed?: string | null;
 }
 
 export interface DialogView {
@@ -177,4 +198,20 @@ export interface RunDetailView {
   lastFindingAt: string | null;
   reflection: ReflectionView;
   footer: FooterView;
+  /**
+   * The walker's frozen prior plan (expectation-match). Null on walks
+   * that pre-date the feature. See `docs/proposals/expectation-match.md`.
+   */
+  priorPlan?: PriorPlan | null;
+  /** ISO timestamp the plan was captured. Used to render the "captured at" stat. */
+  priorPlanCapturedAt?: string | null;
+}
+
+export interface PriorPlan {
+  archetypeAssumed: string | null;
+  expectedRoutePattern: string[];
+  expectedStepCount: number | null;
+  expectedAffordancesByRoute: Record<string, string[]>;
+  anticipatedFriction: string[];
+  affordanceAssumptions: string[];
 }

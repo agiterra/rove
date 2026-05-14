@@ -84,3 +84,31 @@ export const flowDraftWithExpectationsSchema = flowDraftSchema.extend({
   expectations: flowExpectationsSchema.optional(),
 });
 export type FlowDraftWithExpectations = z.infer<typeof flowDraftWithExpectationsSchema>;
+
+// ── Prior overrides (additive, 2026-05-14) ──────────────────────────────────
+// Flow YAML may override the persona/project archetype prior. Lets the
+// consumer correct over-eager priors when their site intentionally diverges
+// from the archetype, without silencing all expectation findings. See
+// `docs/proposals/expectation-match.md`.
+export const ARCHETYPE_IDS = [
+  "shopify-style-commerce",
+  "doordash-style-aggregator",
+  "single-restaurant-direct",
+  "saas-dashboard",
+  "marketplace",
+  "auto",
+] as const;
+export const archetypeIdSchema = z.enum(ARCHETYPE_IDS);
+export type ArchetypeIdValue = z.infer<typeof archetypeIdSchema>;
+
+export const priorOverridesSchema = z.object({
+  archetype: archetypeIdSchema.optional(),
+  do_not_expect: z.array(z.string().min(1).max(280)).max(40).optional(),
+  do_expect: z.array(z.string().min(1).max(280)).max(40).optional(),
+});
+export type PriorOverrides = z.infer<typeof priorOverridesSchema>;
+
+export const flowDraftWithPriorOverridesSchema = flowDraftSchema.extend({
+  prior_overrides: priorOverridesSchema.optional(),
+});
+export type FlowDraftWithPriorOverrides = z.infer<typeof flowDraftWithPriorOverridesSchema>;
