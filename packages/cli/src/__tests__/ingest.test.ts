@@ -26,6 +26,11 @@ describe("runIngestCommand", () => {
       flowsDir: join(dir, "flows"),
       reportsDir: join(dir, "reports"),
     };
+    await writeFile(
+      join(dir, "rove.config.mjs"),
+      "export default { projectId: 'test-project', flowsDir: 'flows', sinks: ['markdown'] };\n",
+      "utf8",
+    );
     payloadFile = join(dir, "findings.json");
     await writeFile(payloadFile, JSON.stringify(PAYLOAD), "utf8");
     badJsonFile = join(dir, "bad.json");

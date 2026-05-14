@@ -8,7 +8,10 @@ import { userDataDir, type AuthRole } from "../auth-state.js";
 import { readEvalSupabaseEnv } from "../supabase/env.js";
 import type { ResolvedWorkspace } from "../workspace.js";
 
-const REQUIRED_ENV_KEYS = ["DATABASE_URL", "BETTER_AUTH_SECRET", "BASE_URL"] as const;
+const DASHBOARD_ENV_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+] as const;
 const AUTH_ROLES: AuthRole[] = ["dispatcher", "admin", "technician"];
 
 export async function runDoctorCommand(ws: ResolvedWorkspace): Promise<number> {
@@ -27,11 +30,11 @@ export async function runDoctorCommand(ws: ResolvedWorkspace): Promise<number> {
     detail: `${flows.length} flow(s) under ${ws.flowsDir}`,
   });
 
-  // apps/web/.env.local has the keys dev:web requires before booting
-  checks.push(await checkWebEnv(ws.rootDir));
+  // Rove dashboard env, when running doctor from this repo.
+  checks.push(await checkDashboardEnv(ws.rootDir));
 
-  // dev:web reachable (warn, not fail — many runs don't need a hot server)
-  checks.push(await checkDevServer("http://localhost:3000"));
+  // Dashboard reachable (warn, not fail — CLI-only runs may target another app).
+  checks.push(await checkDevServer("http://localhost:3030"));
 
   // Per-role auth profiles (warn — only the role being walked needs one)
   for (const role of AUTH_ROLES) {
@@ -52,31 +55,40 @@ export async function runDoctorCommand(ws: ResolvedWorkspace): Promise<number> {
   return failures > 0 ? 1 : 0;
 }
 
-async function checkWebEnv(rootDir: string): Promise<PreflightCheck> {
-  const envPath = join(rootDir, "apps/web/.env.local");
+async function checkDashboardEnv(rootDir: string): Promise<PreflightCheck> {
+  const dashboardDir = join(rootDir, "apps/dashboard");
+  if (!existsSync(dashboardDir)) {
+    return {
+      name: "dashboard env",
+      status: "warn",
+      detail: "apps/dashboard not present — skipping Rove dashboard env check",
+    };
+  }
+
+  const envPath = join(dashboardDir, ".env.local");
   try {
     await access(envPath);
   } catch {
     return {
-      name: "apps/web/.env.local present",
+      name: "apps/dashboard/.env.local present",
       status: "fail",
       detail: `missing ${envPath}`,
-      remedy: "cp .env.local.example apps/web/.env.local && fill in values",
+      remedy: "vercel env pull apps/dashboard/.env.local, or create it with the Supabase dashboard keys",
     };
   }
   const content = await readFile(envPath, "utf8");
-  const missing = REQUIRED_ENV_KEYS.filter(
+  const missing = DASHBOARD_ENV_KEYS.filter(
     (key) => !new RegExp(`^\\s*${key}\\s*=`, "m").test(content),
   );
   if (missing.length > 0) {
     return {
-      name: "apps/web/.env.local has required keys",
+      name: "apps/dashboard/.env.local has required keys",
       status: "fail",
       detail: `missing: ${missing.join(", ")}`,
-      remedy: "see .env.local.example for the full set",
+      remedy: "pull dashboard env from Vercel or fill the missing Supabase keys",
     };
   }
-  return { name: "apps/web/.env.local has required keys", status: "ok" };
+  return { name: "apps/dashboard/.env.local has required keys", status: "ok" };
 }
 
 function checkAuthProfile(role: AuthRole): PreflightCheck {
@@ -138,15 +150,15 @@ async function checkDevServer(url: string): Promise<PreflightCheck> {
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
     return {
-      name: "dev:web reachable",
+      name: "dashboard dev server reachable",
       status: "ok",
       detail: `HTTP ${res.status} at ${url}`,
     };
   } catch {
     return {
-      name: "dev:web reachable",
+      name: "dashboard dev server reachable",
       status: "warn",
-      detail: `${url} not responding — start with: pnpm dev:web`,
+      detail: `${url} not responding — start with: pnpm dashboard`,
     };
   }
 }
