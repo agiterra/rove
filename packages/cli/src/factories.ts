@@ -49,6 +49,12 @@ export function createDispatcher(
       return new ClaudeCodeCliDispatcher({
         userDataDirPath: opts.userDataDirPath,
         isolation: opts.isolation,
+        // LaunchAgent daemons run with a sparse PATH that excludes
+        // ~/.local/bin where `claude` typically lives. The installer
+        // resolves the absolute path at install time and writes it as
+        // ROVE_CLAUDE_BIN; honor it here, fall back to PATH lookup for
+        // in-repo `pnpm cli -- run` invocations.
+        claudeBin: process.env.ROVE_CLAUDE_BIN,
       });
     case "codex":
       // Codex doesn't yet have user-data-dir injection — the codex MCP setup
