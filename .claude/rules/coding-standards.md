@@ -2,6 +2,8 @@
 
 This codebase is developed primarily by AI agents. These standards optimize for agent edit accuracy and code maintainability.
 
+**Companion rule**: [`pre-ship-check.md`](pre-ship-check.md) — the negative-space pre-ship checklist. Run it before opening or merging any PR that touches UI. It applies the thesis at `docs/theses/negative-space.md` to your own diff.
+
 ## File size limits
 
 | Type             | Soft target | Default cap | Hard ceiling |
