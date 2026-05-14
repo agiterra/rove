@@ -219,6 +219,135 @@ secondary chip filter `affordance_gap` for direct access. Findings
 detail pane shows the `suggested_location` field prominently — this
 is the part most actionable for the consumer's dev team.
 
+## UX plan — applying the thesis to ourselves
+
+This feature exists specifically to surface affordance gaps. Shipping
+it with affordance gaps of its own would be a self-defeating
+embarrassment. Below is the *walker-agent enumeration* of this
+feature's expected affordances, applied before we build. Per
+`docs/theses/negative-space.md`, the discipline is to write down what
+a user with each goal would need before checking whether we built it.
+
+### User goals (per arrival surface)
+
+- **`/runs/[id]` detail pane on a step** — "What did the persona
+  expect at this exact moment? What was missing? What should I add,
+  and roughly where?"
+- **`/runs/[id]` reflection tab** — "Across the whole walk, what's my
+  app missing in negative space, grouped by kind?"
+- **`/findings?lens=agent`** — "Show me every gap across every walk,
+  filterable by kind, severity, URL, persona."
+- **`/projects/[id]/gaps` (new rollup)** — "Which URLs are gap-prone?
+  Which gap kinds dominate? Where do I start fixing?"
+- **A specific gap detail** — "Tell me what to build and where. Give
+  me a draft issue I can hand to engineering."
+- **A gap I disagree with** — "This is intentional; silence it for
+  this URL on this flow forever."
+- **A gap I've fixed** — "Mark it resolved; verify on next walk."
+- **Across walks over time** — "Is our affordance-completeness score
+  improving? Did this week's changes close anything?"
+- **Cross-persona view** — "Three personas flagged this same gap on
+  the same page. That's a strong signal — prioritize."
+
+### Required affordances per surface
+
+| Surface | Required affordance | Kind (per thesis) |
+|---|---|---|
+| Step detail pane | "Affordance inventory" section listing expected affordances with present/absent indicators | `read` |
+| Step detail pane | Per-gap severity badge + persona-of-record | `read` |
+| Step detail pane | Per-gap `suggested_location` rendered prominently | `read` |
+| Step detail pane | "This gap is intentional — silence it" affordance with reason capture | `update` |
+| Step detail pane | Un-silence previously-silenced gap | `undo` |
+| Step detail pane | "Send to GitHub issue" with auto-populated title + body | `create` |
+| Step detail pane | Confirm-before-silencing on `critical` gaps | `confirm` |
+| Step detail pane | Loading state while persona enumerates affordances | `status` |
+| Step detail pane | Empty state when this step had no enumeration (transient page, not substantive) | `empty` |
+| Step detail pane | Error state when enumeration was malformed | `error` |
+| Reflection tab | "Negative space" section: all gaps grouped by kind, with counts | `read` |
+| Reflection tab | Per-kind drill-in to see all instances | `navigate` |
+| Reflection tab | Hero stat: "N gaps across M substantive pages" + completeness % | `read` |
+| `/findings` | `affordance_gap` secondary chip under the `agent` lens | `navigate` |
+| `/findings` | Group-by toggle: kind / URL / severity / persona | `read` |
+| `/findings` | Bulk-action: silence N selected gaps with shared reason | `update` |
+| `/findings` | Bulk-action: send N selected gaps to GitHub issues | `create` |
+| `/projects/[id]/gaps` | New page: project-wide rollup of all gaps across all walks | `read` |
+| `/projects/[id]/gaps` | Filters: kind, severity, URL pattern, persona, date range | `read` |
+| `/projects/[id]/gaps` | Sort: severity, frequency, recency, URL | `read` |
+| `/projects/[id]/gaps` | Cross-persona aggregation: "this gap flagged by N personas" | `read` |
+| `/projects/[id]/gaps` | Completeness trend chart (last N walks) | `read` |
+| `/projects/[id]/gaps` | Empty state when no gaps have been captured | `empty` |
+| `/projects/[id]/gaps` | Discoverable from top nav AND from `/projects/[id]` overview | `navigate` |
+| Flow editor | `affordance_exclusions` block editor with `url_pattern` + `do_not_expect` + `reason` | `update` |
+| Flow editor | Per-exclusion show "silenced N findings since" stat so the consumer can audit | `read` |
+| Flow editor | Un-exclude a previously-excluded affordance | `undo` |
+| Project settings | Persona-level affordance-expectation tuning (advanced) | `update` |
+
+### What the thesis would flag if we shipped a minimum version
+
+If we shipped only "step-detail Affordance inventory + reflection-tab
+Negative space section + lens chip" — the thin version — a
+walker-persona auditing our dashboard would file at least:
+
+- `agent.affordance_gap.update`: no silence/un-silence path; consumers
+  cannot triage false positives → noise erodes signal value.
+  **Critical** — without this, the whole feature trains its own
+  consumers to ignore it.
+- `agent.affordance_gap.create`: no path from gap to issue tracker;
+  findings die on the dashboard. Same anti-pattern Rove itself is
+  designed to catch.
+- `agent.affordance_gap.recover`: no way to bulk-process gaps; if
+  the first walk surfaces 80 gaps the consumer cannot triage in a
+  reasonable session.
+- `agent.affordance_gap.navigate`: no project-wide rollup view; gaps
+  are only reachable via specific runs, which defeats the
+  longitudinal value.
+- `agent.affordance_gap.read.status`: no trend chart; consumers
+  cannot show their team "we closed 12 gaps this week."
+- `agent.affordance_gap.empty`: project that hasn't run a walk yet
+  shows a broken-looking gaps page rather than onboarding.
+- `agent.affordance_gap.save_state`: filters and group-by choices
+  reset on every navigation; consumers cannot return to a curated
+  view.
+
+These are NOT optional. They are the affordances a user pursuing the
+goal "audit my app's agent-readiness" needs in order to use this
+feature. We will not ship without them.
+
+### What this adds to the sequencing
+
+Original estimate covered: capture phase + render + auto-finding
+emission. The UX plan adds:
+
+- Silence/un-silence + bulk silence (~half day, shared with
+  `expectation-match`)
+- Send-to-issue + bulk send (~half day, shared with
+  `expectation-match`)
+- `/projects/[id]/gaps` rollup page (~1 day)
+- Completeness trend chart (~half day, shared primitive)
+- Empty/loading/error states across all surfaces (~half day)
+- Flow editor `affordance_exclusions` block (~half day)
+
+Revised estimate: **4-6 days** end-to-end. Shared primitives are
+listed in `expectation-match.md`'s UX plan; they should be built once
+and reused across both proposals.
+
+### Reuse contract with `expectation-match`
+
+The two proposals share four UI primitives. Build each once:
+
+1. **Finding silence/un-silence** — same model for an
+   `expectation_match.deviation` and an `affordance_gap.delete`.
+   One affordance, used on both finding types.
+2. **Finding → GitHub issue** — one issue-export action, parameterized
+   by finding kind.
+3. **Project trend chart** — one component, takes a heuristic prefix.
+4. **Empty/loading/error state primitives** — one set, used
+   throughout both new surfaces.
+
+These are jointly the substrate for the "Finding lifecycle: mark
+fixed / snooze / suppress" item currently in BACKLOG. Ship that
+substrate as part of THIS sprint and both proposals get cleaner.
+
 ## Sequencing
 
 1. **Day 1** — migration + per-step `affordance_gaps` column; mock

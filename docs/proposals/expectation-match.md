@@ -208,6 +208,127 @@ create index if not exists run_steps_plan_delta_verdict_idx
 and `human` lenses).** Findings whose heuristic prefix is
 `agent.expectation_match.*` filter under this chip.
 
+## UX plan — applying the thesis to ourselves
+
+The thesis at `docs/theses/negative-space.md` says builder-agents
+cannot perceive what they did not build. Below is the *walker-agent
+enumeration* of this feature's expected affordances, applied before we
+build. The rest of this section reads as if it were the affordance
+inventory a persona walking these surfaces would produce. Anything we
+ship without these is a Rove-on-Rove finding.
+
+### User goals (per arrival surface)
+
+- **`/runs/[id]` reflection tab** — "Did my app match how an agent
+  thinks about it? Where did reality diverge?"
+- **A divergence finding detail** — "Why did this fire? What was the
+  agent's expected, what was the actual, where exactly?"
+- **A surprise/extension** — "Is this a problem or just a quirk? Can
+  I mark it as expected so future walks don't re-flag it?"
+- **`/projects/[id]` (or a settings surface)** — "What archetype am I?
+  Recalibrate priors for this project so the deltas stop being
+  noisy."
+- **Per-flow editor** — "Override priors for this specific flow that
+  legitimately diverges from the archetype."
+- **`/findings`** — "Show me only the plan-vs-reality lens; rolled-up
+  across walks."
+- **Across walks** — "Is our plan-match score trending up or down?"
+- **Hand-off to the team** — "Export this delta for our designer /
+  PM / engineering lead."
+
+### Required affordances per surface
+
+Each line is an affordance we MUST ship. Missing any = a Rove-on-Rove
+gap of the kind the heuristic would itself file.
+
+| Surface | Required affordance | Kind (per thesis) |
+|---|---|---|
+| Reflection tab | "Plan vs reality" section with side-by-side diff | `read` |
+| Reflection tab | Loading state while plan is being captured (first ~15s of walk) | `status` |
+| Reflection tab | Empty state when no plan was captured (older walks, pre-feature) | `empty` |
+| Reflection tab | Error state when plan capture failed mid-walk | `error` |
+| Filmstrip | Per-step verdict chip with tooltip | `read` |
+| Filmstrip | Click chip → jump to that step's detail with diff highlighted | `navigate` |
+| Step detail | Inline "expected here / observed here" diff next to step | `read` |
+| Step detail | "Mark this deviation as intentional" affordance | `update` (silence) |
+| Step detail | Reason capture when silencing (free text) | `update` |
+| Step detail | Un-silence previously-silenced deviation | `undo` |
+| Step detail | Confirm-before-silencing on `critical` deviations | `confirm` |
+| Hero | Plan-match summary stat with breakdown chip | `read` |
+| Project settings | Archetype configurator (dropdown of known archetypes + `auto` + `custom`) | `update` |
+| Project settings | Persist archetype choice; show "last updated" timestamp | `save_state` |
+| Flow editor | `prior_overrides` block with `do_not_expect` / `do_expect` editor | `update` |
+| Flow editor | YAML-equivalent view for advanced authors | `update` |
+| `/findings` | `expectation_match` lens chip in the existing lens row | `navigate` |
+| `/findings` | Sort by verdict severity (deviation > surprise > extension) | `read` |
+| Finding detail | "Send to GitHub issue" action with auto-populated body | `create` |
+| Finding detail | "Silence this expectation across the project" affordance | `update` |
+| `/projects/[id]` | Plan-match trend chart (last N walks) | `read` |
+| `/projects/[id]` | Empty state when no plans have been captured yet | `empty` |
+| Top nav | A discoverable entry to plan-vs-reality findings (don't bury it) | `navigate` |
+
+### What the thesis would flag if we shipped a minimum version
+
+If we shipped only "the reflection-tab section + verdict chips" — the
+thin version — a walker-persona auditing our dashboard would file:
+
+- `agent.affordance_gap.update`: no way to mark a flagged deviation
+  as intentional. **Critical**: noisy findings will train consumers to
+  ignore the whole feature.
+- `agent.affordance_gap.save_state`: archetype configurator doesn't
+  exist, so the consumer cannot calibrate; all priors run on
+  `auto`, which will hallucinate against atypical projects.
+- `agent.affordance_gap.empty`: walks that ran before the feature
+  shipped have no plan; the tab renders blank without explanation.
+- `agent.affordance_gap.recover`: no way to re-run plan capture on an
+  older walk; consumers cannot retroactively benefit.
+- `agent.affordance_gap.navigate`: feature is only accessible from
+  the reflection tab of a specific run; cross-walk rollup is missing.
+- `agent.affordance_gap.create`: no way to export a deviation to the
+  consumer's issue tracker; findings die on the dashboard.
+
+These are NOT optional. They are the affordances a user with the
+relevant goal needs in order to *use* this feature. We will not ship
+without them.
+
+### What this adds to the sequencing
+
+The original "2-3 days" estimate covered the capture path + render +
+auto-finding emission. The UX plan adds:
+
+- Silence/un-silence/confirm affordances (~half day, shared primitive
+  with `affordance-gap`'s silencing — see that proposal's UX plan)
+- Archetype configurator on `/projects/[id]` (~half day)
+- Empty / error / loading states (~quarter day)
+- Trend chart on the project page (~half day)
+- GitHub issue export (~quarter day, shared primitive with
+  `affordance-gap`)
+
+Revised estimate: **3-5 days** end-to-end. The shared finding-lifecycle
+primitives below should be built once and reused across both
+proposals.
+
+### Shared primitives (DRY across the two next-sprint proposals)
+
+The following are co-required by both `expectation-match` and
+`affordance-gap`. Build once:
+
+1. **Finding silence/un-silence** — a `findings.silenced_at` +
+   `findings.silence_reason` pair, RPC for toggle, UI affordance with
+   confirm-on-critical and free-text reason capture.
+2. **Finding → GitHub issue** — uses the existing GitHub App
+   credentials; auto-populates issue title from heuristic +
+   suggested_location, body from evidence.
+3. **Project-level trend chart** — a generic finding-count-over-time
+   visualization that takes a heuristic prefix as a parameter.
+4. **Empty/loading/error states** — a shared set of dashboard
+   primitives keyed to "this surface has no data yet" /
+   "data is being captured" / "data capture failed."
+
+These ARE the finding-lifecycle work currently sitting in BACKLOG as
+"mark fixed / snooze / suppress." They should land in this sprint as
+the substrate that both new proposals depend on.
+
 ## Sequencing
 
 1. **Day 1 morning** — migration + adapter to read `prior_plan` and
