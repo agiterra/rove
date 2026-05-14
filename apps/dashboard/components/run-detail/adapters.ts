@@ -166,8 +166,11 @@ interface AdapterInput {
   flowBudgetSecondsMax?: number | null;
   /** Logged-in user (from layout / cookie); shown in top bar. */
   currentUserLabel?: string | null;
-  /** Anything > 0 makes the worker status pill "online". */
-  workerOnline?: boolean;
+  /**
+   * Resolved by `resolveRunWorkerStatus()` server-side; drives the worker
+   * pill on the top bar. `"unknown"` hides the pill.
+   */
+  workerStatus?: "online" | "offline" | "unknown";
 }
 
 export function buildRunDetailView(input: AdapterInput): RunDetailView {
@@ -179,7 +182,7 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     signedFindingScreenshotUrls,
     flowBudgetSecondsMax,
     currentUserLabel,
-    workerOnline,
+    workerStatus,
   } = input;
   const status = normalizeStatus(run.status, run.goal_reached);
   const isRunning = status === "running";
@@ -207,7 +210,7 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
   }, null);
 
   return {
-    topBar: buildTopBar(run, currentUserLabel, workerOnline),
+    topBar: buildTopBar(run, currentUserLabel, workerStatus ?? "unknown"),
     hero: buildHero(run, status, stepViews, elapsedLabel, elapsedSec, flowBudgetSecondsMax ?? null),
     steps: stepViews,
     selectedStepIndex: stepViews.length > 0 ? stepViews[stepViews.length - 1].index : null,
@@ -364,13 +367,17 @@ function formatDuration(seconds: number): string {
   return `${m}:${s}`;
 }
 
-function buildTopBar(run: RunRow, userLabel: string | null | undefined, online: boolean | undefined): TopBarView {
+function buildTopBar(
+  run: RunRow,
+  userLabel: string | null | undefined,
+  workerStatus: "online" | "offline" | "unknown",
+): TopBarView {
   return {
     runId: run.id,
     runIdShort: run.id.slice(0, 8),
     project: run.project_id,
     userLabel: userLabel ?? null,
-    workerStatus: online ? "online" : "unknown",
+    workerStatus,
   };
 }
 

@@ -75,7 +75,7 @@ export function useLiveRun({ runId, projectId, initialView }: UseLiveRunOptions)
         findings: (findingsRes.data ?? []) as any,
         signedScreenshotUrls: undefined,
         currentUserLabel: initialView.topBar.userLabel,
-        workerOnline: initialView.topBar.workerStatus === "online",
+        workerStatus: initialView.topBar.workerStatus,
       });
       seenRows.current.run = runRes.data as unknown as Record<string, unknown>;
       seenRows.current.steps = new Map(

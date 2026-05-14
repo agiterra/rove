@@ -18,6 +18,7 @@ import type { RunDetail, RunFinding, RunStep } from "./types";
 import { RunDetailLive } from "@/components/run-detail/RunDetailLive";
 import { buildRunDetailView } from "@/components/run-detail/adapters";
 import { ProjectSwitcher } from "@/components/project-switcher";
+import { resolveRunWorkerStatus } from "../../../lib/supabase/resolve-run-worker";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +74,15 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
 
   // Flow budget — separate read because the runs row doesn't carry it.
   // Used by the hero subline to render "remaining budget".
-  const flowBudgetRes = await supabase
-    .from("flows")
-    .select("budget")
-    .eq("id", run.flow_id)
-    .eq("project_id", projectId)
-    .maybeSingle();
+  const [flowBudgetRes, workerStatus] = await Promise.all([
+    supabase
+      .from("flows")
+      .select("budget")
+      .eq("id", run.flow_id)
+      .eq("project_id", projectId)
+      .maybeSingle(),
+    resolveRunWorkerStatus(supabase, run.id, projectId),
+  ]);
   const flowBudget = (flowBudgetRes.data?.budget ?? null) as
     | { max_steps?: number | null; max_seconds?: number | null }
     | null;
@@ -132,7 +136,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     signedFindingScreenshotUrls,
     flowBudgetSecondsMax: numOrNull(flowBudget?.max_seconds),
     currentUserLabel: userLabel,
-    workerOnline: false, // not yet wired — pull from workers table in a follow-up
+    workerStatus,
   });
 
   return (

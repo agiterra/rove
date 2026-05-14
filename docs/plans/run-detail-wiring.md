@@ -31,7 +31,7 @@
 | Secondary breadcrumb row (`← all runs`) | `Link href="/runs?p=<project>"` in `RunDetailLive.BreadcrumbRow`. | ✅ | — |
 | Project pill (`project: tankloop`) | `ProjectSwitcher` (server) rendered by `app/runs/[id]/page.tsx` + `app/preview/live-walk/page.tsx`; passed through `RunDetailLive` / `PreviewLiveWalk` → `TopBar` as a `projectSwitcher` children prop so it stays a server component even inside the client tree. | ✅ | — |
 | User pill (`alex`) | `supabase.auth.getUser().user_metadata.user_name`, falls back to `email.split('@')[0]` | ✅ | — |
-| Worker status pill (`Worker online`, pulsing dot) | Not derivable from `runs` today. `initiator_label` is the requester label, not the daemon. | ❌ | First add an explicit run↔job/worker link (`runs.agent_job_id` or `runs.worker_id`, or make queued walks use a daemon-provided run id and store it in `agent_jobs.result`). Then resolve `agent_jobs.claimed_by_worker_id → workers.id`; online if `last_heartbeat_at > now() - 90s` and not stopped/disabled. |
+| Worker status pill (`Worker online`, pulsing dot) | `lib/supabase/resolve-run-worker.ts` queries `agent_jobs WHERE result->>'run_id' = <runId> AND kind='walk'`, takes the most recently claimed row, then reads `workers.last_heartbeat_at / stopped_at / disabled_at`. Online when heartbeat < 90s and not shut down. `unknown` when no matching job (local `rove run`). | ✅ | — |
 | Click brand mark | `Link href="/runs?p=<project>"` wrap in `TopBar`. | ✅ | — |
 
 ## 2. Hero
@@ -208,7 +208,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Sign screenshot URLs server-side (batch + per-key fallback) | ✅ already shipped | `app/runs/[id]/page.tsx` |
 | Mint signed URLs for `finding_screenshots` (separate from step screenshots) | ✅ shipped | `app/runs/[id]/page.tsx → signFirstFindingScreenshots()` fetches first-ordinal storage_key per finding, signs in `walks` bucket, passes `signedFindingScreenshotUrls` (Record<findingId, url>) to the adapter. |
 | Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
-| Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
+| Resolve `current worker` for the run | ✅ shipped | `lib/supabase/resolve-run-worker.ts` joins through `agent_jobs.result->>run_id` (no schema change needed). Returns `online`/`offline`/`unknown`. |
 | Persist and resolve flow budget | ✅ shipped | Migration `20260514000000_flows_budget.sql` adds `flows.budget jsonb`. `parseFlowFile` extracts `budget.max_steps`/`budget.max_seconds` from YAML; CLI store writes via `upsertFlowWithYaml` (sync-authoritative) and conditionally via `upsertFlow` (sink-path never clobbers a synced value). Dashboard server reads `flows.budget`, hands `flowBudgetSecondsMax` to the adapter. |
 | `extractActionTarget(toolName, args)` helper | ✅ shipped | `components/run-detail/adapters.ts`; recognizes Playwright MCP `target` / `ref` / `selector` + `element` for action tools; `url` for navigation. |
 | `parseAriaSnapshot(text)` parser | ✅ shipped | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a single raw-text node. |
@@ -219,7 +219,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | 1Hz timer ticker | ✅ shipped | `useTickingView` in `RunDetailLive` (and mirrored in `PreviewLiveWalk`); ticks while `hero.finishedAtMs == null` |
 | Auto-scroll filmstrip to running tile | ✅ shipped | `Filmstrip` keeps a `runningTileRef` and runs `scrollIntoView` in a `useEffect` keyed on the running index. |
 | Steps-tab click → switch to Filmstrip tab | ✅ shipped | `RunDetailLive.tsx` `onPickStep` now calls `setTab("filmstrip")` |
-| Worker status pill | New | `TopBar` consumes `view.topBar.workerStatus`; `online` / `offline` / `unknown` already typed |
+| Worker status pill | ✅ shipped | Page passes resolver result to adapter; `TopBar` already consumed `view.topBar.workerStatus`. |
 | `initiated by` label change | ✅ shipped | `RunFooter` |
 
 ## 13. Acceptance criteria
