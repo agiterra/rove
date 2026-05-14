@@ -52,6 +52,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     path.startsWith("/_next") ||
     path === "/favicon.ico" ||
     path === "/install" ||
+    path.startsWith("/install/") ||
     path === "/api/install/exchange" ||
     path === "/api/install/codes/prune";
 
