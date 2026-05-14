@@ -114,6 +114,30 @@ export class SupabaseSink implements SinkAdapter {
       }
     }
 
+    // Expand affordance_gaps into findings rows with heuristic
+    // `agent.affordance_gap.<kind>`. Each gap is a negative-space finding;
+    // see docs/proposals/affordance-gaps.md §1 finding-emission rules.
+    for (const gap of input.payload.affordance_gaps ?? []) {
+      try {
+        const syntheticFinding: Finding = {
+          id: `affordance_gap-${gap.kind}-${gap.step_index ?? "global"}-${routed}`,
+          severity: gap.severity,
+          title: `Missing ${gap.kind} affordance${gap.url_pattern ? ` on ${gap.url_pattern}` : ""}`,
+          description:
+            `Expected for: ${gap.expected_for}\n\nEvidence:\n${gap.evidence}` +
+            (gap.suggested_location ? `\n\nSuggested location: ${gap.suggested_location}` : ""),
+          step_index: gap.step_index,
+          heuristic: `agent.affordance_gap.${gap.kind}`,
+          evidence: gap.evidence,
+          screenshots: [],
+        };
+        await this.insertFinding(input, syntheticFinding);
+        routed++;
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+
     try {
       const { plan, surprises, reflection, change_review: changeReview } = input.payload;
       await this.store.completeRun({
@@ -134,6 +158,8 @@ export class SupabaseSink implements SinkAdapter {
         referenceRoutes: changeReview?.reference_routes,
         designContract: changeReview?.design_contract,
         deltas: changeReview?.deltas && changeReview.deltas.length > 0 ? changeReview.deltas : undefined,
+        priorPlan: input.payload.prior_plan ?? undefined,
+        priorPlanCapturedAt: input.payload.prior_plan ? input.startedAt : undefined,
       });
 
       // Persist trajectory after the run row exists (step rows FK to runs.id).

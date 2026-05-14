@@ -112,6 +112,9 @@ export class SupabaseStore {
     referenceRoutes?: string[];
     designContract?: unknown;
     deltas?: unknown;
+    // Expectation-match prior plan, when the persona captured one.
+    priorPlan?: unknown;
+    priorPlanCapturedAt?: Date;
   }): Promise<void> {
     const { error } = await this.db
       .from("runs")
@@ -132,6 +135,10 @@ export class SupabaseStore {
         reference_routes: input.referenceRoutes ?? null,
         design_contract: input.designContract ?? null,
         deltas: input.deltas ?? null,
+        prior_plan: input.priorPlan ?? null,
+        prior_plan_captured_at: input.priorPlanCapturedAt
+          ? input.priorPlanCapturedAt.toISOString()
+          : null,
       })
       .eq("id", input.runId);
     if (error) throw new Error(`completeRun(${input.runId}): ${error.message}`);

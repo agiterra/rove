@@ -245,6 +245,41 @@ export const changeReviewSchema = z.object({
   deltas: z.array(changeDeltaSchema).default([]),
 });
 
+export const affordanceGapKinds = [
+  "create",
+  "read",
+  "update",
+  "delete",
+  "undo",
+  "recover",
+  "navigate",
+  "status",
+  "confirm",
+  "save_state",
+  "empty",
+  "error",
+] as const;
+
+export const affordanceGapPayloadSchema = z.object({
+  kind: z.enum(affordanceGapKinds),
+  expected_for: z.string().min(1),
+  severity: z.enum(FINDING_SEVERITIES),
+  evidence: z.string().min(1),
+  suggested_location: z.string().min(1).optional(),
+  url_pattern: z.string().optional(),
+  step_index: z.number().int().nonnegative().optional(),
+});
+
+export const priorPlanPayloadSchema = z.object({
+  archetype_assumed: z.string().min(1),
+  expected_route_pattern: z.array(z.string()).default([]),
+  expected_step_count: z.number().int().nonnegative().optional(),
+  expected_affordances_by_route: z.record(z.string(), z.array(z.string())).optional(),
+  anticipated_friction: z.array(z.string()).default([]),
+  affordance_assumptions: z.array(z.string()).default([]),
+  captured_before_browser_open: z.literal(true).optional(),
+});
+
 export const findingsPayloadSchema = z.object({
   flow_id: z.string().min(1),
   persona_id: z.string().min(1),
@@ -261,6 +296,17 @@ export const findingsPayloadSchema = z.object({
    * prompt so the existing finding lifecycle just works.
    */
   change_review: changeReviewSchema.optional(),
+  /**
+   * Negative-space inventory the persona enumerated at each substantive
+   * page. Each entry is expanded into a `findings` row by the sink with
+   * heuristic_id `agent.affordance_gap.<kind>`. See affordance-gaps proposal.
+   */
+  affordance_gaps: z.array(affordanceGapPayloadSchema).optional(),
+  /**
+   * The walker's frozen prior plan captured before the first browser_navigate.
+   * Persisted to runs.prior_plan. See expectation-match proposal.
+   */
+  prior_plan: priorPlanPayloadSchema.optional(),
 });
 
 export type FindingScreenshot = z.infer<typeof findingScreenshotSchema>;
@@ -273,3 +319,6 @@ export type DesignContract = z.infer<typeof designContractSchema>;
 export type ChangeDelta = z.infer<typeof changeDeltaSchema>;
 export type ChangeReview = z.infer<typeof changeReviewSchema>;
 export type FindingsPayload = z.infer<typeof findingsPayloadSchema>;
+export type AffordanceGapPayload = z.infer<typeof affordanceGapPayloadSchema>;
+export type AffordanceGapKind = (typeof affordanceGapKinds)[number];
+export type PriorPlanPayload = z.infer<typeof priorPlanPayloadSchema>;
