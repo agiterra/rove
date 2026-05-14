@@ -103,6 +103,12 @@ interface AdapterInput {
   steps: StepRow[];
   findings: FindingRow[];
   signedScreenshotUrls?: Record<string, string>;
+  /**
+   * Map of `findings.id → signed URL` for the first-ordinal entry in
+   * `finding_screenshots` for that finding. Preferred over the step
+   * screenshot when present.
+   */
+  signedFindingScreenshotUrls?: Record<string, string>;
   /** Logged-in user (from layout / cookie); shown in top bar. */
   currentUserLabel?: string | null;
   /** Anything > 0 makes the worker status pill "online". */
@@ -110,7 +116,15 @@ interface AdapterInput {
 }
 
 export function buildRunDetailView(input: AdapterInput): RunDetailView {
-  const { run, steps, findings, signedScreenshotUrls, currentUserLabel, workerOnline } = input;
+  const {
+    run,
+    steps,
+    findings,
+    signedScreenshotUrls,
+    signedFindingScreenshotUrls,
+    currentUserLabel,
+    workerOnline,
+  } = input;
   const status = normalizeStatus(run.status, run.goal_reached);
   const isRunning = status === "running";
 
@@ -125,7 +139,9 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     // No-op for now — the running tile would be daemon-driven. Track B2.
   }
 
-  const findingViews = findings.map((f) => toFindingView(f, steps, signedScreenshotUrls));
+  const findingViews = findings.map((f) =>
+    toFindingView(f, steps, signedScreenshotUrls, signedFindingScreenshotUrls),
+  );
 
   return {
     topBar: buildTopBar(run, currentUserLabel, workerOnline),
@@ -397,16 +413,26 @@ function toFindingView(
   f: FindingRow,
   steps: StepRow[],
   signedUrls: Record<string, string> | undefined,
+  signedFindingUrls: Record<string, string> | undefined,
 ): FindingView {
   const severity = (["critical", "major", "minor", "nit"].includes(f.severity)
     ? f.severity
     : "minor") as FindingView["severity"];
   const stepIndex = f.step_index ?? null;
   const refStep = stepIndex != null ? steps.find((s) => s.step_index === stepIndex) : undefined;
-  const thumb: StepThumb =
+
+  // Prefer a finding-specific screenshot over the step screenshot.
+  const findingShot = signedFindingUrls?.[f.id];
+  const stepShot =
     refStep?.screenshot_key && signedUrls?.[refStep.screenshot_key]
-      ? { kind: "image", src: signedUrls[refStep.screenshot_key] }
+      ? signedUrls[refStep.screenshot_key]
+      : null;
+  const thumb: StepThumb = findingShot
+    ? { kind: "image", src: findingShot, alt: `Screenshot for ${f.title}` }
+    : stepShot
+      ? { kind: "image", src: stepShot, alt: `Step ${stepIndex} screenshot for ${f.title}` }
       : { kind: "placeholder", reason: "no-screenshot" };
+
   return {
     id: f.id,
     severity,

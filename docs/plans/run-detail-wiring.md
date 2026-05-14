@@ -151,7 +151,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 | Title | `findings.title` | ✅ | — |
 | Heuristic chip | `findings.heuristic` | ✅ | — |
 | Secondary WCAG/standard chip | No stored source today | ❌ | Either add `findings.standard_ref` in a later migration or add optional `secondaryStandardChip` as a documented display-only inference from a fixed local mapping. Do not imply `findings.heuristic` parsing is authoritative. |
-| Thumbnail (110×62) | Currently looks up `run_steps.screenshot_key` for step matching `findings.step_index`; falls back to placeholder | 🟡 | Once `finding_screenshots` is loaded, prefer those (`finding_screenshots.storage_key` → signed URL) over the step's screenshot. New: server-side fetch `finding_screenshots` joined to findings, mint signed URLs, hand to adapter |
+| Thumbnail (110×62) | `finding_screenshots.storage_key` (first ordinal) → signed walks-bucket URL when present; falls back to step screenshot, then to placeholder | ✅ | — |
 | Step reference (`Step 08 →`) | `findings.step_index` | ✅ | — |
 | Click card | `findingHref` → `/findings?run=X&open=Y`; falls back to static `<article>` when no href | ✅ | Preserve `.focus-rove` only on link-rendered cards; no fake click target for static articles |
 | Card hover/focus motion | `.kinetic-hover` + `.focus-rove` | ✅ | Preserve reduced-motion behavior |
@@ -206,7 +206,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Item | Owner | File |
 |---|---|---|
 | Sign screenshot URLs server-side (batch + per-key fallback) | ✅ already shipped | `app/runs/[id]/page.tsx` |
-| Mint signed URLs for `finding_screenshots` (separate from step screenshots) | New | Extend `app/runs/[id]/page.tsx` to fetch `finding_screenshots` joined on `findings.id`; sign all keys; pass into adapter as `signedFindingScreenshotUrls` |
+| Mint signed URLs for `finding_screenshots` (separate from step screenshots) | ✅ shipped | `app/runs/[id]/page.tsx → signFirstFindingScreenshots()` fetches first-ordinal storage_key per finding, signs in `walks` bucket, passes `signedFindingScreenshotUrls` (Record<findingId, url>) to the adapter. |
 | Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
 | Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
 | Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |

@@ -97,6 +97,15 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
   const stepsWithKeys = steps.filter((s) => Boolean(s.screenshot_key));
   const signedScreenshotUrls = await signScreenshotUrls(stepsWithKeys);
 
+  // Per-finding screenshots: fetch first-ordinal storage_key per finding,
+  // sign in walks bucket, hand to adapter as Record<findingId, signedUrl>.
+  // The adapter prefers this over the step screenshot when present.
+  const signedFindingScreenshotUrls = await signFirstFindingScreenshots(
+    findings.map((f) => f.id),
+    id,
+    projectId,
+  );
+
   const userLabel = derivePreferredUserLabel(userRes.data?.user);
 
   // Adapter expects rows shaped like `RunRow` / `StepRow` / `FindingRow`.
@@ -107,6 +116,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     steps: steps as unknown as Parameters<typeof buildRunDetailView>[0]["steps"],
     findings: findings as unknown as Parameters<typeof buildRunDetailView>[0]["findings"],
     signedScreenshotUrls,
+    signedFindingScreenshotUrls,
     currentUserLabel: userLabel,
     workerOnline: false, // not yet wired — pull from workers table in a follow-up
   });
@@ -153,6 +163,80 @@ async function signScreenshotUrls(
         // skip — placeholder fallback in the UI
       }
     }
+  }
+  return out;
+}
+
+/**
+ * For each finding, return the signed URL of its first-ordinal screenshot
+ * (when one exists). Returns `Record<findingId, signedUrl>`. The walks
+ * bucket is the shared storage namespace; service-role is required to
+ * mint signed URLs.
+ *
+ * Missing service-role env (preview deploys) and per-key signing failures
+ * degrade silently — the UI falls back to the step screenshot / placeholder
+ * instead of throwing the whole page.
+ */
+async function signFirstFindingScreenshots(
+  findingIds: string[],
+  runId: string,
+  projectId: string,
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  if (findingIds.length === 0) return out;
+
+  let service: ReturnType<typeof createServiceRoleSupabase>;
+  try {
+    service = createServiceRoleSupabase();
+  } catch {
+    return out;
+  }
+
+  const { data, error } = await service
+    .from("finding_screenshots")
+    .select("finding_id, storage_key, ordinal")
+    .in("finding_id", findingIds)
+    .eq("project_id", projectId)
+    .order("ordinal", { ascending: true });
+  if (error || !data || data.length === 0) {
+    if (error) {
+      console.warn(`[run ${runId}] failed to load finding_screenshots`, error);
+    }
+    return out;
+  }
+
+  const firstKeyByFinding = new Map<string, string>();
+  for (const row of data as Array<{ finding_id: string; storage_key: string }>) {
+    if (!firstKeyByFinding.has(row.finding_id)) {
+      firstKeyByFinding.set(row.finding_id, row.storage_key);
+    }
+  }
+  const keys = Array.from(new Set(firstKeyByFinding.values()));
+  if (keys.length === 0) return out;
+
+  const keyToSignedUrl: Record<string, string> = {};
+  try {
+    const { data: signed, error: signErr } = await service.storage
+      .from("walks")
+      .createSignedUrls(keys, 60 * 10);
+    if (signErr) throw signErr;
+    for (const entry of signed ?? []) {
+      if (entry.path && entry.signedUrl) keyToSignedUrl[entry.path] = entry.signedUrl;
+    }
+  } catch {
+    for (const key of keys) {
+      try {
+        const { data: one } = await service.storage.from("walks").createSignedUrl(key, 60 * 10);
+        if (one?.signedUrl) keyToSignedUrl[key] = one.signedUrl;
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  for (const [findingId, storageKey] of firstKeyByFinding) {
+    const signedUrl = keyToSignedUrl[storageKey];
+    if (signedUrl) out[findingId] = signedUrl;
   }
   return out;
 }
