@@ -5,6 +5,7 @@
  * re-typing.
  */
 
+import type { LifecycleFinding } from "../finding-lifecycle/types";
 import type {
   ActionTarget,
   FindingView,
@@ -86,6 +87,77 @@ export const STEPS: MockStep[] = [
 ];
 
 export const SELECTED_STEP_INDEX = 8;
+
+export const LIFECYCLE_FINDINGS: LifecycleFinding[] = [
+  {
+    id: "fnd_01",
+    severity: "critical",
+    title: "Login button lacks accessible name",
+    heuristicId: "agent.accessibility_tree_completeness",
+    url: "https://app.tankloop.com/signin",
+    evidence: "<button class='btn-primary' onClick={…}></button>",
+    suggestedLocation: "apps/web/src/pages/signin.tsx:48",
+    runId: RUN_META.id,
+    flowId: RUN_META.flowId,
+    personaId: RUN_META.personaId,
+    personaLabel: RUN_META.personaLabel,
+    silencedAt: null,
+    silenceReason: null,
+    silenceScope: null,
+    githubIssueUrl: null,
+  },
+  {
+    id: "fnd_02",
+    severity: "major",
+    title: "Loading state has no aria-live region",
+    heuristicId: "agent.feedback_announced",
+    url: "https://app.tankloop.com/runs/abc123def",
+    evidence: "<div className='spinner'/>",
+    suggestedLocation: "apps/web/src/components/run-loader.tsx:12",
+    runId: RUN_META.id,
+    flowId: RUN_META.flowId,
+    personaId: RUN_META.personaId,
+    personaLabel: RUN_META.personaLabel,
+    silencedAt: null,
+    silenceReason: null,
+    silenceScope: null,
+    githubIssueUrl: null,
+  },
+  {
+    id: "fnd_03",
+    severity: "minor",
+    title: "Heading hierarchy skips h2 inside main",
+    heuristicId: "agent.semantic_html",
+    url: "https://app.tankloop.com/runs?q=walk",
+    evidence: "<main><h1>…</h1><h3>…</h3></main>",
+    suggestedLocation: "apps/web/src/pages/runs.tsx:88",
+    runId: RUN_META.id,
+    flowId: RUN_META.flowId,
+    personaId: RUN_META.personaId,
+    personaLabel: RUN_META.personaLabel,
+    silencedAt: new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString(),
+    silenceReason: "intentional design choice — h3 is contextually correct",
+    silenceScope: "finding",
+    githubIssueUrl: null,
+  },
+  {
+    id: "fnd_04",
+    severity: "major",
+    title: "Filter dropdown only opens on hover",
+    heuristicId: "agent.no_hover_only",
+    url: "https://app.tankloop.com/runs",
+    evidence: ".filter-menu { display: none; } .filter:hover .filter-menu { display: block; }",
+    suggestedLocation: "apps/web/src/components/runs-filter.tsx:24",
+    runId: RUN_META.id,
+    flowId: RUN_META.flowId,
+    personaId: RUN_META.personaId,
+    personaLabel: RUN_META.personaLabel,
+    silencedAt: null,
+    silenceReason: null,
+    silenceScope: null,
+    githubIssueUrl: "https://github.com/agiterra/tankloop/issues/4271",
+  },
+];
 
 export const FINDINGS: MockFinding[] = [
   {
