@@ -161,6 +161,8 @@ export function buildMockRunDetailView(): RunDetailView {
     thumb: { kind: "mock", name: s.thumb },
     actionTarget: mockActionTarget(s),
     ariaSnapshot: s.index === 8 ? MOCK_ARIA_SNAPSHOT : null,
+    typedText: s.toolName === "browser_type" && s.index === 6 ? "walk" : null,
+    resultSummary: null,
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({

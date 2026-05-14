@@ -37,6 +37,10 @@ export interface StepView {
   actionTarget: ActionTarget | null;
   /** Raw Playwright MCP aria-snapshot text, parsed at render time. */
   ariaSnapshot: string | null;
+  /** `browser_type` text, when present. The fragment the agent typed. */
+  typedText: string | null;
+  /** Tool response summary — counts, status lines, etc. Free-form. */
+  resultSummary: string | null;
 }
 
 export interface FindingView {

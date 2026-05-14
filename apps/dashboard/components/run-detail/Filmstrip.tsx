@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { MockThumb } from "./MockThumbs";
+import { StepThumbArtifact } from "./StepArtifact";
 import type { StepView } from "./types";
 
 interface FilmstripProps {
@@ -149,7 +149,7 @@ function Tile({
           height: 100,
           borderRadius: 6,
           border: "1px solid var(--color-border)",
-          background: "#f4f5f8",
+          background: "var(--color-panel-2)",
         }}
       >
         <ThumbContent step={step} />
@@ -173,38 +173,7 @@ function Tile({
 }
 
 function ThumbContent({ step }: { step: StepView }) {
-  if (step.thumb.kind === "mock") return <MockThumb kind={step.thumb.name} />;
-  if (step.thumb.kind === "image") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={step.thumb.src}
-        alt={step.thumb.alt ?? `Step ${step.index} screenshot`}
-        className="block h-full w-full object-cover"
-      />
-    );
-  }
-  return <PlaceholderThumb reason={step.thumb.reason} />;
-}
-
-function PlaceholderThumb({ reason }: { reason: "no-screenshot" | "running" }) {
-  return (
-    <div
-      className="h-full w-full grid place-items-center"
-      style={{
-        background:
-          "repeating-linear-gradient(135deg, #eef0f5 0px, #eef0f5 8px, #f4f5f8 8px, #f4f5f8 16px)",
-        color: "#9aa2b1",
-        fontFamily: "var(--font-mono)",
-        fontSize: 9,
-        textAlign: "center",
-        padding: 6,
-        lineHeight: 1.3,
-      }}
-    >
-      {reason === "running" ? "capturing…" : "no screenshot"}
-    </div>
-  );
+  return <StepThumbArtifact step={step} />;
 }
 
 function borderForState(status: StepView["status"], selected: boolean): string {

@@ -1,4 +1,5 @@
 import { MockThumb } from "./MockThumbs";
+import { StepDetailArtifact } from "./StepArtifact";
 import { TankloopPreview, PreviewCursor } from "./TankloopPreview";
 import { parseAriaSnapshot, type AriaNode } from "./parseAriaSnapshot";
 import { highlightAriaTarget } from "./highlightAriaTarget";
@@ -79,7 +80,7 @@ function PreviewPanel({
           aspectRatio: "16 / 9",
           borderRadius: 8,
           border: "1px solid var(--color-border)",
-          background: "#ffffff",
+          background: step.thumb.kind === "image" ? "#ffffff" : "var(--color-panel-2)",
         }}
       >
         {showInlineTankloop ? (
@@ -109,36 +110,11 @@ function PreviewPanel({
 }
 
 function ScreenshotContent({ step }: { step: StepView }) {
+  // Mock fixtures keep the hand-drawn art for the preview route.
   if (step.thumb.kind === "mock") return <MockThumb kind={step.thumb.name} />;
-  if (step.thumb.kind === "image") {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={step.thumb.src}
-        alt={step.thumb.alt ?? `Step ${step.index} full screenshot`}
-        className="block h-full w-full object-contain bg-white"
-      />
-    );
-  }
-  return <BigPlaceholder reason={step.thumb.reason} />;
-}
-
-function BigPlaceholder({ reason }: { reason: "no-screenshot" | "running" }) {
-  return (
-    <div
-      className="h-full w-full grid place-items-center"
-      style={{
-        background:
-          "repeating-linear-gradient(135deg, #eef0f5 0px, #eef0f5 14px, #f4f5f8 14px, #f4f5f8 28px)",
-        color: "#6b7280",
-        fontFamily: "var(--font-mono)",
-        fontSize: 12,
-        letterSpacing: "0.05em",
-      }}
-    >
-      {reason === "running" ? "capturing screenshot…" : "no screenshot for this step"}
-    </div>
-  );
+  // Everything else routes through StepDetailArtifact: PNG when present,
+  // text-shaped artifact otherwise (aria tree, target, typed text, etc).
+  return <StepDetailArtifact step={step} />;
 }
 
 function humanVerb(toolName: string, status: StepView["status"]): string {

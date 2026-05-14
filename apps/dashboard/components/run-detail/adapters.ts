@@ -504,6 +504,10 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
     : { kind: "placeholder", reason: status === "running" ? "running" : "no-screenshot" };
 
   const toolName = step.tool_name ?? "unknown";
+  const args = (step.args && typeof step.args === "object"
+    ? (step.args as Record<string, unknown>)
+    : {}) as Record<string, unknown>;
+  const typedText = typeof args.text === "string" && args.text.length > 0 ? args.text : null;
   return {
     index: step.step_index,
     toolName,
@@ -516,6 +520,11 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
     ariaSnapshot:
       typeof step.aria_snapshot === "string" && step.aria_snapshot.length > 0
         ? step.aria_snapshot
+        : null,
+    typedText,
+    resultSummary:
+      typeof step.result_summary === "string" && step.result_summary.length > 0
+        ? step.result_summary
         : null,
   };
 }
