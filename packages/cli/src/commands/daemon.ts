@@ -24,8 +24,11 @@ const PROJECT_SLUG_RE = /^[a-z][a-z0-9-]*$/;
 
 export async function runDaemonCommand(opts: DaemonCommandOpts): Promise<number> {
   try {
-    const { config } = await loadRoveConfig();
-    let projectId = config.projectId;
+    let projectId: string;
+    // The install-flow's LaunchAgent invokes `rove daemon --as=<name>
+    // --project-id=<slug>` from `/` (no config discoverable). When the
+    // override is supplied, skip `loadRoveConfig` entirely — the JWT +
+    // CLI args carry everything the daemon needs.
     if (opts.projectIdOverride !== undefined) {
       if (!PROJECT_SLUG_RE.test(opts.projectIdOverride)) {
         throw new Error(
@@ -33,11 +36,9 @@ export async function runDaemonCommand(opts: DaemonCommandOpts): Promise<number>
         );
       }
       projectId = opts.projectIdOverride;
-      if (projectId !== config.projectId) {
-        console.log(
-          `[daemon] project override: '${projectId}' (rove.config.ts says '${config.projectId}')`,
-        );
-      }
+    } else {
+      const { config } = await loadRoveConfig();
+      projectId = config.projectId;
     }
 
     const { client: supabase, auth } = getDaemonSupabase();
