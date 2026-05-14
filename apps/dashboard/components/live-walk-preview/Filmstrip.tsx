@@ -26,14 +26,6 @@ export function Filmstrip({ selectedIndex = SELECTED_STEP_INDEX, onSelect }: Fil
         >
           STEP FILMSTRIP · 8 OF ~25
         </p>
-        <div
-          className="flex items-center gap-3 font-mono text-[var(--color-text-faint)]"
-          style={{ fontSize: 11 }}
-        >
-          <span>scroll-snap</span>
-          <span style={{ color: "#2b3454" }}>·</span>
-          <span>auto-follow running</span>
-        </div>
       </div>
 
       <div className="relative">

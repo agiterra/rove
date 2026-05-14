@@ -1,4 +1,4 @@
-import { LWBrandMark } from "./BrandMark";
+import { AppMark } from "@/components/app-mark";
 import { RUN_META } from "./mock-data";
 
 export function TopBar() {
@@ -11,15 +11,7 @@ export function TopBar() {
       }}
     >
       <div className="max-w-[1280px] mx-auto h-16 px-8 flex items-center gap-7">
-        <div className="flex items-center gap-3">
-          <LWBrandMark />
-          <span
-            className="text-[14px] font-bold uppercase"
-            style={{ letterSpacing: "0.22em" }}
-          >
-            Rove
-          </span>
-        </div>
+        <AppMark size="sm" />
         <nav
           aria-label="Breadcrumb"
           className="ml-3 flex items-center gap-2.5 font-mono text-[13px] text-[var(--color-text-muted)]"

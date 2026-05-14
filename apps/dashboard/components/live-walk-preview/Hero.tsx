@@ -1,9 +1,20 @@
 import { NowDoingPill } from "./NowDoingPill";
 import { RUN_META, NOW_DOING } from "./mock-data";
 
-export function Hero() {
+interface HeroProps {
+  status?: "running" | "done" | "errored" | "pending";
+}
+
+export function Hero({ status = "running" }: HeroProps) {
+  // Bright cyan perimeter halo only while the walk is live; calmer for
+  // completed / errored / paused walks. CSS default is 0.7; running
+  // ramps it to 1.
+  const glow = status === "running" ? 1 : 0.7;
   return (
-    <section className="lw-hero">
+    <section
+      className="lw-hero"
+      style={{ ["--lw-glow" as keyof React.CSSProperties]: glow } as React.CSSProperties}
+    >
       <div className="lw-hero-aurora" />
       <div className="lw-hero-streak" />
       <div className="lw-hero-edge" />

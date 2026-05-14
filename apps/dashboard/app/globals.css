@@ -413,7 +413,10 @@ select {
  * components stay thin. --lw-glow + --lw-aurora govern intensity.
  */
 .lw-hero {
-  --lw-glow: 1;
+  /* Default glow is dialed down ~30% so a finished or paused walk reads
+     calmly. Pages with status="running" set --lw-glow back to 1 inline
+     on the .lw-hero element to ramp the perimeter halo to full. */
+  --lw-glow: 0.7;
   --lw-aurora: 1;
   position: relative;
   border-radius: 16px;
