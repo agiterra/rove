@@ -1,0 +1,39 @@
+# dashboard-find-and-delete-run
+# Dogfood flow for the affordance-gaps wedge. Walks the dashboard as an
+# internal user trying to find and delete a recent run — the predicted
+# negative-space finding is that "Delete this run" doesn't exist anywhere
+# in the UI even though the data model would support it.
+#
+# Pair this flow with the `internal-user` persona (or any human persona)
+# so the walker enumerates affordances against a real user's mental model.
+# Agent personas also work — they file the same gap under
+# agent.affordance_gap.delete.
+#
+# Authored 2026-05-14 for the negative-space sprint (Day 3 afternoon).
+
+flow_id: dashboard.find_and_delete_run
+goal: "Find a Rove run from earlier this week and delete it from the dashboard"
+entry_route: "/runs"
+
+budget:
+  max_steps: 25
+  max_seconds: 180
+
+steps: []
+
+success_predicate:
+  - "/runs lists at least one prior run with a stable monospace run id"
+  - "A run can be filtered or sorted to surface 'last week's runs' without leaving the page"
+  - "Clicking a run navigates to /runs/<id> and renders a hero, filmstrip, and findings stream"
+  - "A 'Delete this run' affordance is reachable from the run-detail page (toolbar, overflow menu, or settings panel)"
+  - "Triggering delete shows a confirm step before the destructive action commits"
+  - "After confirming, the deleted run no longer appears on /runs"
+
+# Affordance enumeration is on by default for substantive pages; nothing
+# in this flow needs to be silenced. Authors can declare exclusions when
+# the missing affordance is intentional:
+#
+# affordance_exclusions:
+#   - url_pattern: "/runs/[id]"
+#     do_not_expect: ["create"]
+#     reason: "Runs are dispatched from /flows; the detail page intentionally has no New affordance."

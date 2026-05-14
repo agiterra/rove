@@ -9,6 +9,7 @@ import { TabBar } from "./TabBar";
 import { DetailSplit } from "./DetailSplit";
 import { FindingsStream } from "./FindingsStream";
 import { Reflection } from "./Reflection";
+import { NegativeSpaceSection } from "./NegativeSpaceSection";
 import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
 import { formatElapsed } from "./adapters";
@@ -105,7 +106,16 @@ export function RunDetailLive({ runId, projectId, initialView, projectSwitcher }
           </div>
         ) : null}
         {tab === "reflection" ? (
-          <Reflection view={view.reflection} runStatus={view.hero.status} />
+          <>
+            <Reflection view={view.reflection} runStatus={view.hero.status} />
+            <div className="mt-5">
+              <NegativeSpaceSection
+                runId={runId}
+                steps={view.steps}
+                projectId={projectId}
+              />
+            </div>
+          </>
         ) : null}
         {tab !== "findings" ? <FindingsStream
             findings={view.findings}

@@ -47,6 +47,13 @@ export interface StepView {
    * filmstrip tile. Null when no dialog fired during this step.
    */
   dialog: DialogView | null;
+  /**
+   * Negative-space inventory the walker emitted at this step's URL when it
+   * qualified as a "substantive page" (per the MCP-proxy detection rules).
+   * Undefined when the step is transient (loading / auth / 4xx); empty
+   * array when enumeration ran and produced no gaps. Matches are silent.
+   */
+  affordance_gaps?: AffordanceGap[];
 }
 
 export interface DialogView {
@@ -54,6 +61,34 @@ export interface DialogView {
   message: string;
   /** False when the agent never saw the modal state (perceive_blind). */
   personaPerceived: boolean;
+}
+
+// ── Affordance gaps (additive, 2026-05-14) ──────────────────────────────────
+// Per-step negative-space inventory the walker emits at substantive pages.
+// Lives on StepView as `affordance_gaps`. Each entry is one missing
+// affordance a user with the persona's goal would have expected here.
+export type AffordanceGapKind =
+  | "create"
+  | "read"
+  | "update"
+  | "delete"
+  | "undo"
+  | "recover"
+  | "navigate"
+  | "status"
+  | "confirm"
+  | "save_state"
+  | "empty"
+  | "error";
+
+export type AffordanceGapSeverity = "critical" | "high" | "medium" | "minor";
+
+export interface AffordanceGap {
+  kind: AffordanceGapKind;
+  expected_for: string;
+  severity: AffordanceGapSeverity;
+  evidence: string;
+  suggested_location: string;
 }
 
 export interface FindingView {

@@ -7,6 +7,12 @@ import { Plus } from "lucide-react";
 const ITEMS = [
   { href: "/runs", label: "Runs" },
   { href: "/findings", label: "Findings" },
+  /**
+   * Project-scoped negative-space rollup. Lives under /projects/[id]/gaps —
+   * the project slug substitutes into the href via `useProjectAwareHref`
+   * below (the `[p]` placeholder is replaced with the resolved project).
+   */
+  { href: "/projects/[p]/gaps", label: "Gaps" },
   { href: "/flows", label: "Flows" },
   { href: "/workers", label: "Workers" },
 ] as const;
@@ -27,6 +33,12 @@ function useProjectAwareHref(): (href: string) => string {
   const search = useSearchParams();
   const p = search.get("p");
   return (href: string) => {
+    // Path-segment placeholder: routes like /projects/[p]/gaps substitute
+    // the project slug into the URL, not as a ?p= query param.
+    if (href.includes("[p]")) {
+      const slug = p ?? "tankloop";
+      return href.replace("[p]", encodeURIComponent(slug));
+    }
     if (!p) return href;
     return href.includes("?") ? `${href}&p=${p}` : `${href}?p=${p}`;
   };
@@ -38,11 +50,20 @@ export function HeaderNav() {
   return (
     <nav className="flex items-center gap-1">
       {ITEMS.map((it) => {
-        const active = pathname === it.href || pathname.startsWith(it.href + "/");
+        const resolved = withProject(it.href);
+        const matchBase = resolved.split("?")[0];
+        const active =
+          pathname === matchBase ||
+          pathname.startsWith(matchBase + "/") ||
+          // For the project-scoped Gaps link, also light up when the user
+          // is anywhere under /projects/<slug>/gaps regardless of which
+          // slug is currently selected.
+          (it.href.includes("[p]") &&
+            /^\/projects\/[^/]+\/gaps(?:\/|$)/.test(pathname));
         return (
           <Link
             key={it.href}
-            href={withProject(it.href)}
+            href={resolved}
             aria-current={active ? "page" : undefined}
             className={`relative px-3 py-1.5 text-sm rounded-md transition-colors ${
               active

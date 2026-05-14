@@ -59,6 +59,9 @@ export interface RunStep {
   url_after: string | null;
   duration_ms: number | null;
   screenshot_key?: string | null;
+  dialog_payload?: unknown;
+  affordance_gaps?: unknown;
+  affordance_enum_phase?: boolean | null;
 }
 
 export type WalkKind = "flow" | "change_review";

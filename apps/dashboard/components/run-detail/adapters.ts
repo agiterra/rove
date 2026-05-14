@@ -12,6 +12,9 @@
 
 import type {
   ActionTarget,
+  AffordanceGap,
+  AffordanceGapKind,
+  AffordanceGapSeverity,
   DialogView,
   FindingView,
   FooterView,
@@ -139,6 +142,8 @@ interface StepRow {
   screenshot_key?: string | null;
   aria_snapshot?: string | null;
   dialog_payload?: unknown;
+  affordance_gaps?: unknown;
+  affordance_enum_phase?: boolean | null;
 }
 
 interface FindingRow {
@@ -529,7 +534,55 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
         ? step.result_summary
         : null,
     dialog: normalizeDialogPayload(step.dialog_payload),
+    affordance_gaps: normalizeAffordanceGaps(step.affordance_gaps),
   };
+}
+
+// ── Affordance-gap normalization (additive, 2026-05-14) ─────────────────────
+const AFFORDANCE_GAP_KINDS: ReadonlySet<AffordanceGapKind> = new Set([
+  "create",
+  "read",
+  "update",
+  "delete",
+  "undo",
+  "recover",
+  "navigate",
+  "status",
+  "confirm",
+  "save_state",
+  "empty",
+  "error",
+]);
+const AFFORDANCE_GAP_SEVERITIES: ReadonlySet<AffordanceGapSeverity> = new Set([
+  "critical",
+  "high",
+  "medium",
+  "minor",
+]);
+
+function normalizeAffordanceGaps(raw: unknown): AffordanceGap[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: AffordanceGap[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    const kind = typeof r.kind === "string" ? r.kind : null;
+    const severity = typeof r.severity === "string" ? r.severity : null;
+    if (!kind || !AFFORDANCE_GAP_KINDS.has(kind as AffordanceGapKind)) continue;
+    if (!severity || !AFFORDANCE_GAP_SEVERITIES.has(severity as AffordanceGapSeverity)) continue;
+    const expectedFor = typeof r.expected_for === "string" ? r.expected_for : "";
+    const evidence = typeof r.evidence === "string" ? r.evidence : "";
+    const suggestedLocation =
+      typeof r.suggested_location === "string" ? r.suggested_location : "";
+    out.push({
+      kind: kind as AffordanceGapKind,
+      severity: severity as AffordanceGapSeverity,
+      expected_for: expectedFor,
+      evidence,
+      suggested_location: suggestedLocation,
+    });
+  }
+  return out;
 }
 
 const DIALOG_TYPES = new Set(["alert", "confirm", "prompt", "beforeunload"]);
