@@ -19,6 +19,19 @@ export type AgentRuntime =
   | "browser_use"
   | "playwright_codegen";
 
+/**
+ * Archetype assumption the walker uses to build its prior plan. See
+ * `docs/proposals/expectation-match.md`. `"auto"` (default) means the
+ * walker infers archetype from the goal + first landing page.
+ */
+export type ArchetypeId =
+  | "shopify-style-commerce"
+  | "doordash-style-aggregator"
+  | "single-restaurant-direct"
+  | "saas-dashboard"
+  | "marketplace"
+  | "auto";
+
 export interface PersonaConstraints {
   shortcuts_allowed: boolean;
   hovers_allowed: boolean;
@@ -42,6 +55,14 @@ export interface PersonaConstraints {
    *     and no synthetic observation.
    */
   native_dialog_policy?: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
+  /**
+   * Archetype prior this persona should walk under. `"auto"` (default) lets
+   * the walker infer the archetype from the goal + landing page. Setting a
+   * fixed archetype forces the comparison against a known prior — useful
+   * for testing "does my site match standard saas-dashboard conventions"
+   * specifically. See `docs/proposals/expectation-match.md`.
+   */
+  prior_archetype?: ArchetypeId;
 }
 
 export interface Persona {

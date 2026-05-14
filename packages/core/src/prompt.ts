@@ -125,6 +125,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
         `\n  to sign in — treat it as a finding and continue evaluating whatever IS` +
         `\n  reachable (landing page, the sign-in page UX itself, public routes).`,
     ``,
+    buildPriorPlanCaptureSection(persona, toolPrefix),
+    ``,
     `Phase A — Plan FIRST, before any browser call.`,
     `Before you call any ${toolPrefix}* tool, think through how a ${persona.label}`,
     `would expect to accomplish "${goal}". Then write down a structured plan:`,
@@ -174,6 +176,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     buildNativeDialogsSection(persona, toolPrefix),
     ``,
     buildAffordanceEnumerationSection(persona, toolPrefix),
+    ``,
+    buildPlanVerdictSection(persona, toolPrefix),
     ``,
     `Phase C — Reflect, adversarially.`,
     `After the walk, ask yourself: "If this app shipped tomorrow, what specific`,
@@ -555,4 +559,87 @@ function describePersonaLens(persona: Persona): string {
         `File gaps in terms of what THIS persona would notice missing.`,
       ].join("\n");
   }
+}
+
+// ── Prior plan capture (additive, 2026-05-14, expectation-match) ─────────────
+// New section. Edit here, not inside buildWalkPrompt. The header literal
+// `### Prior plan` is the anchor downstream tests / adapters look for;
+// keep it stable. Surfaces the agent's pre-flight expectations as a
+// first-class artifact rendered against observed reality. See
+// `docs/proposals/expectation-match.md`.
+function buildPriorPlanCaptureSection(persona: Persona, toolPrefix: string): string {
+  const navigate = `${toolPrefix}navigate`;
+  const archetypeLine =
+    persona.constraints.prior_archetype && persona.constraints.prior_archetype !== "auto"
+      ? `This persona walks under a fixed archetype prior: \`${persona.constraints.prior_archetype}\`.`
+      : `No fixed archetype is set; infer one from the goal + first landing page.`;
+
+  return [
+    `### Prior plan`,
+    ``,
+    `BEFORE calling ${navigate} for the first time, externalize the prior plan`,
+    `you already carry into this walk. You have domain knowledge; we want it`,
+    `written down so we can compare what you EXPECTED to what you OBSERVED.`,
+    ``,
+    archetypeLine,
+    ``,
+    `Emit a structured \`prior_plan\` block in your final JSON output with these`,
+    `fields (all required unless noted):`,
+    ``,
+    `- archetype_assumed: short label, e.g. "saas-dashboard" or`,
+    `  "shopify-style-commerce".`,
+    `- expected_route_pattern: ordered list of route shapes you expect to walk,`,
+    `  e.g. ["/", "/menu", "/cart", "/checkout"].`,
+    `- expected_step_count: integer count of meaningful steps you expect.`,
+    `- expected_affordances_by_route: object keyed by route → list of`,
+    `  affordances you expect to find there (e.g. {"/cart": ["quantity controls",`,
+    `  "checkout CTA"]}).`,
+    `- anticipated_friction: list of friction points you brace for (e.g.`,
+    `  ["account creation gate", "address validation failure"]).`,
+    `- affordance_assumptions: list of layout/affordance assumptions`,
+    `  (e.g. ["cart icon top-right", "primary CTA on /cart is the checkout button"]).`,
+    `- captured_before_browser_open: literal true — attesting you wrote this`,
+    `  before any ${navigate} call.`,
+    ``,
+    `Freeze this plan; do NOT rewrite it as you learn. The whole point is the`,
+    `diff between the frozen plan and observed reality. Revisions belong in`,
+    `per-step \`plan_delta\` entries (see ### Plan verdict).`,
+  ].join("\n");
+}
+
+// ── Plan verdict (additive, 2026-05-14, expectation-match) ───────────────────
+// New section. Edit here, not inside buildWalkPrompt. The header literal
+// `### Plan verdict` is the anchor downstream tests / adapters look for;
+// keep it stable. Drives per-step `run_steps.plan_delta` jsonb. See
+// `docs/proposals/expectation-match.md`.
+function buildPlanVerdictSection(persona: Persona, _toolPrefix: string): string {
+  return [
+    `### Plan verdict`,
+    ``,
+    `After each browser tool call resolves, emit a one-line verdict against the`,
+    `prior plan you froze in ### Prior plan. The verdict goes on each finding`,
+    `you file for that step under the \`plan_delta\` field, and is collected by`,
+    `the sink onto \`run_steps.plan_delta\`.`,
+    ``,
+    `Verdict vocabulary (exactly one per step):`,
+    `- match — reality is as expected; the plan does not need revision.`,
+    `- extension — extra step the plan didn't anticipate but is coherent`,
+    `  (e.g. a dismissable upsell modal). The plan grows but is not contradicted.`,
+    `- surprise — friction the plan didn't anticipate but is recoverable`,
+    `  (e.g. unexpected account-gate). Candidate finding gated by recoverability.`,
+    `- deviation — reality contradicts the plan in a way that breaks it`,
+    `  (e.g. expected /cart, got a marketing page). ALWAYS becomes a finding`,
+    `  under \`agent.expectation_match.<kind>\` where kind ∈`,
+    `  {route, affordance, copy, step_count, friction, archetype}.`,
+    ``,
+    `When verdict is \`extension\`, \`surprise\`, or \`deviation\`, include:`,
+    `- what_revised: one sentence — what changed about your understanding.`,
+    `- revised_plan_diff (optional): the minimal patch to the prior plan that`,
+    `  would have matched reality. Shape is free-form but JSON-serializable.`,
+    ``,
+    `Severity for deviation findings: route-shape > affordance > copy.`,
+    `A missing primary affordance on a critical route is \`critical\`. An extra`,
+    `step inside an otherwise-coherent flow is \`minor\`. Don't double-file a`,
+    `\`surprise\` if you already anticipated it in \`anticipated_friction\`.`,
+  ].join("\n");
 }
