@@ -22,8 +22,8 @@ import { mintWorkerToken, WorkerDisabledError } from "@/lib/auth/mint-worker-tok
 export const runtime = "nodejs";
 
 const BodySchema = z.object({
-  worker_name: z.string().trim().min(1).max(64),
-  project_id: z.string().trim().min(1).max(64),
+  worker_name: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/),
+  project_id: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/),
   kind: z.enum(["laptop", "dedicated"]).optional(),
 });
 

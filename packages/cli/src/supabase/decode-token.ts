@@ -34,6 +34,14 @@ export interface WorkerClaims {
   githubHandle: string | null;
 }
 
+function requireStringClaim(claims: WorkerTokenClaims, key: keyof WorkerClaims | "worker_id" | "project_id" | "worker_name"): string {
+  const value = claims[key as keyof WorkerTokenClaims];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Malformed worker JWT: missing string claim '${String(key)}'.`);
+  }
+  return value;
+}
+
 /**
  * Decode the payload segment of a JWT without signature verification.
  * PostgREST / Supabase verifies the signature server-side; we only need
@@ -66,11 +74,18 @@ export function decodeJwtPayload(token: string): WorkerTokenClaims {
  */
 export function decodeWorkerToken(token: string): WorkerClaims {
   const claims = decodeJwtPayload(token);
+  if (claims.kind !== "worker") {
+    throw new Error("Malformed worker JWT: claim 'kind' must be 'worker'.");
+  }
+  const githubHandle = claims.github_handle;
+  if (githubHandle !== undefined && githubHandle !== null && typeof githubHandle !== "string") {
+    throw new Error("Malformed worker JWT: claim 'github_handle' must be a string or null.");
+  }
   return {
-    workerId: claims.worker_id as string,
-    projectId: claims.project_id as string,
-    workerName: claims.worker_name as string,
-    githubHandle: (claims.github_handle as string | undefined) ?? null,
+    workerId: requireStringClaim(claims, "worker_id"),
+    projectId: requireStringClaim(claims, "project_id"),
+    workerName: requireStringClaim(claims, "worker_name"),
+    githubHandle: githubHandle ?? null,
   };
 }
 
