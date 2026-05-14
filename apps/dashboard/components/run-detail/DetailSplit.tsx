@@ -3,6 +3,7 @@ import { StepDetailArtifact } from "./StepArtifact";
 import { TankloopPreview, PreviewCursor } from "./TankloopPreview";
 import { parseAriaSnapshot, type AriaNode } from "./parseAriaSnapshot";
 import { highlightAriaTarget } from "./highlightAriaTarget";
+import { AffordanceInventory } from "./AffordanceInventory";
 import type { StepView } from "./types";
 
 interface DetailSplitProps {
@@ -28,9 +29,12 @@ export function DetailSplit({ step, inlineTankloop = false, liveVerb, liveTarget
     );
   }
   return (
-    <div className="grid mt-5 gap-4" style={{ gridTemplateColumns: "2fr 1fr" }}>
-      <PreviewPanel step={step} inlineTankloop={inlineTankloop} liveVerb={liveVerb} liveTarget={liveTarget} />
-      <A11yTree step={step} liveTarget={liveTarget} />
+    <div className="flex flex-col gap-4 mt-5">
+      <div className="grid gap-4" style={{ gridTemplateColumns: "2fr 1fr" }}>
+        <PreviewPanel step={step} inlineTankloop={inlineTankloop} liveVerb={liveVerb} liveTarget={liveTarget} />
+        <A11yTree step={step} liveTarget={liveTarget} />
+      </div>
+      <AffordanceInventory step={step} />
     </div>
   );
 }

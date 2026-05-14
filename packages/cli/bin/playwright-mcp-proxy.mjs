@@ -162,6 +162,23 @@ function onJsonRpc(dir, msg) {
         }
       : null;
 
+    // ── AFFORDANCE-GAPS::detection (additive, 2026-05-14) ──────────────────
+    // Substantive-page detection per docs/proposals/affordance-gaps.md §1.
+    // Only consult when no native dialog is pending — modal states gate the
+    // page from the persona and would skew the node-count signal. Marker:
+    // AFFORDANCE_GAPS_DETECTION_BLOCK_v1.
+    const substantive =
+      !dialog && !isError
+        ? detectSubstantivePage({
+            toolName: match.toolName,
+            urlAfter,
+            ariaSnapshot,
+            result,
+          })
+        : null;
+    const shouldEnumerate = substantive ? markUrlForEnumeration(substantive.url) : false;
+    // ── END AFFORDANCE-GAPS::detection ─────────────────────────────────────
+
     const update = {
       direction: isError ? "error" : "result",
       result_summary: resultSummary,
@@ -169,6 +186,7 @@ function onJsonRpc(dir, msg) {
       url_after: urlAfter,
       duration_ms: Number.isFinite(durationMs) ? durationMs : null,
       ...(dialogPayload ? { dialog_payload: dialogPayload } : {}),
+      ...(shouldEnumerate ? { affordance_enum_phase: true } : {}),
     };
 
     const work = match.rowIdPromise.then(async (rowId) => {
@@ -250,6 +268,90 @@ function parseModalState(text) {
 function unescapeJsonish(s) {
   return s.replace(/\\(.)/g, "$1");
 }
+
+// ── AFFORDANCE_GAPS_DETECTION_BLOCK_v1 (additive, 2026-05-14) ──────────────
+// Substantive-page detection per docs/proposals/affordance-gaps.md §1.
+//
+// A page qualifies for affordance enumeration when ALL of these hold:
+//   1. The triggering tool is a navigate or snapshot (those carry the
+//      signals we need); it is NOT a click/type with no URL change.
+//   2. The response is non-error (the upstream caller has already gated
+//      on isError before invoking this).
+//   3. There is NO native dialog pending in the response (the caller
+//      also pre-gates on `dialog`); transient pages whose only renderable
+//      chrome is a modal don't count.
+//   4. We can extract a URL (`urlAfter` from a navigate, or sniff the
+//      `### Page state` block from a snapshot).
+//   5. The URL pathname is not in the auth-route block list.
+//   6. The aria-tree contains ≥20 node lines AND at least one structural
+//      landmark (`main`, `region`, `article`, or `section` with aria-label).
+// The throttling rule (only enumerate once per URL per walk) is enforced
+// by `markUrlForEnumeration` — this function only decides "is this page
+// substantive?" not "have we already done it?"
+
+const AUTH_ROUTE_BLOCKLIST = [
+  "/signin",
+  "/auth/callback",
+  "/install",
+  "/api/install",
+];
+
+function detectSubstantivePage({ toolName, urlAfter, ariaSnapshot, result }) {
+  if (toolName !== "browser_navigate" && !isSnapshotTool(toolName)) return null;
+  // Prefer the explicit urlAfter (navigate); fall back to sniffing the
+  // snapshot text for a "### Page state\n- Page URL: …" line. Playwright
+  // MCP emits that block on every snapshot.
+  let url = urlAfter;
+  const text = ariaSnapshot ?? extractText(result);
+  if (!url && text) url = sniffPageUrl(text);
+  if (!url) return null;
+  let path;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    path = url.startsWith("/") ? url : null;
+  }
+  if (!path) return null;
+  if (isAuthRoute(path)) return null;
+  if (!text) return null;
+  if (!ariaTreeIsSubstantive(text)) return null;
+  return { url, path };
+}
+
+function isAuthRoute(pathname) {
+  for (const prefix of AUTH_ROUTE_BLOCKLIST) {
+    if (pathname === prefix || pathname.startsWith(prefix + "/")) return true;
+  }
+  return false;
+}
+
+function sniffPageUrl(text) {
+  const m = text.match(/^- Page URL:\s*(\S+)/m);
+  return m ? m[1] : null;
+}
+
+function ariaTreeIsSubstantive(text) {
+  // Count list-bullet lines that look like aria nodes (`- role …`). This is
+  // a conservative proxy for tree size; we under-count by ignoring inline
+  // nodes, which is fine — we only need a yes/no on the 20-node threshold.
+  const nodeLines = text.split(/\n/).filter((l) => /^\s*-\s+[a-z]+/i.test(l));
+  if (nodeLines.length < 20) return false;
+  // At least one landmark must be present. The aria-tree text from
+  // Playwright MCP renders landmarks as lines like `- main`, `- region`,
+  // `- region "Walk overview"`, etc.
+  const hasLandmark = nodeLines.some((l) =>
+    /^\s*-\s+(main\b|region\b|article\b|section\b)/i.test(l),
+  );
+  return hasLandmark;
+}
+
+const enumeratedUrls = new Set();
+function markUrlForEnumeration(url) {
+  if (enumeratedUrls.has(url)) return false;
+  enumeratedUrls.add(url);
+  return true;
+}
+// ── END AFFORDANCE_GAPS_DETECTION_BLOCK_v1 ────────────────────────────────
 
 // Strip the "### Modal state" section from a response text so the agent
 // doesn't see it (used for perceive_blind / dismiss_silently policies).

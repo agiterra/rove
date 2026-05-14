@@ -84,3 +84,44 @@ export const flowDraftWithExpectationsSchema = flowDraftSchema.extend({
   expectations: flowExpectationsSchema.optional(),
 });
 export type FlowDraftWithExpectations = z.infer<typeof flowDraftWithExpectationsSchema>;
+
+// ── Affordance exclusions (additive, 2026-05-14) ────────────────────────────
+// Flow YAML may declare affordances that intentionally do NOT exist on a
+// given URL pattern (e.g., "Delete is only on the list view, never on the
+// detail view"). The walker still enumerates the page; the auto-finding
+// emission consults this list and silences matching (URL, kind) pairs.
+// Note in the run that the gap was silenced-by-flow so a future reviewer
+// can re-evaluate.
+//
+// Per docs/proposals/affordance-gaps.md §5.
+export const affordanceGapKindSchema = z.enum([
+  "create",
+  "read",
+  "update",
+  "delete",
+  "undo",
+  "recover",
+  "navigate",
+  "status",
+  "confirm",
+  "save_state",
+  "empty",
+  "error",
+]);
+export type AffordanceGapKind = z.infer<typeof affordanceGapKindSchema>;
+
+export const affordanceExclusionSchema = z.object({
+  url_pattern: z.string().min(1).max(240),
+  do_not_expect: z.array(affordanceGapKindSchema).min(1).max(12),
+  reason: z.string().min(3).max(280),
+});
+export type AffordanceExclusion = z.infer<typeof affordanceExclusionSchema>;
+
+export const affordanceExclusionsSchema = z.array(affordanceExclusionSchema).max(50);
+
+export const flowDraftWithAffordanceExclusionsSchema = flowDraftSchema.extend({
+  affordance_exclusions: affordanceExclusionsSchema.optional(),
+});
+export type FlowDraftWithAffordanceExclusions = z.infer<
+  typeof flowDraftWithAffordanceExclusionsSchema
+>;

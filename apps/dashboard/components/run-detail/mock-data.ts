@@ -8,6 +8,7 @@
 import type { LifecycleFinding } from "../finding-lifecycle/types";
 import type {
   ActionTarget,
+  AffordanceGap,
   FindingView,
   FooterView,
   HeroView,
@@ -243,6 +244,7 @@ export function buildMockRunDetailView(): RunDetailView {
             personaPerceived: false,
           }
         : null,
+    affordance_gaps: MOCK_AFFORDANCE_GAPS_BY_STEP[s.index],
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({
@@ -353,3 +355,47 @@ export function buildMockRunDetailView(): RunDetailView {
     footer,
   };
 }
+
+// ── Mock affordance gaps (additive, 2026-05-14) ─────────────────────────────
+// Substantive pages get a non-empty inventory; transient steps (browser_type
+// without a URL change, errored navigations) get nothing. Mirrors the
+// substantive-page detection rules in the MCP proxy.
+const MOCK_AFFORDANCE_GAPS_BY_STEP: Record<number, AffordanceGap[]> = {
+  8: [
+    {
+      kind: "delete",
+      expected_for: "Power User reviewing an old run to clear it from the list",
+      severity: "critical",
+      evidence:
+        "Toolbar exposes Re-run [ref=e7] and Share [ref=e9]; overflow menu offers Copy URL + Open in new tab; no Delete or Archive affordance anywhere on the run-detail page.",
+      suggested_location: "Toolbar overflow menu next to Share, with a confirm step",
+    },
+    {
+      kind: "navigate",
+      expected_for: "Power User wanting to jump from this run to the parent flow",
+      severity: "medium",
+      evidence:
+        "Breadcrumb shows '← all runs' but no link to the originating flow's detail page; the flow_id is rendered as plain text in the hero.",
+      suggested_location: "Make the flow_id chip in the hero a link to /flows/<id>",
+    },
+  ],
+  11: [
+    {
+      kind: "save_state",
+      expected_for: "Power User editing workspace settings",
+      severity: "high",
+      evidence:
+        "Workspace name + slug form has 8 inputs and a single 'Save' button at the bottom; no auto-save indicator, no dirty-state warning, no unsaved-changes prompt on navigation.",
+      suggested_location:
+        "Header-level 'unsaved changes · save' affordance and a beforeunload guard on the form",
+    },
+    {
+      kind: "empty",
+      expected_for: "First-time admin landing on the workspace settings page",
+      severity: "minor",
+      evidence:
+        "Members list renders an empty <ul> when the workspace has zero invited members; no onboarding CTA explaining how to invite the first teammate.",
+      suggested_location: "Empty-state card in the members list with a 'Invite first teammate' CTA",
+    },
+  ],
+};

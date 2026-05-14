@@ -173,6 +173,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     ``,
     buildNativeDialogsSection(persona, toolPrefix),
     ``,
+    buildAffordanceEnumerationSection(persona, toolPrefix),
+    ``,
     `Phase C — Reflect, adversarially.`,
     `After the walk, ask yourself: "If this app shipped tomorrow, what specific`,
     `reasons would a different user of this persona FAIL to accomplish this goal?"`,
@@ -441,4 +443,116 @@ function buildNativeDialogsSection(persona: Persona, toolPrefix: string): string
     `will not be told about them — that absence is the finding.`,
   ];
   return lines.join("\n");
+}
+
+// ── Affordance enumeration (additive, 2026-05-14) ────────────────────────────
+// Operationalizes docs/theses/negative-space.md at page granularity. The
+// walker pauses on each substantive page and explicitly enumerates the
+// affordances a user of this persona/goal would expect — turning negative
+// space into positive tokens we can file as findings.
+//
+// The header literal `### Affordance enumeration` is the anchor downstream
+// tests / parallel agents look for; keep it stable. Edit here, not inside
+// buildWalkPrompt.
+function buildAffordanceEnumerationSection(persona: Persona, toolPrefix: string): string {
+  const snapshot = `${toolPrefix}snapshot`;
+  const personaLens = describePersonaLens(persona);
+  const lines = [
+    `### Affordance enumeration`,
+    ``,
+    `Each time you land on a SUBSTANTIVE page (a page that renders a real`,
+    `view — not a loading screen, not an auth wall, not a 4xx/5xx error),`,
+    `pause before continuing. Take stock of where you are.`,
+    ``,
+    `You are on this page as the ${persona.label} persona pursuing the flow`,
+    `goal. Enumerate the affordances a user with this goal would expect to`,
+    `be able to perform here. Do NOT only check for the affordance that`,
+    `advances your next step — enumerate the FULL set a user would need.`,
+    `Consider, to the extent each is relevant to your current page and goal:`,
+    ``,
+    `- create:     "+ New" / Add / Compose-style entry points`,
+    `- read:       inspect / view-details affordances for items in view`,
+    `- update:     edit / rename / configure for items in view`,
+    `- delete:     remove / archive / discard for items in view`,
+    `- undo:       a way to revert the last destructive action`,
+    `- recover:    retry / clear-error after a failure state`,
+    `- navigate:   a clear way back, out, or sideways`,
+    `- status:     loading / progress / outcome for async actions`,
+    `- confirm:    confirmation step for destructive operations`,
+    `- save_state: auto-save indicator / loss-of-work warning on long forms`,
+    `- empty:      onboarding CTA on empty lists / first-run states`,
+    `- error:      human-readable cause when something goes wrong`,
+    ``,
+    `Do not force-fit categories that don't apply. A landing page has no`,
+    `"delete"; an empty inbox has no "read"; an error page may have only`,
+    `"recover" and "navigate."`,
+    ``,
+    `For each MISSING affordance, file one entry under \`affordance_gaps\``,
+    `in the JSON output (matches are silent — only gaps emit). Each entry:`,
+    ``,
+    `- kind:              one of the twelve listed above`,
+    `- expected_for:      one sentence describing the user-goal context`,
+    `- severity:          critical | high | medium | minor`,
+    `- evidence:          what IS on the page (cite ${snapshot} refs) and`,
+    `                     why the missing affordance is absent — not just`,
+    `                     "no Delete button" but "toolbar exposes Edit + Share`,
+    `                     [ref=e42]; overflow menu offers Pin + Duplicate;`,
+    `                     no Delete in either"`,
+    `- suggested_location: brief hint where the affordance would naturally live`,
+    ``,
+    `Severity heuristic:`,
+    `- critical: the only place this operation could exist is here, and a`,
+    `  user with the goal cannot proceed without it (most "delete" gaps`,
+    `  on detail views fit this)`,
+    `- high:     the missing affordance forces a workaround that a real`,
+    `  user would likely abandon (no auto-save on a long form)`,
+    `- medium:   friction; the user can still succeed but the path is`,
+    `  worse than it should be (empty state with no CTA)`,
+    `- minor:    polish gap (no undo on a non-destructive toggle)`,
+    ``,
+    `Throttling: enumerate ONCE per URL per walk. If the page is`,
+    `\`/properties/xyz\` and you arrive twice in the same walk, the second`,
+    `arrival skips this phase. The flow-author's \`affordance_exclusions\``,
+    `block may silence specific (URL, kind) pairs — when one applies, log`,
+    `the gap silently as \`silenced_by_flow\` and continue.`,
+    ``,
+    `${personaLens}`,
+    ``,
+    `Then resume your task.`,
+  ];
+  return lines.join("\n");
+}
+
+function describePersonaLens(persona: Persona): string {
+  switch (persona.category) {
+    case "accessibility":
+      return [
+        `As an accessibility persona, enumerate the KEYBOARD-EQUIVALENT of`,
+        `each affordance. "Edit by clicking the row" is not the same affordance`,
+        `as "Edit by Tab+Enter on a focusable row." A missing keyboard path is`,
+        `itself an affordance gap (kind=update / kind=delete / etc).`,
+      ].join("\n");
+    case "agent":
+      return [
+        `As an agent persona, enumerate the PROGRAMMATICALLY-IDENTIFIABLE`,
+        `affordances — stable selectors, semantic roles, accessible names.`,
+        `An affordance that exists visually but lacks accessibility-tree`,
+        `presence is, for an agent, a gap. File those alongside the obvious`,
+        `missing-button gaps.`,
+      ].join("\n");
+    case "mobile":
+      return [
+        `As a mobile persona, enumerate affordances that are reachable at`,
+        `thumb-friendly positions and don't require hover. Hover-only menus`,
+        `are themselves affordance gaps for this persona (kind=navigate or`,
+        `kind=update depending on what's hidden).`,
+      ].join("\n");
+    default:
+      return [
+        `Your expertise level shapes what you'd expect: a novice end-user`,
+        `expects discovery-friendly placement (visible buttons, descriptive`,
+        `labels); an expert accepts keyboard shortcuts and overflow menus.`,
+        `File gaps in terms of what THIS persona would notice missing.`,
+      ].join("\n");
+  }
 }
