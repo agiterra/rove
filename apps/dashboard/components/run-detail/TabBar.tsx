@@ -1,3 +1,5 @@
+"use client";
+
 interface TabSpec {
   id: string;
   label: string;

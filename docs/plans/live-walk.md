@@ -1,6 +1,6 @@
 # Plan — Live Walk (and the UI Rove deserves)
 
-**Status**: Proposed, not started. v1.
+**Status**: v1.1 — visual design + dashboard wiring shipped on branch `live-walk-preview`; daemon-side work still owed. See "Wired vs owed" below.
 **Owner**: Brian.
 **Why now**: Today a walk goes silent for 2–5 minutes and then dumps 51 findings at once. Step events, screenshots, and aria snapshots all exist in the daemon — they just don't reach the dashboard until the walk completes. Surfacing them live turns the run page from a post-mortem into a live trace and gives Rove its first credible "marketing artifact." Equally important, it forces us to fix the dashboard's UX before we ask anyone outside Agiterra to look at it.
 
@@ -33,6 +33,30 @@ When the walk finishes the same page becomes the post-mortem, with no jarring la
 ## Dependencies
 
 - None blocking. Worker-tokens, install-flow, and the install-code sweep all shipped. The only infra we need is a column add on `run_steps` (for the per-step screenshot path) and Supabase Storage uploads inside the daemon, both of which extend existing patterns.
+
+## Wired vs owed (as of branch `live-walk-preview`)
+
+A single PR (`live-walk-preview`) carries every visual + dashboard-side piece needed to call `/runs/[id]` "live-walk-shaped". The remaining work is **daemon-side** — code in `packages/cli/src/daemon/runner.ts` and the MCP proxy — and is intentionally not part of this branch since it changes the actual walk runtime and warrants targeted review.
+
+**Shipped on `live-walk-preview`:**
+
+- `.stitch/DESIGN.md` — Rove's brand-as-constraints doc.
+- `components/run-detail/` — parameterized React port of the Claude Design handoff: `Hero`, `Filmstrip`, `TabBar`, `DetailSplit`, `TankloopPreview` (preview only), `FindingsStream`, `RunFooter`, `TopBar`, `MockThumbs` (12 light-theme SVG mock screenshots), `NowDoingPill`.
+- `components/run-detail/types.ts` + `adapters.ts` — view-model decoupling from raw Supabase rows. `buildRunDetailView(run, steps, findings, signedScreenshotUrls?)` normalizes status, derives NowDoing from the latest step, resolves screenshots to signed-URL / placeholder.
+- `components/run-detail/RunDetailLive.tsx` — client wrapper: tab state, selected-step state, auto-follow-the-running-tile until user picks manually, deep-links to `/findings?run=X&open=Y`.
+- `components/run-detail/useLiveRun.ts` — Realtime subscription on `runs` + `run_steps` + `findings` filtered by `run_id`. `setAuth` before subscribe, catch-up read on `SUBSCRIBED`, 5s safety-net poll while `status === "running"`.
+- `app/runs/[id]/page.tsx` — server reads + signed URL minting (service-role, batch, 10-min TTL, graceful fallback) + render `<RunDetailLive>`. `kind === "change_review"` keeps its existing components untouched.
+- `/preview/live-walk` — same components, fed by `buildMockRunDetailView()`. Stays as the visual reference target.
+- `globals.css` — hero glow layers, indent-rail aria-tree connectors, `.tk-*` Tankloop preview styles, four new keyframes, reduced-motion fallbacks.
+
+**Still owed (separate PRs):**
+
+- **Track B2** — daemon-side per-step writes. The MCP proxy needs a hook that inserts a `run_steps` row at request time (`direction='call'`, `status='running'`) and updates it on response. Today the dashboard only sees rows after the daemon's post-walk batch sync, so an in-progress walk on `/runs/[id]` will look mostly empty until the daemon settles.
+- **Track B2 (continued)** — screenshot uploads at capture time. The proxy currently writes screenshots to a local dir and the sink uploads them post-walk. Flipping the order populates `run_steps.screenshot_key` per step.
+- **aria-snapshot parser.** `run_steps.aria_snapshot` is captured but unparsed. The `DetailSplit` a11y tree panel currently shows "No aria-snapshot captured for this step yet" for every real-data step.
+- **Worker-status pill in `TopBar`** — hard-coded to `unknown` for real `/runs/[id]`. Should query `workers` for the run's daemon and show online/offline.
+- **Completed-walk hero variant tweaks** — outcome glow (cyan for goal reached, rose for not reached) is wired; needs visual review on real completed runs.
+- **`change_review` adoption.** This branch leaves `kind === "change_review"` on the old layout intact. A later PR ports it to the new components.
 
 ## How this is structured
 
