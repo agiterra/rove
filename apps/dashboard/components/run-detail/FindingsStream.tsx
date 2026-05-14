@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { MockThumb } from "./MockThumbs";
 import type { FindingView } from "./types";
 
@@ -33,9 +36,15 @@ interface FindingsStreamProps {
   findings: FindingView[];
   /** Optional href builder for "open finding" navigation. */
   findingHref?: (f: FindingView) => string;
+  /** Subline mode: `running` → "filed in last X" when at least one finding; else "sorted by severity". */
+  runStatus?: "running" | "done" | "errored" | "pending";
+  /** Newest finding's first-seen timestamp (ISO or epoch ms). Drives the "filed in last X" age. */
+  lastFiledAt?: string | number | null;
 }
 
-export function FindingsStream({ findings, findingHref }: FindingsStreamProps) {
+export function FindingsStream({ findings, findingHref, runStatus, lastFiledAt }: FindingsStreamProps) {
+  const newIds = useNewIds(findings);
+  const subline = useSubline(findings.length, runStatus, lastFiledAt);
   return (
     <section className="mt-7" aria-label="Findings filed during this walk">
       <div className="flex items-baseline justify-between mb-2.5">
@@ -45,9 +54,9 @@ export function FindingsStream({ findings, findingHref }: FindingsStreamProps) {
         >
           FINDINGS FILED THIS WALK · {findings.length}
         </p>
-        {findings.length > 0 ? (
+        {subline ? (
           <span className="font-mono" style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
-            sorted by severity
+            {subline}
           </span>
         ) : null}
       </div>
@@ -57,12 +66,76 @@ export function FindingsStream({ findings, findingHref }: FindingsStreamProps) {
       ) : (
         <div className="flex flex-col gap-2.5">
           {findings.map((f) => (
-            <FindingCard key={f.id} finding={f} href={findingHref?.(f)} />
+            <FindingCard
+              key={f.id}
+              finding={f}
+              href={findingHref?.(f)}
+              isNew={newIds.has(f.id)}
+            />
           ))}
         </div>
       )}
     </section>
   );
+}
+
+/**
+ * Returns the set of finding ids that are newly present compared to the
+ * previous render. First render returns an empty set so initial load
+ * doesn't animate every card. The set clears as soon as the parent's
+ * findings prop is re-read on the next render, so an animation fires
+ * once per insert.
+ */
+function useSubline(
+  count: number,
+  runStatus: FindingsStreamProps["runStatus"],
+  lastFiledAt: FindingsStreamProps["lastFiledAt"],
+): string | null {
+  const [, setTick] = useState(0);
+  const isRunning = runStatus === "running";
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = window.setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, [isRunning]);
+
+  if (count === 0) return null;
+  if (!isRunning) return "sorted by severity";
+  if (lastFiledAt == null) return "sorted by severity";
+
+  const ts = typeof lastFiledAt === "string" ? Date.parse(lastFiledAt) : lastFiledAt;
+  if (!Number.isFinite(ts)) return "sorted by severity";
+  const seconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  return `filed in last ${humanAge(seconds)}`;
+}
+
+function humanAge(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+
+function useNewIds(findings: FindingView[]): Set<string> {
+  const seenRef = useRef<Set<string> | null>(null);
+  const [newIds, setNewIds] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const seen = seenRef.current;
+    if (seen == null) {
+      // Initial mount: prime the seen set without animating any card.
+      seenRef.current = new Set(findings.map((f) => f.id));
+      return;
+    }
+    const fresh = new Set<string>();
+    for (const f of findings) {
+      if (!seen.has(f.id)) fresh.add(f.id);
+    }
+    seenRef.current = new Set(findings.map((f) => f.id));
+    if (fresh.size > 0) setNewIds(fresh);
+  }, [findings]);
+
+  return newIds;
 }
 
 function EmptyFindings() {
@@ -80,12 +153,20 @@ function EmptyFindings() {
   );
 }
 
-function FindingCard({ finding, href }: { finding: FindingView; href?: string }) {
+function FindingCard({
+  finding,
+  href,
+  isNew,
+}: {
+  finding: FindingView;
+  href?: string;
+  isNew: boolean;
+}) {
   const Tag = href ? "a" : "article";
   return (
     <Tag
       {...(href ? { href } : {})}
-      className="grid items-center kinetic-hover focus-rove relative overflow-hidden"
+      className={`grid items-center kinetic-hover focus-rove relative overflow-hidden ${isNew ? "lw-finding-enter" : ""}`}
       style={{
         gridTemplateColumns: "100px 1fr 130px",
         gap: 20,

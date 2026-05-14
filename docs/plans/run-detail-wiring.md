@@ -72,7 +72,7 @@
 | Errored-tile rose border | `step.status === "errored"` | ✅ | — |
 | "Awaiting next step" dashed placeholder | Rendered when `hero.status === "running"` (filmstrip prop `showAwaitingTile`) | ✅ | — |
 | Scroll arrows (left/right) | Local `useRef` + `scrollBy({left: ±320})`; static icon-only buttons | ✅ | Preserve `aria-label`, `.focus-rove`, and keyboard activation |
-| Auto-follow running tile | `stickToRunning` state in `RunDetailLive`; flips false on manual click | ✅ | Add `scrollIntoView({ behavior: "smooth", inline: "center" })` on the running tile when its index changes |
+| Auto-follow running tile | `stickToRunning` state in `RunDetailLive`; on top of that, `Filmstrip` itself calls `scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })` on the running tile whenever its index changes. | ✅ | — |
 | Filmstrip section "scroll-snap" annotation | Removed in c209a3b | ✅ | — |
 | Empty state (no steps) | Renders dashed placeholder with copy "No steps recorded yet" | ✅ | — |
 
@@ -86,7 +86,7 @@
 | Reflection | `Reflection` reads `view.reflection` (plan / surprises / gap / confidence / metrics) | ✅ | — |
 | Tab click → switch | `useState<TabId>` in `RunDetailLive` | ✅ | — |
 | Active tab cyan underline + glow | `.tab.active::after` CSS in TabBar | ✅ | — |
-| Keyboard nav (arrow keys move between tabs, Enter activates) | Not implemented | ❌ | Add `onKeyDown` to TabBar; standard radio-group pattern with `aria-selected` already set |
+| Keyboard nav (arrow keys move between tabs, Enter activates) | `TabBar.handleKey`: Left/Right cycles, Home/End jumps to ends; auto-activates + refocuses the new tab. | ✅ | — |
 
 ## 5. Detail split (Filmstrip tab)
 
@@ -145,7 +145,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Section header `FINDINGS FILED THIS WALK · N` | `findings.length` | ✅ | — |
-| "filed in last 92s" / "sorted by severity" subline | Static "sorted by severity" today | 🟡 | When `runs.status === "running"`, render `filed in last Nm Ns` based on age of the most recent finding |
+| "filed in last 92s" / "sorted by severity" subline | `useSubline` in `FindingsStream`: for running walks with a known `lastFiledAt`, renders `filed in last Nm Ss`, ticks every 30s. Otherwise `sorted by severity`. | ✅ | — |
 | Card severity bar (left edge, 3px) | `findings.severity` → palette in FindingsStream | ✅ | — |
 | Severity badge | Same | ✅ | — |
 | Title | `findings.title` | ✅ | — |
@@ -156,7 +156,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 | Click card | `findingHref` → `/findings?run=X&open=Y`; falls back to static `<article>` when no href | ✅ | Preserve `.focus-rove` only on link-rendered cards; no fake click target for static articles |
 | Card hover/focus motion | `.kinetic-hover` + `.focus-rove` | ✅ | Preserve reduced-motion behavior |
 | Empty state | Render when `findings.length === 0` | ✅ | — |
-| Streaming (new finding fades in at top) | Realtime INSERT on `findings` triggers a full re-fetch in `useLiveRun`; no animation yet | 🟡 | Add `framer-motion` `<AnimatePresence>` wrapper OR pure CSS `@keyframes` slide-in. Track new IDs vs prior render; animate only the diff |
+| Streaming (new finding fades in at top) | Pure-CSS `lw-finding-enter` keyframe; `useNewIds` tracks first-render baseline vs subsequent renders and adds the class only to ids that weren't there before. Reduced-motion suppresses. | ✅ | — |
 
 ## 9. Footer strip
 
@@ -215,9 +215,9 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | `aria-snapshot ↔ action target` matcher | ✅ shipped | `components/run-detail/highlightAriaTarget.ts`; ref-first, name-fallback. |
 | Reflection panel | ✅ shipped | `components/run-detail/Reflection.tsx` + `Reflection.parts.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
 | MetricsStrip restyle | ✅ shipped | `MetricsStrip` inside `Reflection.parts.tsx`; renders all 8 trajectory metrics in a 2-row 4-col grid (no "6 tiles" misclaim) |
-| Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
+| Animated finding stream | ✅ shipped | Pure-CSS `lw-finding-enter` keyframe; new-id diff tracked in `FindingsStream.useNewIds`. |
 | 1Hz timer ticker | ✅ shipped | `useTickingView` in `RunDetailLive` (and mirrored in `PreviewLiveWalk`); ticks while `hero.finishedAtMs == null` |
-| Auto-scroll filmstrip to running tile | New | `Filmstrip` ref + `useEffect` watching the running step's index |
+| Auto-scroll filmstrip to running tile | ✅ shipped | `Filmstrip` keeps a `runningTileRef` and runs `scrollIntoView` in a `useEffect` keyed on the running index. |
 | Steps-tab click → switch to Filmstrip tab | ✅ shipped | `RunDetailLive.tsx` `onPickStep` now calls `setTab("filmstrip")` |
 | Worker status pill | New | `TopBar` consumes `view.topBar.workerStatus`; `online` / `offline` / `unknown` already typed |
 | `initiated by` label change | ✅ shipped | `RunFooter` |

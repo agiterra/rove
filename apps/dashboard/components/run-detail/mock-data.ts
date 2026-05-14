@@ -265,6 +265,7 @@ export function buildMockRunDetailView(): RunDetailView {
     steps: stepViews,
     selectedStepIndex: SELECTED_STEP_INDEX,
     findings: findingViews,
+    lastFindingAt: new Date(Date.now() - 92_000).toISOString(),
     reflection,
     footer,
   };

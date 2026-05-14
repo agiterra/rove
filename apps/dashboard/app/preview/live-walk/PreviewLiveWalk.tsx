@@ -67,11 +67,19 @@ export function PreviewLiveWalk({ view: initialView }: PreviewLiveWalkProps) {
         {tab === "steps" ? <StepsPreviewList view={view} onPick={onPickStep} selectedIndex={selectedIdx} /> : null}
         {tab === "findings" ? (
           <div className="mt-5">
-            <FindingsStream findings={view.findings} />
+            <FindingsStream
+            findings={view.findings}
+            runStatus={view.hero.status}
+            lastFiledAt={view.lastFindingAt}
+          />
           </div>
         ) : null}
         {tab === "reflection" ? <Reflection view={view.reflection} runStatus={view.hero.status} /> : null}
-        {tab !== "findings" ? <FindingsStream findings={view.findings} /> : null}
+        {tab !== "findings" ? <FindingsStream
+            findings={view.findings}
+            runStatus={view.hero.status}
+            lastFiledAt={view.lastFindingAt}
+          /> : null}
         <RunFooter view={view.footer} />
       </main>
     </div>

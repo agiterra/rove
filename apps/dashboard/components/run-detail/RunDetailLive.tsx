@@ -94,13 +94,23 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
         {tab === "steps" ? <StepsList view={view} onPick={onPickStep} selectedIndex={effectiveSelected} /> : null}
         {tab === "findings" ? (
           <div className="mt-5">
-            <FindingsStream findings={view.findings} findingHref={findingHref} />
+            <FindingsStream
+            findings={view.findings}
+            findingHref={findingHref}
+            runStatus={view.hero.status}
+            lastFiledAt={view.lastFindingAt}
+          />
           </div>
         ) : null}
         {tab === "reflection" ? (
           <Reflection view={view.reflection} runStatus={view.hero.status} />
         ) : null}
-        {tab !== "findings" ? <FindingsStream findings={view.findings} findingHref={findingHref} /> : null}
+        {tab !== "findings" ? <FindingsStream
+            findings={view.findings}
+            findingHref={findingHref}
+            runStatus={view.hero.status}
+            lastFiledAt={view.lastFindingAt}
+          /> : null}
         <RunFooter view={view.footer} />
       </main>
     </div>

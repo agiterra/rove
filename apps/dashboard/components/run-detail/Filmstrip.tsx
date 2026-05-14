@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { MockThumb } from "./MockThumbs";
 import type { StepView } from "./types";
 
@@ -14,6 +14,7 @@ interface FilmstripProps {
 
 export function Filmstrip({ steps, selectedIndex, onSelect, showAwaitingTile = false }: FilmstripProps) {
   const stripRef = useRef<HTMLDivElement | null>(null);
+  const runningTileRef = useRef<HTMLButtonElement | null>(null);
 
   const scrollBy = (dir: number) => {
     stripRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
@@ -22,6 +23,18 @@ export function Filmstrip({ steps, selectedIndex, onSelect, showAwaitingTile = f
   const doneCount = steps.filter((s) => s.status === "done").length;
   const errCount = steps.filter((s) => s.status === "errored").length;
   const runCount = steps.filter((s) => s.status === "running").length;
+  const runningIndex = steps.find((s) => s.status === "running")?.index ?? null;
+
+  // Auto-scroll the running tile into view (centered) whenever its index
+  // changes. Honors reduced-motion via scroll-behavior CSS on the strip.
+  useEffect(() => {
+    if (runningIndex == null) return;
+    runningTileRef.current?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [runningIndex]);
 
   return (
     <section aria-label="Step filmstrip" className="mt-7">
@@ -64,6 +77,7 @@ export function Filmstrip({ steps, selectedIndex, onSelect, showAwaitingTile = f
                 step={step}
                 isSelected={step.index === selectedIndex}
                 onClick={() => onSelect?.(step.index)}
+                tileRef={step.status === "running" ? runningTileRef : undefined}
               />
             ))}
             {showAwaitingTile ? <AwaitingTile /> : null}
@@ -90,12 +104,23 @@ function EmptyStrip() {
   );
 }
 
-function Tile({ step, isSelected, onClick }: { step: StepView; isSelected: boolean; onClick?: () => void }) {
+function Tile({
+  step,
+  isSelected,
+  onClick,
+  tileRef,
+}: {
+  step: StepView;
+  isSelected: boolean;
+  onClick?: () => void;
+  tileRef?: React.Ref<HTMLButtonElement>;
+}) {
   const running = step.status === "running";
   const errored = step.status === "errored";
 
   return (
     <button
+      ref={tileRef}
       type="button"
       onClick={onClick}
       aria-label={`Step ${step.index}, ${step.toolName}, ${step.status}`}

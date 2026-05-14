@@ -145,6 +145,7 @@ interface FindingRow {
   title: string;
   heuristic: string | null;
   step_index?: number | null;
+  first_seen_at?: string | null;
 }
 
 interface AdapterInput {
@@ -192,12 +193,20 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     toFindingView(f, steps, signedScreenshotUrls, signedFindingScreenshotUrls),
   );
 
+  const lastFindingAt = findings.reduce<string | null>((acc, f) => {
+    const ts = typeof f.first_seen_at === "string" ? f.first_seen_at : null;
+    if (!ts) return acc;
+    if (!acc || Date.parse(ts) > Date.parse(acc)) return ts;
+    return acc;
+  }, null);
+
   return {
     topBar: buildTopBar(run, currentUserLabel, workerOnline),
     hero: buildHero(run, status, stepViews, elapsedLabel),
     steps: stepViews,
     selectedStepIndex: stepViews.length > 0 ? stepViews[stepViews.length - 1].index : null,
     findings: findingViews,
+    lastFindingAt,
     reflection: buildReflection(run),
     footer: buildFooter(run, elapsedLabel),
   };

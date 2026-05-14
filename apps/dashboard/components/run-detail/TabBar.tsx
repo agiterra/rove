@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 interface TabSpec {
   id: string;
   label: string;
@@ -19,6 +21,19 @@ export function TabBar({ active, onChange, findingCount }: TabBarProps) {
     { id: "findings", label: "Findings", count: findingCount },
     { id: "reflection", label: "Reflection" },
   ];
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  function handleKey(e: React.KeyboardEvent<HTMLButtonElement>, idx: number) {
+    let next = idx;
+    if (e.key === "ArrowRight") next = (idx + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") next = (idx - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    onChange?.(tabs[next].id);
+    buttonRefs.current[next]?.focus();
+  }
 
   return (
     <div
@@ -27,15 +42,19 @@ export function TabBar({ active, onChange, findingCount }: TabBarProps) {
       className="flex gap-7 mt-3"
       style={{ borderBottom: "1px solid var(--color-border)" }}
     >
-      {tabs.map((t) => {
+      {tabs.map((t, idx) => {
         const isActive = t.id === active;
         return (
           <button
             key={t.id}
+            ref={(el) => {
+              buttonRefs.current[idx] = el;
+            }}
             type="button"
             role="tab"
             aria-selected={isActive}
             tabIndex={isActive ? 0 : -1}
+            onKeyDown={(e) => handleKey(e, idx)}
             onClick={() => onChange?.(t.id)}
             className="focus-rove relative bg-transparent border-0 flex items-center gap-2 rounded-md"
             style={{

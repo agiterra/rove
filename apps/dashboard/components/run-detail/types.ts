@@ -154,6 +154,8 @@ export interface RunDetailView {
   steps: StepView[];
   selectedStepIndex: number | null;
   findings: FindingView[];
+  /** ISO timestamp of the most recent finding's first_seen_at, for the "filed in last X" subline. */
+  lastFindingAt: string | null;
   reflection: ReflectionView;
   footer: FooterView;
 }

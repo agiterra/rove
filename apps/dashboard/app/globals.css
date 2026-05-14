@@ -353,6 +353,22 @@ select {
   animation: lw-pulse-bg 1.8s ease-in-out infinite;
 }
 
+@keyframes lw-finding-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+    box-shadow: 0 0 0 1px rgba(63, 201, 203, 0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    box-shadow: 0 0 0 1px rgba(63, 201, 203, 0);
+  }
+}
+.lw-finding-enter {
+  animation: lw-finding-enter 520ms ease-out;
+}
+
 /* Indent rails for the accessibility tree. Pure-CSS connector lines. */
 .lw-rail {
   position: relative;
@@ -827,7 +843,8 @@ select {
   }
   .lw-dot.lw-pulse,
   .lw-tile-running,
-  .lw-tree-highlight {
+  .lw-tree-highlight,
+  .lw-finding-enter {
     animation: none;
   }
   .lw-sweep::after {
