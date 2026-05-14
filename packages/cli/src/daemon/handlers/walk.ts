@@ -26,7 +26,16 @@ export interface WalkResult {
   stdout_tail: string;
 }
 
-export async function runWalk(input: unknown): Promise<WalkResult> {
+export interface RunWalkOptions {
+  /**
+   * Project slug. Required when the daemon has no repo checkout (installed
+   * via /setup) — passed through to `rove run --project-id` so the
+   * subprocess synthesizes its workspace from Supabase.
+   */
+  projectId?: string;
+}
+
+export async function runWalk(input: unknown, opts: RunWalkOptions = {}): Promise<WalkResult> {
   const parsed = walkInputSchema.parse(input);
   // Reuse the same bin script that started the daemon — avoids requiring
   // `rove` on $PATH. process.argv[1] is the entry script (the
@@ -43,6 +52,7 @@ export async function runWalk(input: unknown): Promise<WalkResult> {
     "--sinks",
     "markdown,supabase,github-issues",
   ];
+  if (opts.projectId) args.push("--project-id", opts.projectId);
   if (parsed.target_url) args.push("--target-url", parsed.target_url);
   if (parsed.notes) args.push("--notes", parsed.notes);
   if (parsed.max_budget_usd !== undefined) {

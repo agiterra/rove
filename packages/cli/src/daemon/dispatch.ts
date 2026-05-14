@@ -55,7 +55,7 @@ async function runHandler(job: AgentJobRow): Promise<unknown> {
         : generatePersona({ description });
     }
     case "walk":
-      return runWalk(job.input);
+      return runWalk(job.input, { projectId: job.project_id });
     default: {
       const exhaustive: never = job.kind;
       throw new Error(`unknown job kind: ${String(exhaustive)}`);

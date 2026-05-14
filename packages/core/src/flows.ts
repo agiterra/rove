@@ -41,6 +41,7 @@ export function parseFlowFile(content: string, filePath: string): FlowInfo {
     goal: extractScalar(content, "goal") ?? "(no goal found)",
     filePath,
     budget: extractBudget(content),
+    yamlBody: content,
   };
 }
 

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveWorkspace } from "./workspace.js";
+import { resolveSyntheticWorkspace, resolveWorkspace } from "./workspace.js";
 import { runListCommand } from "./commands/list.js";
 import { runPersonasCommand } from "./commands/personas.js";
 import { runDoctorCommand } from "./commands/doctor.js";
@@ -127,11 +127,17 @@ program
   )
   .option("--gh-dry-run", "GitHub sink only — log gh commands instead of running them", false)
   .option("--no-auth", "Walk anonymously (skip storage-state injection)")
+  .option(
+    "--project-id <slug>",
+    "Project slug. Required when running outside a repo checkout (e.g. a daemon installed via /setup). The flow YAML is fetched from Supabase and a transient workspace is synthesized under ~/.rove/run/<id>/.",
+  )
   .action(async (rawOpts: Record<string, unknown>) => {
-    const ws = await resolveWorkspace();
+    const flowId = rawOpts.flow as string;
+    const projectIdOverride = rawOpts.projectId as string | undefined;
+    const ws = await resolveWorkspaceForRun(flowId, projectIdOverride);
     process.exit(
       await runRunCommand(ws, {
-        flowId: rawOpts.flow as string,
+        flowId,
         personaId: rawOpts.persona as string,
         goal: rawOpts.goal as string | undefined,
         notes: rawOpts.notes as string | undefined,
@@ -144,6 +150,7 @@ program
         ghMinSeverity: rawOpts.ghMinSeverity as ReturnType<typeof parseSeverity> | undefined,
         ghDryRun: rawOpts.ghDryRun as boolean,
         authenticated: (rawOpts.auth as boolean | undefined) ?? true,
+        projectIdOverride,
       }),
     );
   });
@@ -393,6 +400,36 @@ auth
   .action(async () => {
     process.exit(await runAuthShowTokenCommand());
   });
+
+/**
+ * Resolve a workspace for the `run` command, falling back to a synthesized
+ * one when no rove.config.ts exists (daemon installed via /setup, walking
+ * a flow whose YAML lives only in Supabase).
+ */
+async function resolveWorkspaceForRun(
+  flowId: string,
+  projectIdOverride: string | undefined,
+): Promise<Awaited<ReturnType<typeof resolveWorkspace>>> {
+  try {
+    return await resolveWorkspace();
+  } catch (err) {
+    const msg = (err as Error)?.message ?? "";
+    if (!msg.includes("No rove.config")) throw err;
+    if (!projectIdOverride) {
+      throw new Error(
+        `${msg}\n\nIf you're running outside a repo checkout (e.g. a worker daemon), pass --project-id <slug>.`,
+      );
+    }
+    const { getSupabaseClient } = await import("./supabase/client.js");
+    const { SupabaseStore } = await import("./supabase/store.js");
+    const store = new SupabaseStore(getSupabaseClient(), projectIdOverride);
+    return resolveSyntheticWorkspace({
+      flowId,
+      projectId: projectIdOverride,
+      fetchFlowYaml: async (id) => store.fetchFlowYaml(id),
+    });
+  }
+}
 
 program.parseAsync(process.argv).catch((err) => {
   console.error(err);

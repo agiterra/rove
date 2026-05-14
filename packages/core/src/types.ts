@@ -57,6 +57,13 @@ export interface FlowInfo {
   filePath: string;
   /** Parsed `budget:` block from the YAML, or null when absent / unparseable. */
   budget: FlowBudget | null;
+  /**
+   * The full canonical YAML text. Populated by `parseFlowFile` and by
+   * `fetchFlowFromStore` (Phase D worker-token path). Used to mirror the
+   * spec into Supabase so workers without a repo checkout can reconstitute
+   * a workspace under ~/.rove/run/<runId>/.
+   */
+  yamlBody: string;
 }
 
 // ── Findings (the contract between agent stdout and the sink) ─────────────────

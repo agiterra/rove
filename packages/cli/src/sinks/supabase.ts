@@ -75,15 +75,17 @@ export class SupabaseSink implements SinkAdapter {
 
     try {
       await this.store.upsertPersona(persona);
-      // Sink-path doesn't read the YAML, so it can't know the budget. The
-      // sync path / discoverFlows() write the real value; this just keeps
-      // the row alive so the run insert's FK passes. Use null to avoid
-      // clobbering an already-synced budget.
+      // Sink-path doesn't read the YAML, so it can't know the budget or
+      // emit a yaml_body. The sync path / discoverFlows() write the real
+      // values; this just keeps the row alive so the run insert's FK
+      // passes. Pass null / empty string so upsertFlow skips those columns
+      // and doesn't clobber an already-synced value.
       await this.store.upsertFlow({
         flowId: input.payload.flow_id,
         goal: input.payload.summary ?? input.payload.flow_id,
         filePath: "(unknown)",
         budget: null,
+        yamlBody: "",
       });
       await this.store.createRun({
         runId: input.runId,

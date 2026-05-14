@@ -37,6 +37,12 @@ export interface RunOptions {
    * it to the dispatcher. Default true. Set false to walk anonymously.
    */
   authenticated: boolean;
+  /**
+   * When the workspace was synthesized from Supabase (no local
+   * rove.config.ts), this is the project slug. Skips the second
+   * loadRoveConfig() call and is passed through to live-step writes.
+   */
+  projectIdOverride?: string;
 }
 
 export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Promise<number> {
@@ -73,9 +79,13 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     persona.category === "agent" ? "clean-room" : "shared";
   const isolated = isolation === "clean-room";
 
-  // Load the config once so its defaultTargetUrl participates in the target
-  // resolution precedence below (and projectId is reused at sink-create time).
-  const { config } = await loadRoveConfig(ws.rootDir);
+  // When projectIdOverride is supplied (workspace synthesized from
+  // Supabase — daemon installed via /setup), skip the second loadRoveConfig
+  // call entirely. Otherwise read the in-repo config for projectId +
+  // defaultTargetUrl.
+  const config = opts.projectIdOverride
+    ? { projectId: opts.projectIdOverride, defaultTargetUrl: undefined as string | undefined }
+    : (await loadRoveConfig(ws.rootDir)).config;
 
   const runId = randomUUID();
   const runDir = join(ws.reportsDir, "agentic-walks", runId);

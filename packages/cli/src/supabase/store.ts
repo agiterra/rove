@@ -60,6 +60,7 @@ export class SupabaseStore {
     };
     const budgetRow = budgetForRow(flow.budget);
     if (budgetRow != null) row.budget = budgetRow;
+    if (flow.yamlBody && flow.yamlBody.length > 0) row.yaml_body = flow.yamlBody;
 
     const { error } = await this.db.from("flows").upsert(row, { onConflict: "id" });
     if (error) throw new Error(`upsertFlow(${flow.flowId}): ${error.message}`);
@@ -282,7 +283,7 @@ export class SupabaseStore {
     if (error) throw new Error(`upsertPersonaWithYaml(${p.id}): ${error.message}`);
   }
 
-  /** Sync-only: upsert a flow with its YAML SHA. */
+  /** Sync-only: upsert a flow with its YAML SHA + body. */
   async upsertFlowWithYaml(flow: FlowInfo, yamlSha256: string): Promise<void> {
     const { error } = await this.db.from("flows").upsert(
       {
@@ -294,10 +295,31 @@ export class SupabaseStore {
         yaml_sha256: yamlSha256,
         synced_from_yaml_at: new Date().toISOString(),
         budget: budgetForRow(flow.budget),
+        yaml_body: flow.yamlBody,
       },
       { onConflict: "id" },
     );
     if (error) throw new Error(`upsertFlowWithYaml(${flow.flowId}): ${error.message}`);
+  }
+
+  /**
+   * Fetch a single flow row by id, for the workspace-less run path: a
+   * daemon installed via /setup has no repo checkout and must reconstitute
+   * the YAML from the DB. Returns null when the row is missing or has no
+   * yaml_body (older flows synced before the column existed).
+   */
+  async fetchFlowYaml(flowId: string): Promise<{ goal: string; yamlBody: string } | null> {
+    const { data, error } = await this.db
+      .from("flows")
+      .select("goal, yaml_body")
+      .eq("id", flowId)
+      .eq("project_id", this.projectId)
+      .maybeSingle();
+    if (error) throw new Error(`fetchFlowYaml(${flowId}): ${error.message}`);
+    if (!data) return null;
+    const body = (data as { goal: string; yaml_body: string | null }).yaml_body;
+    if (!body || body.length === 0) return null;
+    return { goal: (data as { goal: string }).goal, yamlBody: body };
   }
 }
 

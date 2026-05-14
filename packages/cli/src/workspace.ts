@@ -8,7 +8,10 @@
  * `<root>/.rove/reports` (created on demand).
  */
 import { existsSync, mkdirSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
 import { loadRoveConfig } from "./config.js";
 
 export interface ResolvedWorkspace {
@@ -41,4 +44,34 @@ export async function resolveWorkspace(
     flowsDir,
     reportsDir,
   };
+}
+
+/**
+ * Synthesize a transient workspace for a daemon that has no repo checkout
+ * (e.g. installed via /setup). Fetches the flow's canonical YAML from the
+ * caller-supplied source, writes it under ~/.rove/run/<id>/flows/, and
+ * returns a ResolvedWorkspace that the rest of the run pipeline consumes
+ * unchanged.
+ *
+ * The caller supplies the fetch function so this module stays free of any
+ * Supabase / network dependency.
+ */
+export async function resolveSyntheticWorkspace(opts: {
+  flowId: string;
+  projectId: string;
+  fetchFlowYaml: (flowId: string) => Promise<{ yamlBody: string } | null>;
+}): Promise<ResolvedWorkspace> {
+  const fetched = await opts.fetchFlowYaml(opts.flowId);
+  if (!fetched) {
+    throw new Error(
+      `Flow ${opts.flowId} not found in project ${opts.projectId} (or has no yaml_body — re-run \`rove sync\` to populate).`,
+    );
+  }
+  const rootDir = join(homedir(), ".rove", "run", randomUUID());
+  const flowsDir = join(rootDir, "flows");
+  const reportsDir = join(rootDir, "reports");
+  await mkdir(flowsDir, { recursive: true });
+  await mkdir(reportsDir, { recursive: true });
+  await writeFile(join(flowsDir, `${opts.flowId}.flow.yaml`), fetched.yamlBody, "utf8");
+  return { rootDir, flowsDir, reportsDir };
 }
