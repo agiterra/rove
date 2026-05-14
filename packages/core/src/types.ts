@@ -46,10 +46,17 @@ export interface Persona {
 
 // ── Flows ─────────────────────────────────────────────────────────────────────
 
+export interface FlowBudget {
+  maxSteps: number | null;
+  maxSeconds: number | null;
+}
+
 export interface FlowInfo {
   flowId: string;
   goal: string;
   filePath: string;
+  /** Parsed `budget:` block from the YAML, or null when absent / unparseable. */
+  budget: FlowBudget | null;
 }
 
 // ── Findings (the contract between agent stdout and the sink) ─────────────────

@@ -47,7 +47,7 @@
 | Hero aurora / streak / edge layers | Static CSS (`.lw-hero-*` in `globals.css`) with intensity from `view.hero.status` | ✅ | Preserve reduced-motion fallback and avoid adding data dependencies |
 | Headline ("Walking the app" / "Goal reached" / "Goal not reached" / "Walk failed" / "Walk pending") | `runs.status` + `runs.goal_reached` via `buildHeroStatusBits()` | ✅ | — |
 | Headline glow (cyan for goal reached, rose for errored) | Same derivation | ✅ | — |
-| Subline `Step N of estimated M · 1m 32s elapsed · 3m 28s remaining budget` | `runs.actual_step_count` or `run_steps.length`, `runs.predicted_step_count`, computed elapsed. No budget DB source exists yet. | 🟡 | Do not join a nonexistent `flows.budget_seconds_max`. Add a schema/sync PR for `flows.budget jsonb` or `flows.budget_seconds_max int`, populated from YAML `budget.max_seconds`; only then expose remaining budget. Until then hide the budget chunk. |
+| Subline `Step N of estimated M · 1m 32s elapsed · 3m 28s remaining budget` | `runs.actual_step_count`/`run_steps.length`, `runs.predicted_step_count`, computed elapsed, and `flows.budget.max_seconds` (read server-side from a separate `flows` query in `app/runs/[id]/page.tsx`). `computeRemainingLabel` returns the MM:SS remaining only while running; ticker recomputes every second. | ✅ | — |
 | Metric tile — `target URL` | `runs.walked_url` | ✅ | — |
 | Metric tile — `persona` | `runs.persona_id` → `prettyPersona(id)` | ✅ | — |
 | Metric tile — `flow id` | `runs.flow_id` (the slug) — display already correct, eyebrow + tile both render the slug. Run-uuid short form lives in the footer. | ✅ | — |
@@ -209,7 +209,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Mint signed URLs for `finding_screenshots` (separate from step screenshots) | ✅ shipped | `app/runs/[id]/page.tsx → signFirstFindingScreenshots()` fetches first-ordinal storage_key per finding, signs in `walks` bucket, passes `signedFindingScreenshotUrls` (Record<findingId, url>) to the adapter. |
 | Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
 | Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
-| Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |
+| Persist and resolve flow budget | ✅ shipped | Migration `20260514000000_flows_budget.sql` adds `flows.budget jsonb`. `parseFlowFile` extracts `budget.max_steps`/`budget.max_seconds` from YAML; CLI store writes via `upsertFlowWithYaml` (sync-authoritative) and conditionally via `upsertFlow` (sink-path never clobbers a synced value). Dashboard server reads `flows.budget`, hands `flowBudgetSecondsMax` to the adapter. |
 | `extractActionTarget(toolName, args)` helper | ✅ shipped | `components/run-detail/adapters.ts`; recognizes Playwright MCP `target` / `ref` / `selector` + `element` for action tools; `url` for navigation. |
 | `parseAriaSnapshot(text)` parser | ✅ shipped | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a single raw-text node. |
 | `aria-snapshot ↔ action target` matcher | ✅ shipped | `components/run-detail/highlightAriaTarget.ts`; ref-first, name-fallback. |
@@ -244,7 +244,7 @@ To keep diffs reviewable, this lands as dashboard PRs plus a separate Track B2 d
 5. **`wire-aria-tree`** — `parseAriaSnapshot` + `highlightAriaTarget`; depends on `wire-step-args`.
 6. **`wire-a11y-polish`** — keyboard nav on tabs, Steps→Filmstrip tab switch on row click, focus-ring verification for `display: contents` rows, reduced-motion audit.
 7. **`wire-motion-polish`** — 1Hz visual timer ticker outside the live region, auto-scroll filmstrip, animated finding inserts.
-8. **`persist-flow-budget`** — migration + sync update for YAML `budget.max_seconds`; after it lands, hero subline shows remaining budget.
+8. **`persist-flow-budget`** ✅ shipped — migration + parser + sync update for YAML `budget.max_seconds`; hero subline shows remaining budget.
 9. **`link-runs-to-workers`** — Track B2 schema/runtime contract that records which `agent_jobs` / `workers` row produced a run.
 10. **`wire-worker-status`** — dashboard resolver/pill using the explicit run↔worker link.
 

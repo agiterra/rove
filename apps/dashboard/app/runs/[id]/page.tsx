@@ -71,6 +71,18 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
   const findings = (findingsRes.data ?? []) as unknown as RunFinding[];
   const steps = (stepsRes.data ?? []) as unknown as RunStep[];
 
+  // Flow budget — separate read because the runs row doesn't carry it.
+  // Used by the hero subline to render "remaining budget".
+  const flowBudgetRes = await supabase
+    .from("flows")
+    .select("budget")
+    .eq("id", run.flow_id)
+    .eq("project_id", projectId)
+    .maybeSingle();
+  const flowBudget = (flowBudgetRes.data?.budget ?? null) as
+    | { max_steps?: number | null; max_seconds?: number | null }
+    | null;
+
   // change_review keeps the existing sections. Only the default flow path
   // adopts the new design while we wire it in.
   if (run.kind === "change_review") {
@@ -118,6 +130,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     findings: findings as unknown as Parameters<typeof buildRunDetailView>[0]["findings"],
     signedScreenshotUrls,
     signedFindingScreenshotUrls,
+    flowBudgetSecondsMax: numOrNull(flowBudget?.max_seconds),
     currentUserLabel: userLabel,
     workerOnline: false, // not yet wired — pull from workers table in a follow-up
   });
@@ -247,6 +260,10 @@ async function signFirstFindingScreenshots(
     if (signedUrl) out[findingId] = signedUrl;
   }
   return out;
+}
+
+function numOrNull(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 function derivePreferredUserLabel(

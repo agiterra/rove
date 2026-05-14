@@ -40,6 +40,7 @@ export function parseFlowFile(content: string, filePath: string): FlowInfo {
     flowId: extractScalar(content, "flow_id") ?? "unknown",
     goal: extractScalar(content, "goal") ?? "(no goal found)",
     filePath,
+    budget: extractBudget(content),
   };
 }
 
@@ -47,6 +48,33 @@ function extractScalar(content: string, key: string): string | null {
   // Matches  `key: value`  or  `key: "value"`  at the start of a line.
   const pattern = new RegExp(`^${key}:\\s*"?(.+?)"?\\s*$`, "m");
   return content.match(pattern)?.[1]?.trim() ?? null;
+}
+
+/**
+ * Pulls the `budget:` block:
+ *
+ *   budget:
+ *     max_steps: 25
+ *     max_seconds: 180
+ *
+ * Returns null when no budget block exists. Missing inner keys come back
+ * as null. Matches indented children only, not other top-level keys.
+ */
+function extractBudget(content: string): FlowInfo["budget"] {
+  const blockMatch = content.match(/^budget:\s*$([\s\S]*?)(?=^\S|\Z)/m);
+  if (!blockMatch) return null;
+  const body = blockMatch[1];
+  const maxSteps = extractIndentedInt(body, "max_steps");
+  const maxSeconds = extractIndentedInt(body, "max_seconds");
+  if (maxSteps == null && maxSeconds == null) return null;
+  return { maxSteps, maxSeconds };
+}
+
+function extractIndentedInt(body: string, key: string): number | null {
+  const m = body.match(new RegExp(`^\\s+${key}:\\s*(\\d+)\\s*$`, "m"));
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
 }
 
 function dedupeByFlowId(infos: FlowInfo[]): FlowInfo[] {

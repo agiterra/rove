@@ -193,6 +193,7 @@ export function buildMockRunDetailView(): RunDetailView {
     // advance in the preview, even though status === "running".
     startedAtMs: Date.now() - 92_000,
     finishedAtMs: Date.now(),
+    budgetSecondsMax: 300, // 5m budget — preview shows "03:28 remaining"
   };
 
   const topBar: TopBarView = {

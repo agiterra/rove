@@ -1,6 +1,6 @@
 {
   "name": "@agiterra/rove-cli",
-  "version": "0.0.0-alpha.9",
+  "version": "0.0.0-alpha.10",
   "description": "Rove CLI + daemon. Walks your app as personas and agents, files findings, integrates with the Rove dashboard.",
   "repository": {
     "type": "git",

@@ -81,6 +81,8 @@ export interface HeroView {
   startedAtMs: number;
   /** Epoch ms when the walk finished, or null while running. */
   finishedAtMs: number | null;
+  /** Wall-clock budget from `flows.budget.max_seconds`; null when no budget authored. */
+  budgetSecondsMax: number | null;
 }
 
 export interface FooterView {

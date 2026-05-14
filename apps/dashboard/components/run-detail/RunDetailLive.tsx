@@ -151,7 +151,10 @@ function useTickingView(view: RunDetailView): RunDetailView {
   if (!isLive) return view;
   const elapsedSec = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
   const label = formatElapsed(elapsedSec);
-  const hero: HeroView = { ...view.hero, elapsedLabel: label, timerLabel: label };
+  const budget = view.hero.budgetSecondsMax;
+  const remainingLabel =
+    budget != null && budget > 0 ? formatElapsed(Math.max(0, budget - elapsedSec)) : view.hero.remainingLabel;
+  const hero: HeroView = { ...view.hero, elapsedLabel: label, timerLabel: label, remainingLabel };
   return { ...view, hero };
 }
 

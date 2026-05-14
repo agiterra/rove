@@ -49,16 +49,19 @@ export class SupabaseStore {
   }
 
   async upsertFlow(flow: FlowInfo): Promise<void> {
-    const { error } = await this.db.from("flows").upsert(
-      {
-        id: flow.flowId,
-        project_id: this.projectId,
-        title: flow.flowId,
-        goal: flow.goal,
-        yaml_path: flow.filePath,
-      },
-      { onConflict: "id" },
-    );
+    // `budget` is only included when explicitly known. Otherwise we'd
+    // clobber a value the sync path / discoverFlows() already populated.
+    const row: Record<string, unknown> = {
+      id: flow.flowId,
+      project_id: this.projectId,
+      title: flow.flowId,
+      goal: flow.goal,
+      yaml_path: flow.filePath,
+    };
+    const budgetRow = budgetForRow(flow.budget);
+    if (budgetRow != null) row.budget = budgetRow;
+
+    const { error } = await this.db.from("flows").upsert(row, { onConflict: "id" });
     if (error) throw new Error(`upsertFlow(${flow.flowId}): ${error.message}`);
   }
 
@@ -281,11 +284,23 @@ export class SupabaseStore {
         yaml_path: flow.filePath,
         yaml_sha256: yamlSha256,
         synced_from_yaml_at: new Date().toISOString(),
+        budget: budgetForRow(flow.budget),
       },
       { onConflict: "id" },
     );
     if (error) throw new Error(`upsertFlowWithYaml(${flow.flowId}): ${error.message}`);
   }
+}
+
+/**
+ * Map the parsed `FlowBudget` to the JSONB row shape we store. Returns
+ * null when no budget was authored — keeps the column unset for those
+ * flows so the dashboard can degrade gracefully.
+ */
+function budgetForRow(b: FlowInfo["budget"]): { max_steps: number | null; max_seconds: number | null } | null {
+  if (!b) return null;
+  if (b.maxSteps == null && b.maxSeconds == null) return null;
+  return { max_steps: b.maxSteps, max_seconds: b.maxSeconds };
 }
 
 export interface DedupMatch {

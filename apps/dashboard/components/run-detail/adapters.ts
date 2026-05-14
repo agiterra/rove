@@ -159,6 +159,11 @@ interface AdapterInput {
    * screenshot when present.
    */
   signedFindingScreenshotUrls?: Record<string, string>;
+  /**
+   * Wall-clock budget from `flows.budget.max_seconds` for this run's
+   * flow. When set, the hero subline renders the remaining-budget chunk.
+   */
+  flowBudgetSecondsMax?: number | null;
   /** Logged-in user (from layout / cookie); shown in top bar. */
   currentUserLabel?: string | null;
   /** Anything > 0 makes the worker status pill "online". */
@@ -172,6 +177,7 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     findings,
     signedScreenshotUrls,
     signedFindingScreenshotUrls,
+    flowBudgetSecondsMax,
     currentUserLabel,
     workerOnline,
   } = input;
@@ -202,7 +208,7 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
 
   return {
     topBar: buildTopBar(run, currentUserLabel, workerOnline),
-    hero: buildHero(run, status, stepViews, elapsedLabel),
+    hero: buildHero(run, status, stepViews, elapsedLabel, elapsedSec, flowBudgetSecondsMax ?? null),
     steps: stepViews,
     selectedStepIndex: stepViews.length > 0 ? stepViews[stepViews.length - 1].index : null,
     findings: findingViews,
@@ -368,7 +374,14 @@ function buildTopBar(run: RunRow, userLabel: string | null | undefined, online: 
   };
 }
 
-function buildHero(run: RunRow, status: RunStatus, steps: StepView[], elapsedLabel: string): HeroView {
+function buildHero(
+  run: RunRow,
+  status: RunStatus,
+  steps: StepView[],
+  elapsedLabel: string,
+  elapsedSec: number,
+  flowBudgetSecondsMax: number | null,
+): HeroView {
   const stepCount = run.actual_step_count ?? steps.length;
   const estimated = run.predicted_step_count ?? null;
   const targetUrl = run.walked_url ?? "";
@@ -376,6 +389,8 @@ function buildHero(run: RunRow, status: RunStatus, steps: StepView[], elapsedLab
 
   const { headline, outcomeGlow, statusPillLabel, statusPillPulsing, nowDoing } =
     buildHeroStatusBits(status, run.goal_reached, steps);
+
+  const remainingLabel = computeRemainingLabel(status, elapsedSec, flowBudgetSecondsMax);
 
   return {
     status,
@@ -391,12 +406,29 @@ function buildHero(run: RunRow, status: RunStatus, steps: StepView[], elapsedLab
     stepCount,
     estimatedStepCount: estimated,
     elapsedLabel,
-    remainingLabel: null,
+    remainingLabel,
     nowDoing,
     timerLabel: elapsedLabel,
     startedAtMs: new Date(run.started_at).getTime(),
     finishedAtMs: run.finished_at ? new Date(run.finished_at).getTime() : null,
+    budgetSecondsMax: flowBudgetSecondsMax,
   };
+}
+
+/**
+ * Returns a `MM:SS` remaining label while the walk is running with a
+ * known budget. Hides on terminal states — once a walk has finished,
+ * "remaining" is meaningless and would just confuse.
+ */
+function computeRemainingLabel(
+  status: RunStatus,
+  elapsedSec: number,
+  budgetSecondsMax: number | null,
+): string | null {
+  if (status !== "running") return null;
+  if (budgetSecondsMax == null || budgetSecondsMax <= 0) return null;
+  const remaining = Math.max(0, budgetSecondsMax - elapsedSec);
+  return formatDuration(Math.floor(remaining));
 }
 
 /** Re-formats `seconds` as `MM:SS`. Exported so `RunDetailLive` can
