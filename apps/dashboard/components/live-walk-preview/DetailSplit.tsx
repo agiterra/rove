@@ -1,114 +1,212 @@
-import { MockBrowserShot } from "./MockBrowserShot";
-import { STEPS, ARIA_TREE, SELECTED_STEP_INDEX } from "./mock-data";
+import { MockThumb } from "./MockThumbs";
+import { TankloopPreview, PreviewCursor } from "./TankloopPreview";
+import { STEPS, SELECTED_STEP_INDEX } from "./mock-data";
+import type { MockStep } from "./mock-data";
 
-export function DetailSplit() {
-  const step = STEPS.find((s) => s.index === SELECTED_STEP_INDEX) ?? STEPS[STEPS.length - 1];
+export function DetailSplit({ selectedIndex = SELECTED_STEP_INDEX }: { selectedIndex?: number }) {
+  const step =
+    STEPS.find((s) => s.index === selectedIndex) ??
+    STEPS[STEPS.length - 1];
   return (
-    <section className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6 mt-6">
-      <SelectedStepPreview step={step} />
-      <AriaTreePanel />
-    </section>
+    <div className="grid mt-5 gap-4" style={{ gridTemplateColumns: "2fr 1fr" }}>
+      <PreviewPanel step={step} />
+      <A11yTree />
+    </div>
   );
 }
 
-function SelectedStepPreview({ step }: { step: (typeof STEPS)[number] }) {
+function PreviewPanel({ step }: { step: MockStep }) {
+  const isCurrent = step.index === SELECTED_STEP_INDEX;
   return (
-    <div className="surface-raised overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-        <p className="text-[12px] font-mono text-[var(--color-text-muted)] truncate">
-          <span className="text-[var(--color-text-faint)]">step</span>{" "}
-          <span className="text-[var(--color-text)]">#{step.index.toString().padStart(2, "0")}</span>
-          <span className="mx-2 text-[var(--color-text-faint)]">—</span>
-          <span>{step.caption}</span>
-        </p>
-        <p className="text-[11px] font-mono text-[var(--color-text-faint)] shrink-0">
-          {step.status === "running" ? "live" : `${(step.durationMs / 1000).toFixed(1)}s`}
-        </p>
+    <div
+      style={{
+        background: "var(--color-panel)",
+        border: "1px solid var(--color-border)",
+        borderRadius: 14,
+        padding: 16,
+      }}
+    >
+      <div
+        className="flex items-center gap-2 mb-3 font-mono whitespace-nowrap"
+        style={{ fontSize: 13, color: "var(--color-text-muted)" }}
+      >
+        <span style={{ color: "var(--color-text)" }}>step {String(step.index).padStart(2, "0")}</span>
+        <span>—</span>
+        <span>
+          clicking <span style={{ color: "#6ee2e4" }}>&ldquo;Run walk&rdquo;</span>
+        </span>
       </div>
-      <div className="bg-[var(--color-bg-2)] aspect-[16/9] relative">
-        <MockBrowserShot kind={step.shotKind} label={step.caption} />
-        {step.status === "running" ? (
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent)",
-            }}
-          />
-        ) : null}
+
+      <div
+        className="relative overflow-hidden"
+        style={{
+          width: "100%",
+          aspectRatio: "16 / 9",
+          borderRadius: 8,
+          border: "1px solid var(--color-border)",
+          background: "#ffffff",
+        }}
+      >
+        {isCurrent ? (
+          <>
+            <TankloopPreview />
+            <PreviewCursor />
+          </>
+        ) : (
+          <MockThumb kind={step.thumb} />
+        )}
       </div>
-      <div className="flex flex-wrap items-center gap-1.5 px-4 py-3 border-t border-[var(--color-border)]">
-        <Tag label="action" value={step.toolName.replace(/^browser_/, "")} />
-        <Tag label="target_id" value="btn_run_walk_primary" />
-        <Tag label="coordinates" value="{x: 842, y: 120}" />
-        <Tag label="url" value={step.urlAfter} />
-        <Tag label="status" value={step.status} accent={step.status === "running"} />
+
+      <div className="flex flex-wrap gap-2 mt-3.5">
+        <MonoPill label="tool" value={step.toolName} />
+        <MonoPill label="url" value={`https://${step.url}`} />
+        <MonoPill label="selector" value={'button[name="Run walk"]'} />
+        <MonoPill label="duration" value={step.durationLabel} />
       </div>
     </div>
   );
 }
 
-function Tag({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+function MonoPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-[6px] border border-[var(--color-border)] bg-[var(--color-panel)] pl-2 pr-2.5 py-1 text-[11px] font-mono">
-      <span className="text-[var(--color-text-faint)] uppercase tracking-wider text-[9px]">{label}</span>
-      <span className={accent ? "text-[var(--color-accent)]" : "text-[var(--color-text)]"}>{value}</span>
+    <span
+      className="inline-flex items-center gap-1.5 font-mono"
+      style={{
+        height: 28,
+        padding: "0 12px",
+        borderRadius: 6,
+        background: "var(--color-panel-2)",
+        border: "1px solid var(--color-border)",
+        fontSize: 11.5,
+        color: "var(--color-text)",
+      }}
+    >
+      <span style={{ color: "var(--color-text-faint)" }}>{label}</span>
+      {value}
     </span>
   );
 }
 
-function AriaTreePanel() {
+function A11yTree() {
   return (
-    <aside className="surface-raised overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-        <p className="eyebrow">ACCESSIBILITY TREE</p>
-        <span className="text-[10px] font-mono text-[var(--color-text-faint)]">/flows/discover_flows</span>
-      </div>
-      <div className="px-2 py-2 font-mono text-[12px] leading-[1.7] overflow-x-auto">
-        {ARIA_TREE.map((node, i) => (
-          <AriaNode key={i} node={node} />
-        ))}
-      </div>
-      <div className="px-4 py-2.5 border-t border-[var(--color-border)] flex items-center justify-between">
-        <p className="text-[10px] text-[var(--color-text-faint)]">
-          highlighted = current click target
-        </p>
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+    <aside
+      style={{
+        background: "var(--color-panel)",
+        border: "1px solid var(--color-border)",
+        borderRadius: 14,
+        padding: "18px 18px 22px",
+      }}
+    >
+      <p
+        className="font-mono uppercase mb-4 text-[var(--color-text-faint)]"
+        style={{ fontSize: 11, letterSpacing: "0.18em" }}
+      >
+        ACCESSIBILITY TREE
+      </p>
+      <div className="font-mono text-[var(--color-text)]" style={{ fontSize: 12.5 }}>
+        <TreeRow>
+          <Tw>▼</Tw>
+          <Role>banner</Role>
+        </TreeRow>
+        <TreeRow rails={["line"]} cap="tee">
+          <Tw>▼</Tw>
+          <Role>navigation</Role>
+        </TreeRow>
+        <TreeRow rails={["line", "line"]} cap="tee">
+          <Role>link</Role>
+          <Name>&ldquo;Runs&rdquo;</Name>
+          <Href>/runs</Href>
+        </TreeRow>
+        <TreeRow rails={["line", "line"]} cap="elbow">
+          <Role>link</Role>
+          <Name>&ldquo;Flows&rdquo;</Name>
+          <Href>/flows</Href>
+        </TreeRow>
+        <TreeRow>
+          <Tw>▼</Tw>
+          <Role>main</Role>
+        </TreeRow>
+        <TreeRow rails={["line"]} cap="tee">
+          <Tw>▼</Tw>
+          <Role>region</Role>
+          <Name>&ldquo;Walk overview&rdquo;</Name>
+        </TreeRow>
+        <TreeRow rails={["line", "line"]} cap="tee">
+          <Role>heading</Role>
+          <span style={{ color: "var(--color-text-muted)" }}>h1</span>
+          <Name>&ldquo;Walking the app&rdquo;</Name>
+        </TreeRow>
+        <TreeRow rails={["line", "line"]} cap="tee">
+          <Tw>▶</Tw>
+          <Role>region</Role>
+          <Name>&ldquo;Step filmstrip&rdquo;</Name>
+        </TreeRow>
+        <TreeRow rails={["line", "line"]} cap="elbow">
+          <Tw>▼</Tw>
+          <Role>region</Role>
+          <Name>&ldquo;Live action&rdquo;</Name>
+        </TreeRow>
+        <div
+          className="lw-tree-highlight flex items-center gap-1.5 self-start"
+          style={{ padding: "4px 8px", margin: "4px 0 4px 48px" }}
+        >
+          <Role>button</Role>
+          <Name>&ldquo;Run walk&rdquo;</Name>
+        </div>
+        <TreeRow rails={["line", "gap", "line"]} cap="elbow">
+          <Role>text</Role>
+          <Name>&ldquo;00:01:32 elapsed&rdquo;</Name>
+        </TreeRow>
       </div>
     </aside>
   );
 }
 
-function AriaNode({ node }: { node: (typeof ARIA_TREE)[number] }) {
-  const indent = node.depth * 14;
-  const chevron =
-    node.expanded === true ? "▼" : node.expanded === false ? "▶" : " ";
+type RailKind = "line" | "gap";
+type CapKind = "tee" | "elbow";
+
+function TreeRow({
+  rails = [],
+  cap,
+  children,
+}: {
+  rails?: RailKind[];
+  cap?: CapKind;
+  children: React.ReactNode;
+}) {
   return (
-    <div
-      className={[
-        "flex items-baseline gap-2 pl-1 pr-2 py-0.5 rounded-[4px] -mx-1",
-        node.highlighted
-          ? "bg-[var(--color-accent-soft)] outline outline-1 outline-[color-mix(in_srgb,var(--color-accent)_45%,transparent)]"
-          : "",
-      ].join(" ")}
-      style={{ paddingLeft: `${indent + 8}px` }}
-    >
-      <span aria-hidden className="text-[var(--color-text-faint)] w-3 inline-flex shrink-0">
-        {chevron}
-      </span>
-      <span className={node.highlighted ? "text-[var(--color-accent)]" : "text-[var(--color-text-muted)]"}>
-        {node.role}
-      </span>
-      {node.name ? (
-        <span className={node.highlighted ? "text-[var(--color-text)]" : "text-[var(--color-text)]"}>
-          &ldquo;{node.name}&rdquo;
-        </span>
-      ) : null}
-      {node.highlighted ? (
-        <span className="ml-auto text-[10px] uppercase tracking-wider text-[var(--color-accent)] opacity-80">
-          target
-        </span>
-      ) : null}
+    <div className="flex items-center gap-1.5 py-1 whitespace-nowrap relative">
+      {rails.map((r, i) => (
+        <span key={i} className={`lw-rail ${r === "line" ? "lw-rail-line" : ""}`} />
+      ))}
+      {cap ? <span className={`lw-rail lw-rail-${cap}`} /> : null}
+      {children}
     </div>
+  );
+}
+
+function Tw({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      className="text-[var(--color-text-faint)] inline-block text-center"
+      style={{ width: 12, marginLeft: -2 }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function Role({ children }: { children: React.ReactNode }) {
+  return <span style={{ color: "#6ee2e4" }}>{children}</span>;
+}
+
+function Name({ children }: { children: React.ReactNode }) {
+  return <span style={{ color: "var(--color-text)" }}>{children}</span>;
+}
+
+function Href({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{ color: "var(--color-text-faint)", marginLeft: 2 }}>{children}</span>
   );
 }

@@ -1,28 +1,60 @@
-import { MockBrowserShot } from "./MockBrowserShot";
+"use client";
+
+import { useRef } from "react";
+import { MockThumb } from "./MockThumbs";
 import { STEPS, SELECTED_STEP_INDEX } from "./mock-data";
 import type { MockStep, StepStatus } from "./mock-data";
 
-export function Filmstrip() {
+interface FilmstripProps {
+  selectedIndex?: number;
+  onSelect?: (n: number) => void;
+}
+
+export function Filmstrip({ selectedIndex = SELECTED_STEP_INDEX, onSelect }: FilmstripProps) {
+  const stripRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollBy = (dir: number) => {
+    stripRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
+  };
+
   return (
-    <section aria-label="Filmstrip of walk steps">
-      <div className="flex items-center justify-between mb-3">
-        <p className="eyebrow-lg">FILMSTRIP · LIVE</p>
-        <p className="text-[11px] font-mono text-[var(--color-text-faint)]">
-          {STEPS.filter((s) => s.status === "done").length} done ·{" "}
-          {STEPS.filter((s) => s.status === "errored").length} errored · 1 running
+    <section aria-label="Step filmstrip" className="mt-7">
+      <div className="flex items-center justify-between mb-3.5 whitespace-nowrap">
+        <p
+          className="font-mono uppercase text-[var(--color-text-faint)]"
+          style={{ fontSize: 11, letterSpacing: "0.18em" }}
+        >
+          STEP FILMSTRIP · 8 OF ~25
         </p>
+        <div
+          className="flex items-center gap-3 font-mono text-[var(--color-text-faint)]"
+          style={{ fontSize: 11 }}
+        >
+          <span>scroll-snap</span>
+          <span style={{ color: "#2b3454" }}>·</span>
+          <span>auto-follow running</span>
+        </div>
       </div>
-      <div
-        className="-mx-1 overflow-x-auto pb-1"
-        role="list"
-        aria-label="Filmstrip tiles"
-      >
-        <div className="flex gap-3 px-1 min-w-max snap-x snap-mandatory">
+
+      <div className="relative">
+        <Arrow side="left" onClick={() => scrollBy(-1)} />
+        <Arrow side="right" onClick={() => scrollBy(1)} />
+        <div
+          ref={stripRef}
+          className="flex gap-3 overflow-x-auto pt-1.5 pb-4 px-0.5"
+          style={{
+            scrollSnapType: "x mandatory",
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--color-border-strong) transparent",
+            scrollBehavior: "smooth",
+          }}
+        >
           {STEPS.map((step) => (
-            <StepTile
+            <Tile
               key={step.index}
               step={step}
-              isSelected={step.index === SELECTED_STEP_INDEX}
+              isSelected={step.index === selectedIndex}
+              onClick={() => onSelect?.(step.index)}
             />
           ))}
           <AwaitingTile />
@@ -32,114 +64,149 @@ export function Filmstrip() {
   );
 }
 
-function StepTile({ step, isSelected }: { step: MockStep; isSelected: boolean }) {
+function Tile({ step, isSelected, onClick }: { step: MockStep; isSelected: boolean; onClick?: () => void }) {
   const running = step.status === "running";
   const errored = step.status === "errored";
 
   return (
     <button
       type="button"
-      role="listitem"
+      onClick={onClick}
+      aria-label={`Step ${step.index}, ${step.toolName}, ${step.status}`}
       aria-current={isSelected ? "true" : undefined}
-      aria-label={`Step ${step.index} — ${step.caption}`}
-      className={[
-        "snap-start text-left rounded-[12px] kinetic-hover focus-rove",
-        "w-[220px] shrink-0 overflow-hidden",
-        "border bg-[var(--color-panel)]",
-        running
-          ? "border-[color-mix(in_srgb,var(--color-accent)_55%,var(--color-border-strong))] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-accent)_25%,transparent),0_18px_44px_-28px_rgba(63,201,203,0.55)]"
-          : isSelected
-            ? "border-[var(--color-border-strong)] shadow-[0_18px_44px_-28px_rgba(16,44,87,0.5)]"
-            : "border-[var(--color-border)]",
-        errored ? "border-[color-mix(in_srgb,var(--color-severity-critical)_45%,var(--color-border-strong))]" : "",
-      ].join(" ")}
+      className={`focus-rove text-left ${running ? "lw-tile-running" : ""}`}
+      style={{
+        flex: "0 0 154px",
+        height: 184,
+        borderRadius: 12,
+        background: "var(--color-panel)",
+        border: borderForState(step.status, isSelected),
+        padding: 8,
+        scrollSnapAlign: "start",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        position: "relative",
+        boxShadow: shadowForState(step.status, isSelected),
+        transition: "border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease",
+      }}
     >
-      <div className="relative aspect-[16/10] border-b border-[var(--color-border)] bg-[var(--color-bg-2)] overflow-hidden">
-        <MockBrowserShot kind={step.shotKind} label={step.caption} />
-        {running ? <RunningOverlay /> : null}
-        {errored ? <ErroredOverlay /> : null}
+      <div
+        className="overflow-hidden relative"
+        style={{
+          width: "100%",
+          height: 100,
+          borderRadius: 6,
+          border: "1px solid var(--color-border)",
+          background: "#f4f5f8",
+        }}
+      >
+        <MockThumb kind={step.thumb} />
       </div>
-      <div className="p-2.5 flex items-center gap-2.5">
-        <span className="text-[10px] font-mono text-[var(--color-text-faint)]">
-          #{step.index.toString().padStart(2, "0")}
-        </span>
-        <StatusDot status={step.status} />
-        <span className="text-[11px] font-mono text-[var(--color-text-muted)] truncate flex-1" title={step.toolName}>
-          {step.toolName}
-        </span>
-        <span className="text-[10px] font-mono text-[var(--color-text-faint)] tabular-nums shrink-0">
-          {step.status === "running" ? "…" : `${(step.durationMs / 1000).toFixed(1)}s`}
-        </span>
+      <div className="flex flex-col gap-1 px-0.5" style={{ lineHeight: 1 }}>
+        <div className="flex items-center gap-1.5 font-mono text-[var(--color-text)]" style={{ fontSize: 11.5 }}>
+          <span>#{String(step.index).padStart(2, "0")}</span>
+          <StatusDot status={step.status} />
+          <StatusText status={step.status} />
+        </div>
+        <div className="flex items-center justify-between gap-1.5 font-mono text-[var(--color-text-muted)]" style={{ fontSize: 11 }}>
+          <span className="truncate">{step.toolName}</span>
+          <span className="text-[var(--color-text-faint)] shrink-0">
+            {step.status === "running" ? "live" : step.durationLabel}
+          </span>
+        </div>
       </div>
+      {errored ? null : null}
     </button>
   );
+}
+
+function borderForState(status: StepStatus, selected: boolean): string {
+  if (status === "errored") {
+    return `1px solid ${selected ? "rgba(244,63,94,0.55)" : "rgba(244,63,94,0.30)"}`;
+  }
+  if (selected) {
+    return "1px solid rgba(63,201,203,0.55)";
+  }
+  return "1px solid var(--color-border)";
+}
+
+function shadowForState(status: StepStatus, selected: boolean): string | undefined {
+  if (status === "errored" && selected) {
+    return "0 0 0 1px rgba(244,63,94,0.22)";
+  }
+  if (selected) {
+    return "0 0 0 1px rgba(63,201,203,0.28), 0 0 24px -6px rgba(63,201,203,0.45)";
+  }
+  return undefined;
+}
+
+function StatusDot({ status }: { status: StepStatus }) {
+  if (status === "running") return <span aria-label="running" className="lw-dot lw-pulse" />;
+  if (status === "errored") return <span aria-label="errored" className="lw-dot lw-rose" />;
+  return <span aria-label="done" className="lw-dot" />;
+}
+
+function StatusText({ status }: { status: StepStatus }) {
+  const label = status === "running" ? "Running" : status === "errored" ? "Error" : "Complete";
+  const color =
+    status === "errored" ? "var(--color-severity-critical)" : "#6ee2e4";
+  return <span style={{ fontSize: 11, color }}>{label}</span>;
 }
 
 function AwaitingTile() {
   return (
     <div
-      role="listitem"
       aria-label="Awaiting next step"
-      className="snap-start w-[220px] shrink-0 rounded-[12px] border border-dashed border-[var(--color-border-strong)] bg-transparent flex items-center justify-center text-[11px] font-mono text-[var(--color-text-faint)] py-10"
+      className="flex flex-col items-center justify-center gap-2 font-mono text-[var(--color-text-faint)]"
+      style={{
+        flex: "0 0 154px",
+        height: 184,
+        borderRadius: 12,
+        border: "1px dashed var(--color-border-strong)",
+        scrollSnapAlign: "start",
+        fontSize: 12,
+        textAlign: "center",
+        lineHeight: 1.5,
+      }}
     >
-      <span className="inline-flex items-center gap-2">
-        <span className="inline-block h-1 w-1 rounded-full bg-[var(--color-text-faint)] animate-livedot-pulse" />
-        awaiting next step
-      </span>
+      <svg viewBox="0 0 16 16" width={20} height={20} strokeWidth={1.5} fill="none" stroke="currentColor">
+        <path d="M8 3v10M3 8h10" />
+      </svg>
+      <div>
+        awaiting
+        <br />
+        next step
+      </div>
     </div>
   );
 }
 
-function StatusDot({ status }: { status: StepStatus }) {
-  if (status === "running") {
-    return (
-      <span className="relative inline-flex h-1.5 w-1.5 shrink-0" aria-label="running">
-        <span className="absolute inset-0 rounded-full bg-[var(--color-accent)] opacity-75 animate-livedot-ping" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-      </span>
-    );
-  }
-  if (status === "errored") {
-    return (
-      <span
-        aria-label="errored"
-        className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-[var(--color-severity-critical)]"
-      />
-    );
-  }
-  if (status === "pending") {
-    return (
-      <span
-        aria-label="pending"
-        className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-[var(--color-text-faint)] opacity-50"
-      />
-    );
-  }
+function Arrow({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
   return (
-    <span
-      aria-label="done"
-      className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-[var(--color-accent)] opacity-90"
-    />
-  );
-}
-
-function RunningOverlay() {
-  return (
-    <div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Scroll ${side}`}
+      className="focus-rove grid place-items-center backdrop-blur"
       style={{
-        boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 38%, transparent)",
+        position: "absolute",
+        top: "50%",
+        [side]: -16,
+        transform: "translateY(calc(-50% - 12px))",
+        width: 36,
+        height: 36,
+        borderRadius: 999,
+        background: "rgba(15,20,34,0.85)",
+        border: "1px solid var(--color-border-strong)",
+        color: "var(--color-text-muted)",
+        zIndex: 5,
+        transition: "color 160ms ease, border-color 160ms ease",
       }}
-    />
-  );
-}
-
-function ErroredOverlay() {
-  return (
-    <div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none bg-[color-mix(in_srgb,var(--color-severity-critical)_10%,transparent)]"
-    />
+    >
+      <svg viewBox="0 0 16 16" width={16} height={16} strokeWidth={1.8} fill="none" stroke="currentColor">
+        {side === "left" ? <path d="M10 4l-4 4 4 4" /> : <path d="M6 4l4 4-4 4" />}
+      </svg>
+    </button>
   );
 }

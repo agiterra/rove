@@ -1,48 +1,79 @@
-const TABS = [
-  { id: "filmstrip", label: "Filmstrip", count: null },
-  { id: "steps", label: "Steps", count: null },
-  { id: "findings", label: "Findings", count: 3 },
-  { id: "reflection", label: "Reflection", count: null },
-] as const;
+import { FINDINGS } from "./mock-data";
 
-export function TabBar({ active = "filmstrip" }: { active?: string }) {
+interface Tab {
+  id: string;
+  label: string;
+  count?: number;
+}
+
+const TABS: Tab[] = [
+  { id: "filmstrip", label: "Filmstrip" },
+  { id: "steps", label: "Steps" },
+  { id: "findings", label: "Findings", count: FINDINGS.length },
+  { id: "reflection", label: "Reflection" },
+];
+
+export function TabBar({ active = "filmstrip" as string }: { active?: string }) {
   return (
-    <div role="tablist" aria-label="Run views" className="border-b border-[var(--color-border)]">
-      <div className="flex items-end gap-6">
-        {TABS.map((tab) => {
-          const isActive = tab.id === active;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              tabIndex={isActive ? 0 : -1}
-              className={[
-                "relative -mb-px py-3 text-[13px] tracking-[-0.005em] focus-rove rounded-[6px]",
-                isActive
-                  ? "text-[var(--color-text)]"
-                  : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]",
-              ].join(" ")}
-            >
-              <span className="inline-flex items-center gap-2 px-1">
-                {tab.label}
-                {tab.count != null ? (
-                  <span className="rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-mono text-[10px] px-1.5 py-0.5 tabular-nums">
-                    {tab.count}
-                  </span>
-                ) : null}
+    <div
+      role="tablist"
+      aria-label="Run views"
+      className="flex gap-7 mt-3"
+      style={{ borderBottom: "1px solid var(--color-border)" }}
+    >
+      {TABS.map((t) => {
+        const isActive = t.id === active;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
+            className="focus-rove relative bg-transparent border-0 flex items-center gap-2 rounded-md"
+            style={{
+              padding: "14px 0 16px",
+              fontSize: 14,
+              color: isActive ? "var(--color-text)" : "var(--color-text-muted)",
+              fontFamily: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            <span>{t.label}</span>
+            {t.count != null ? (
+              <span
+                className="inline-grid place-items-center font-mono"
+                style={{
+                  minWidth: 20,
+                  height: 19,
+                  padding: "0 6px",
+                  borderRadius: 4,
+                  background: "rgba(63,201,203,0.12)",
+                  color: "#6ee2e4",
+                  fontSize: 11,
+                  border: "1px solid rgba(63,201,203,0.30)",
+                }}
+              >
+                {t.count}
               </span>
-              {isActive ? (
-                <span
-                  aria-hidden
-                  className="absolute left-0 right-0 -bottom-px h-[2px] bg-[var(--color-accent)] rounded-full"
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+            ) : null}
+            {isActive ? (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: -1,
+                  height: 2,
+                  background: "var(--color-accent)",
+                  boxShadow: "0 0 12px rgba(63,201,203,0.4)",
+                }}
+              />
+            ) : null}
+          </button>
+        );
+      })}
     </div>
   );
 }

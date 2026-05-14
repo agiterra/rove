@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TopBar } from "@/components/live-walk-preview/TopBar";
 import { Hero } from "@/components/live-walk-preview/Hero";
 import { Filmstrip } from "@/components/live-walk-preview/Filmstrip";
 import { TabBar } from "@/components/live-walk-preview/TabBar";
@@ -9,29 +10,39 @@ import { RunFooter } from "@/components/live-walk-preview/RunFooter";
 export const metadata: Metadata = {
   title: "Live walk · preview",
   description:
-    "Visual preview of the live walk run-detail page. Hard-coded fixtures — no live data.",
+    "Visual preview of the live walk run-detail page. Ported from Claude Design's Live Walk.html handoff bundle.",
 };
 
 export default function LiveWalkPreviewPage() {
   return (
-    <div className="space-y-10 pb-16">
-      <div className="-mt-2 mb-2 flex items-center gap-3 text-[11px]">
-        <span className="rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] border border-[color-mix(in_srgb,var(--color-accent)_30%,transparent)] px-2 py-0.5 font-mono">
-          PREVIEW
-        </span>
-        <span className="text-[var(--color-text-faint)]">
-          Hard-coded fixtures. No live data. Visual review of the live-walk plan
-          (docs/plans/live-walk.md).
-        </span>
-      </div>
-      <Hero />
-      <Filmstrip />
-      <div>
+    <div className="lw-preview-root" style={{ marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)" }}>
+      <BackgroundAurora />
+      <TopBar />
+      <main
+        className="mx-auto"
+        style={{ maxWidth: 1280, padding: "28px 32px 64px", position: "relative", zIndex: 1 }}
+      >
+        <Hero />
+        <Filmstrip />
         <TabBar active="filmstrip" />
         <DetailSplit />
-      </div>
-      <FindingsStream />
-      <RunFooter />
+        <FindingsStream />
+        <RunFooter />
+      </main>
     </div>
+  );
+}
+
+function BackgroundAurora() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-0"
+      style={{
+        zIndex: 0,
+        background:
+          "radial-gradient(700px 360px at 8% 4%, rgba(63,201,203,0.08), transparent 60%), radial-gradient(1000px 500px at 60% -8%, rgba(16,44,87,0.45), transparent 65%)",
+      }}
+    />
   );
 }

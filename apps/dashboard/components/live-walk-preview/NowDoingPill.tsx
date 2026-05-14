@@ -9,16 +9,30 @@ export function NowDoingPill({ verb, target, timer }: NowDoingPillProps) {
     <div
       role="status"
       aria-live="polite"
-      className="inline-flex items-center gap-3 rounded-full pl-2.5 pr-3 py-1.5 bg-[var(--color-accent-soft)] border border-[color-mix(in_srgb,var(--color-accent)_40%,transparent)]"
+      className="lw-sweep relative inline-flex items-center gap-2.5 rounded-full overflow-hidden"
+      style={{
+        height: 40,
+        padding: "0 18px 0 16px",
+        background: "rgba(63,201,203,0.10)",
+        border: "1px solid rgba(63,201,203,0.32)",
+        color: "var(--color-text)",
+        fontSize: 14,
+        minWidth: 380,
+        whiteSpace: "nowrap",
+        boxShadow: "inset 0 1px 0 rgba(63,201,203,0.18)",
+      }}
     >
-      <span className="relative inline-flex h-1.5 w-1.5">
-        <span className="absolute inset-0 rounded-full bg-[var(--color-accent)] opacity-75 animate-livedot-ping" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+      <span className="lw-dot lw-pulse" />
+      <span className="text-[var(--color-text-muted)]">{verb}</span>
+      <span className="font-mono" style={{ color: "#6ee2e4", fontSize: 13.5 }}>
+        {target}
       </span>
-      <span className="text-[12px] text-[var(--color-text-muted)]">{verb}</span>
-      <span className="text-[12px] font-mono text-[var(--color-accent)]">&ldquo;{target}&rdquo;</span>
-      <span className="mx-0.5 h-3.5 w-px bg-[var(--color-border)]" aria-hidden />
-      <span className="text-[11px] font-mono text-[var(--color-text-faint)] tabular-nums">{timer}</span>
+      <span
+        className="ml-auto pl-3.5 font-mono tabular-nums"
+        style={{ color: "#6ee2e4", fontSize: 13.5 }}
+      >
+        {timer}
+      </span>
     </div>
   );
 }

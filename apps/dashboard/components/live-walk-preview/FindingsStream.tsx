@@ -1,97 +1,151 @@
-import { MockBrowserShot } from "./MockBrowserShot";
+import { MockThumb } from "./MockThumbs";
 import { FINDINGS } from "./mock-data";
 import type { MockFinding } from "./mock-data";
 
-const SEVERITY_LABEL: Record<MockFinding["severity"], string> = {
-  critical: "Critical",
-  major: "Major",
-  minor: "Minor",
-  nit: "Nit",
+const SEV_BG: Record<MockFinding["severity"], string> = {
+  critical: "rgba(244,63,94,0.12)",
+  major: "rgba(251,146,60,0.12)",
+  minor: "rgba(250,204,21,0.10)",
+  nit: "rgba(148,163,184,0.10)",
 };
 
-const SEVERITY_BAR: Record<MockFinding["severity"], string> = {
-  critical: "bg-[var(--color-severity-critical)]",
-  major: "bg-[var(--color-severity-major)]",
-  minor: "bg-[var(--color-severity-minor)]",
-  nit: "bg-[var(--color-severity-nit)]",
+const SEV_BORDER: Record<MockFinding["severity"], string> = {
+  critical: "rgba(244,63,94,0.45)",
+  major: "rgba(251,146,60,0.45)",
+  minor: "rgba(250,204,21,0.40)",
+  nit: "rgba(148,163,184,0.40)",
 };
 
-const SEVERITY_TEXT: Record<MockFinding["severity"], string> = {
-  critical: "text-[var(--color-severity-critical)]",
-  major: "text-[var(--color-severity-major)]",
-  minor: "text-[var(--color-severity-minor)]",
-  nit: "text-[var(--color-severity-nit)]",
+const SEV_COLOR: Record<MockFinding["severity"], string> = {
+  critical: "#fca5b5",
+  major: "#fdba8c",
+  minor: "#fde68a",
+  nit: "#cbd5e1",
+};
+
+const SEV_BAR: Record<MockFinding["severity"], string> = {
+  critical: "var(--color-severity-critical)",
+  major: "var(--color-severity-major)",
+  minor: "var(--color-severity-minor)",
+  nit: "var(--color-severity-nit)",
 };
 
 export function FindingsStream() {
   return (
-    <section aria-label="Findings filed during this walk" className="mt-10">
-      <div className="flex items-end justify-between mb-4">
-        <div>
-          <p className="eyebrow-lg">
-            FINDINGS FILED THIS WALK · {FINDINGS.length}
-          </p>
-          <p className="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
-            Streaming in as the agent files them — no batch dump at the end.
-          </p>
-        </div>
-        <a
-          href="/findings"
-          className="text-[12px] text-[var(--color-text-muted)] hover:text-[var(--color-accent)] focus-rove rounded-[6px] px-2 py-1 transition-colors"
+    <section className="mt-7" aria-label="Findings filed during this walk">
+      <div className="flex items-baseline justify-between mb-2.5">
+        <p
+          className="font-mono uppercase text-[var(--color-text-faint)]"
+          style={{ fontSize: 11, letterSpacing: "0.18em" }}
         >
-          Open in findings →
-        </a>
+          FINDINGS FILED THIS WALK · {FINDINGS.length}
+        </p>
+        <span className="font-mono" style={{ fontSize: 11, color: "var(--color-text-faint)" }}>
+          filed in last 92s
+        </span>
       </div>
 
-      <ol className="space-y-3 list-none">
+      <div className="flex flex-col gap-2.5">
         {FINDINGS.map((f) => (
-          <li key={f.id}>
-            <FindingCard finding={f} />
-          </li>
+          <FindingCard key={f.id} finding={f} />
         ))}
-      </ol>
+      </div>
     </section>
   );
 }
 
 function FindingCard({ finding }: { finding: MockFinding }) {
   return (
-    <article className="relative surface-raised kinetic-hover overflow-hidden">
+    <article
+      className="grid items-center kinetic-hover focus-rove relative overflow-hidden"
+      style={{
+        gridTemplateColumns: "100px 1fr 130px",
+        gap: 20,
+        background: "var(--color-panel)",
+        border: "1px solid var(--color-border)",
+        borderRadius: 12,
+        padding: "16px 18px",
+        minHeight: 80,
+        cursor: "pointer",
+      }}
+    >
       <span
         aria-hidden
-        className={`absolute inset-y-0 left-0 w-[3px] ${SEVERITY_BAR[finding.severity]}`}
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 12,
+          bottom: 12,
+          width: 3,
+          borderRadius: "0 3px 3px 0",
+          background: SEV_BAR[finding.severity],
+        }}
       />
-      <div className="pl-5 pr-3 py-3.5 flex items-center gap-4">
-        <div className="flex flex-col gap-1 shrink-0 w-[88px]">
-          <span
-            className={`inline-flex items-center justify-center px-1.5 py-[3px] rounded-[4px] text-[10px] font-semibold uppercase tracking-[0.08em] ${SEVERITY_TEXT[finding.severity]} bg-[color-mix(in_srgb,currentColor_14%,transparent)] border border-[color-mix(in_srgb,currentColor_30%,transparent)] self-start`}
-          >
-            {SEVERITY_LABEL[finding.severity]}
-          </span>
-          <span className="text-[10px] font-mono text-[var(--color-text-faint)]">
-            step #{finding.stepIndex.toString().padStart(2, "0")}
-          </span>
-        </div>
 
-        <div className="flex-1 min-w-0">
-          <p className="text-[14px] text-[var(--color-text)] truncate" title={finding.title}>
-            {finding.title}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center rounded-[4px] bg-[var(--color-accent-soft)] px-1.5 py-[2px] font-mono text-[10.5px] text-[var(--color-accent)] border border-[color-mix(in_srgb,var(--color-accent)_25%,transparent)]">
-              {finding.heuristic}
-            </span>
-            {finding.secondaryRef ? (
-              <span className="inline-flex items-center rounded-[4px] bg-[var(--color-panel)] px-1.5 py-[2px] font-mono text-[10.5px] text-[var(--color-text-muted)] border border-[var(--color-border)]">
-                {finding.secondaryRef}
-              </span>
-            ) : null}
-          </div>
-        </div>
+      <div>
+        <span
+          className="inline-grid place-items-center font-mono font-semibold"
+          style={{
+            height: 24,
+            padding: "0 10px",
+            borderRadius: 4,
+            fontSize: 11,
+            letterSpacing: "0.10em",
+            background: SEV_BG[finding.severity],
+            color: SEV_COLOR[finding.severity],
+            border: `1px solid ${SEV_BORDER[finding.severity]}`,
+            width: "fit-content",
+          }}
+        >
+          {finding.severity.toUpperCase()}
+        </span>
+      </div>
 
-        <div className="shrink-0 w-[112px] h-[64px] rounded-[8px] overflow-hidden border border-[var(--color-border)] bg-[var(--color-bg-2)]">
-          <MockBrowserShot kind={finding.shotKind} label={finding.title} />
+      <div>
+        <h3
+          className="m-0 mb-2 font-medium text-[var(--color-text)]"
+          style={{ fontSize: 15, letterSpacing: "-0.005em" }}
+        >
+          {finding.title}
+        </h3>
+        <span
+          className="inline-flex items-center font-mono"
+          style={{
+            height: 22,
+            padding: "0 8px",
+            borderRadius: 4,
+            background: "rgba(63,201,203,0.10)",
+            border: "1px solid rgba(63,201,203,0.30)",
+            color: "#b4e9ea",
+            fontSize: 11,
+          }}
+        >
+          {finding.heuristic}
+        </span>
+      </div>
+
+      <div className="flex flex-col items-end gap-1.5">
+        <div
+          className="overflow-hidden"
+          style={{
+            width: 110,
+            height: 62,
+            borderRadius: 4,
+            border: "1px solid var(--color-border)",
+            background: "#fff",
+          }}
+        >
+          <MockThumb kind={finding.thumb} />
         </div>
+        <span
+          className="flex items-center gap-1.5 font-mono text-[var(--color-text-muted)]"
+          style={{ fontSize: 11.5 }}
+        >
+          <span>Step {String(finding.stepIndex).padStart(2, "0")}</span>
+          <svg viewBox="0 0 16 16" width={12} height={12} strokeWidth={1.8} fill="none" stroke="currentColor">
+            <path d="M6 4l4 4-4 4" />
+          </svg>
+        </span>
       </div>
     </article>
   );

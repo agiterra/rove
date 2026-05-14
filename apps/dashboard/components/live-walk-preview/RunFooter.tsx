@@ -1,26 +1,27 @@
 import { RUN_META } from "./mock-data";
 
 export function RunFooter() {
-  const items = [
-    { label: "run", value: RUN_META.id.slice(0, 8) },
-    { label: "commit", value: RUN_META.commitSha },
-    { label: "branch", value: RUN_META.branch },
-    { label: "daemon", value: RUN_META.daemon },
-    { label: "project", value: RUN_META.project },
+  const bits: [string, string][] = [
+    ["commit", RUN_META.commitSha],
+    ["branch", RUN_META.branch],
+    ["daemon", RUN_META.daemon],
+    ["run", RUN_META.runShort],
+    ["started", RUN_META.startedAgo],
   ];
   return (
-    <footer className="mt-12 pt-6 border-t border-[var(--color-border)] flex flex-wrap items-center gap-x-4 gap-y-2">
-      {items.map((item, i) => (
-        <span key={item.label} className="inline-flex items-center gap-1.5 text-[11px] font-mono">
-          <span className="uppercase tracking-[0.12em] text-[9px] text-[var(--color-text-faint)]">
-            {item.label}
-          </span>
-          <span className="text-[var(--color-text-muted)]">{item.value}</span>
-          {i < items.length - 1 ? (
-            <span aria-hidden className="ml-2 text-[var(--color-text-faint)]">
-              ·
-            </span>
-          ) : null}
+    <footer
+      className="flex flex-wrap items-center gap-3.5 mt-10 pt-5 font-mono"
+      style={{
+        borderTop: "1px solid var(--color-border)",
+        fontSize: 12,
+        color: "var(--color-text-faint)",
+      }}
+    >
+      {bits.map(([k, v], i) => (
+        <span key={k} className="inline-flex items-center gap-1.5">
+          {i > 0 ? <span style={{ color: "#2b3454" }}>·</span> : null}
+          <span style={{ color: "#6b7591" }}>{k}</span>
+          <span style={{ color: "var(--color-text-muted)" }}>{v}</span>
         </span>
       ))}
     </footer>

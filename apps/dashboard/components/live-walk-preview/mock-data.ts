@@ -1,19 +1,33 @@
 /**
- * Hardcoded fixtures for /preview/live-walk. Mirrors the shape of real
- * runs / run_steps / findings rows from Supabase so the components can
- * be ported to live data later without rewriting types.
+ * Fixtures for /preview/live-walk. Ported from Claude Design's "Live Walk.html"
+ * handoff (chats/chat1.md). The shape mirrors real runs / run_steps / findings
+ * rows so the same components can later read live Supabase data with no
+ * re-typing.
  */
 
 export type StepStatus = "done" | "running" | "errored" | "pending";
+
+export type ThumbKind =
+  | "dashboard"
+  | "runs"
+  | "filters"
+  | "saveView"
+  | "walkOver"
+  | "walkIdle"
+  | "liveAction"
+  | "settings"
+  | "dangerZone"
+  | "workspace"
+  | "loading"
+  | "login";
 
 export interface MockStep {
   index: number;
   toolName: string;
   status: StepStatus;
-  durationMs: number;
-  urlAfter: string;
-  caption: string;
-  shotKind: ShotKind;
+  durationLabel: string;
+  url: string;
+  thumb: ThumbKind;
 }
 
 export interface MockFinding {
@@ -21,161 +35,70 @@ export interface MockFinding {
   severity: "critical" | "major" | "minor" | "nit";
   title: string;
   heuristic: string;
-  secondaryRef?: string;
   stepIndex: number;
-  shotKind: ShotKind;
+  thumb: ThumbKind;
 }
 
-export type ShotKind =
-  | "list-view"
-  | "form-empty"
-  | "form-filled"
-  | "modal-confirm"
-  | "loading"
-  | "error-state"
-  | "details"
-  | "success";
-
 export const RUN_META = {
-  id: "f5b81aef-ec00-4db0-a226-fd2c973ff9a7",
+  id: "abc123def",
   flowId: "eval_dashboard.discover_flows",
+  personaLabel: "Power User",
   personaId: "claude_browser_agent",
-  targetUrl: "https://app.tankloop.io",
-  status: "running" as const,
-  startedAt: "2026-05-14T01:08:14.706+00:00",
-  budgetStepsMax: 25,
-  budgetSecondsMax: 300,
-  elapsedSeconds: 92,
+  targetUrl: "https://app.tankloop.com",
+  flowUuid: "d3f5c9a8-7b21-4e2c",
+  budgetLabel: "5m 00s",
+  elapsedLabel: "00:01:32",
+  remainingLabel: "03:28",
   commitSha: "64ccef7",
   branch: "main",
   daemon: "WrangleMeThis-Mac",
+  runShort: "f5b81aef",
+  startedAgo: "2m ago",
   project: "tankloop",
+  user: "alex",
 };
 
 export const NOW_DOING = {
   verb: "Clicking",
-  target: "Run walk",
-  startedAtOffsetMs: 1100,
+  target: '"Run walk"',
 };
 
 export const STEPS: MockStep[] = [
-  {
-    index: 1,
-    toolName: "browser_navigate",
-    status: "done",
-    durationMs: 1180,
-    urlAfter: "/runs",
-    caption: "Navigating to /runs",
-    shotKind: "list-view",
-  },
-  {
-    index: 2,
-    toolName: "browser_snapshot",
-    status: "done",
-    durationMs: 420,
-    urlAfter: "/runs",
-    caption: "Reading the runs list",
-    shotKind: "list-view",
-  },
-  {
-    index: 3,
-    toolName: "browser_click",
-    status: "done",
-    durationMs: 280,
-    urlAfter: "/flows",
-    caption: 'Clicking nav "Flows"',
-    shotKind: "details",
-  },
-  {
-    index: 4,
-    toolName: "browser_take_screenshot",
-    status: "done",
-    durationMs: 640,
-    urlAfter: "/flows",
-    caption: "Capturing the flows page",
-    shotKind: "details",
-  },
-  {
-    index: 5,
-    toolName: "browser_click",
-    status: "errored",
-    durationMs: 2210,
-    urlAfter: "/flows",
-    caption: 'Tried to click "Run walk" (no accessible name)',
-    shotKind: "error-state",
-  },
-  {
-    index: 6,
-    toolName: "browser_snapshot",
-    status: "done",
-    durationMs: 510,
-    urlAfter: "/flows",
-    caption: "Re-reading the page to find affordances",
-    shotKind: "form-empty",
-  },
-  {
-    index: 7,
-    toolName: "browser_click",
-    status: "done",
-    durationMs: 320,
-    urlAfter: "/flows/discover_flows",
-    caption: 'Clicking the flow card "discover_flows"',
-    shotKind: "form-filled",
-  },
-  {
-    index: 8,
-    toolName: "browser_click",
-    status: "running",
-    durationMs: 0,
-    urlAfter: "/flows/discover_flows",
-    caption: 'Clicking "Run walk"',
-    shotKind: "modal-confirm",
-  },
+  { index: 4, toolName: "browser_snapshot", status: "done", durationLabel: "1.2s", url: "app.tankloop.com/runs", thumb: "dashboard" },
+  { index: 5, toolName: "browser_click", status: "done", durationLabel: "1.1s", url: "app.tankloop.com/runs", thumb: "runs" },
+  { index: 6, toolName: "browser_type", status: "done", durationLabel: "2.3s", url: "app.tankloop.com/runs?q=walk", thumb: "filters" },
+  { index: 7, toolName: "browser_click", status: "done", durationLabel: "1.0s", url: "app.tankloop.com/runs", thumb: "saveView" },
+  { index: 8, toolName: "browser_click", status: "running", durationLabel: "1.4s", url: "app.tankloop.com/runs/abc123def", thumb: "walkOver" },
+  { index: 9, toolName: "browser_take_screenshot", status: "done", durationLabel: "1.3s", url: "app.tankloop.com/runs/abc123def", thumb: "liveAction" },
+  { index: 10, toolName: "browser_type", status: "errored", durationLabel: "2.6s", url: "app.tankloop.com/settings/danger", thumb: "dangerZone" },
+  { index: 11, toolName: "browser_snapshot", status: "done", durationLabel: "0.9s", url: "app.tankloop.com/settings/workspace", thumb: "workspace" },
 ];
 
-export const ARIA_TREE = [
-  { depth: 0, role: "banner", name: null, expanded: true, highlighted: false },
-  { depth: 1, role: "navigation", name: null, expanded: true, highlighted: false },
-  { depth: 2, role: "link", name: "Runs", expanded: null, highlighted: false },
-  { depth: 2, role: "link", name: "Flows", expanded: null, highlighted: false },
-  { depth: 2, role: "link", name: "Findings", expanded: null, highlighted: false },
-  { depth: 0, role: "main", name: null, expanded: true, highlighted: false },
-  { depth: 1, role: "region", name: "Flow detail", expanded: true, highlighted: false },
-  { depth: 2, role: "heading", name: "discover_flows", expanded: null, highlighted: false },
-  { depth: 2, role: "region", name: "Persona picker", expanded: false, highlighted: false },
-  { depth: 2, role: "region", name: "Run controls", expanded: true, highlighted: false },
-  { depth: 3, role: "button", name: "Run walk", expanded: null, highlighted: true },
-  { depth: 3, role: "button", name: "Cancel", expanded: null, highlighted: false },
-];
+export const SELECTED_STEP_INDEX = 8;
 
 export const FINDINGS: MockFinding[] = [
   {
     id: "fnd_01",
     severity: "critical",
-    title: "Run-walk button on /flows lacks an accessible name",
+    title: "Login button lacks accessible name",
     heuristic: "agent.accessibility_tree_completeness",
-    secondaryRef: "wcag.4.1.2",
-    stepIndex: 5,
-    shotKind: "error-state",
+    stepIndex: 8,
+    thumb: "login",
   },
   {
     id: "fnd_02",
     severity: "major",
-    title: "Loading state on /flows has no aria-live region",
+    title: "Loading state has no aria-live region",
     heuristic: "agent.feedback_announced",
-    secondaryRef: "wcag.4.1.3",
-    stepIndex: 4,
-    shotKind: "details",
+    stepIndex: 9,
+    thumb: "loading",
   },
   {
     id: "fnd_03",
     severity: "minor",
-    title: "Heading hierarchy on flow detail skips h2",
+    title: "Heading hierarchy skips h2 inside main",
     heuristic: "agent.semantic_html",
-    secondaryRef: "wcag.1.3.1",
-    stepIndex: 7,
-    shotKind: "form-filled",
+    stepIndex: 6,
+    thumb: "filters",
   },
 ];
-
-export const SELECTED_STEP_INDEX = 8;
