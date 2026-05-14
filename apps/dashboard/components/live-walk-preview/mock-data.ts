@@ -21,6 +21,7 @@ export interface MockFinding {
   severity: "critical" | "major" | "minor" | "nit";
   title: string;
   heuristic: string;
+  secondaryRef?: string;
   stepIndex: number;
   shotKind: ShotKind;
 }
@@ -153,6 +154,7 @@ export const FINDINGS: MockFinding[] = [
     severity: "critical",
     title: "Run-walk button on /flows lacks an accessible name",
     heuristic: "agent.accessibility_tree_completeness",
+    secondaryRef: "wcag.4.1.2",
     stepIndex: 5,
     shotKind: "error-state",
   },
@@ -161,6 +163,7 @@ export const FINDINGS: MockFinding[] = [
     severity: "major",
     title: "Loading state on /flows has no aria-live region",
     heuristic: "agent.feedback_announced",
+    secondaryRef: "wcag.4.1.3",
     stepIndex: 4,
     shotKind: "details",
   },
@@ -169,6 +172,7 @@ export const FINDINGS: MockFinding[] = [
     severity: "minor",
     title: "Heading hierarchy on flow detail skips h2",
     heuristic: "agent.semantic_html",
+    secondaryRef: "wcag.1.3.1",
     stepIndex: 7,
     shotKind: "form-filled",
   },

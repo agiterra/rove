@@ -14,8 +14,8 @@ export function Hero() {
   return (
     <section className="aurora">
       <div className="surface-elevated p-8 md:p-10 relative overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-8">
-          <div className="space-y-5">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-5 max-w-2xl">
             <p className="eyebrow-lg">
               RUN <span className="opacity-60">·</span> {RUN_META.flowId}{" "}
               <span className="opacity-60">·</span> {RUN_META.personaId}
@@ -32,15 +32,16 @@ export function Hero() {
                 {formatElapsed(remaining)} budget remaining
               </p>
             </div>
-            <NowDoingPill
-              verb={NOW_DOING.verb}
-              target={NOW_DOING.target}
-              timer={formatElapsed(Math.floor(RUN_META.elapsedSeconds))}
-            />
           </div>
 
-          <HeroMetricGrid />
+          <NowDoingPill
+            verb={NOW_DOING.verb}
+            target={NOW_DOING.target}
+            timer={formatElapsed(Math.floor(RUN_META.elapsedSeconds))}
+          />
         </div>
+
+        <HeroMetricGrid />
 
         <div className="divider-grad mt-10" aria-hidden />
       </div>
@@ -50,20 +51,20 @@ export function Hero() {
 
 function HeroMetricGrid() {
   return (
-    <div className="grid grid-cols-2 gap-2.5 self-start">
-      <MetricTile
-        eyebrow="Target"
+    <div className="mt-9 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5">
+      <MetricItem
+        eyebrow="Target URL"
         value={RUN_META.targetUrl.replace(/^https?:\/\//, "")}
         mono
       />
-      <MetricTile eyebrow="Persona" value={RUN_META.personaId} mono />
-      <MetricTile eyebrow="Flow" value={RUN_META.flowId} mono />
-      <StatusTile />
+      <MetricItem eyebrow="Persona" value={RUN_META.personaId} mono />
+      <MetricItem eyebrow="Flow ID" value={RUN_META.flowId} mono />
+      <StatusItem />
     </div>
   );
 }
 
-function MetricTile({
+function MetricItem({
   eyebrow,
   value,
   mono = false,
@@ -73,10 +74,10 @@ function MetricTile({
   mono?: boolean;
 }) {
   return (
-    <div className="rounded-[12px] border border-[var(--color-border)] bg-[var(--color-panel)]/60 px-3 py-2.5">
-      <p className="eyebrow text-[9px] mb-1">{eyebrow}</p>
+    <div className="border-l border-[var(--color-border)] pl-4 min-w-0">
+      <p className="eyebrow mb-1.5">{eyebrow}</p>
       <p
-        className={`text-[12px] text-[var(--color-text)] truncate ${
+        className={`text-[12.5px] text-[var(--color-text)] truncate ${
           mono ? "font-mono" : ""
         }`}
         title={value}
@@ -87,13 +88,13 @@ function MetricTile({
   );
 }
 
-function StatusTile() {
+function StatusItem() {
   return (
-    <div className="rounded-[12px] border border-[color-mix(in_srgb,var(--color-accent)_30%,var(--color-border))] bg-[var(--color-accent-soft)] px-3 py-2.5">
-      <p className="eyebrow text-[9px] mb-1 text-[color-mix(in_srgb,var(--color-accent)_60%,var(--color-text-faint))]">
+    <div className="border-l border-[color-mix(in_srgb,var(--color-accent)_35%,var(--color-border))] pl-4">
+      <p className="eyebrow mb-1.5 text-[color-mix(in_srgb,var(--color-accent)_55%,var(--color-text-faint))]">
         Status
       </p>
-      <p className="flex items-center gap-2 text-[12px] text-[var(--color-text)]">
+      <p className="flex items-center gap-2 text-[12.5px] text-[var(--color-text)]">
         <span className="relative inline-flex h-1.5 w-1.5">
           <span className="absolute inset-0 rounded-full bg-[var(--color-accent)] opacity-75 animate-livedot-ping" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />

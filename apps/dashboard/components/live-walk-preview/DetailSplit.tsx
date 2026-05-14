@@ -38,7 +38,9 @@ function SelectedStepPreview({ step }: { step: (typeof STEPS)[number] }) {
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 px-4 py-3 border-t border-[var(--color-border)]">
-        <Tag label="tool" value={step.toolName} />
+        <Tag label="action" value={step.toolName.replace(/^browser_/, "")} />
+        <Tag label="target_id" value="btn_run_walk_primary" />
+        <Tag label="coordinates" value="{x: 842, y: 120}" />
         <Tag label="url" value={step.urlAfter} />
         <Tag label="status" value={step.status} accent={step.status === "running"} />
       </div>

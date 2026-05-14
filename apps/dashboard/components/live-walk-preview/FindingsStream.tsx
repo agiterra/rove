@@ -77,10 +77,15 @@ function FindingCard({ finding }: { finding: MockFinding }) {
           <p className="text-[14px] text-[var(--color-text)] truncate" title={finding.title}>
             {finding.title}
           </p>
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center rounded-[4px] bg-[var(--color-accent-soft)] px-1.5 py-[2px] font-mono text-[10.5px] text-[var(--color-accent)] border border-[color-mix(in_srgb,var(--color-accent)_25%,transparent)]">
               {finding.heuristic}
             </span>
+            {finding.secondaryRef ? (
+              <span className="inline-flex items-center rounded-[4px] bg-[var(--color-panel)] px-1.5 py-[2px] font-mono text-[10.5px] text-[var(--color-text-muted)] border border-[var(--color-border)]">
+                {finding.secondaryRef}
+              </span>
+            ) : null}
           </div>
         </div>
 

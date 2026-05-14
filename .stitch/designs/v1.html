@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/geist@1.3.0/dist/fonts/geist-sans/style.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/geist@1.3.0/dist/fonts/geist-mono/style.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#8cb8ff",
+                        "accent-soft": "rgba(63, 201, 203, 0.16)",
+                        "error-container": "#93000a",
+                        "error": "#ffb4ab",
+                        "border": "#1f2740",
+                        "inverse-on-surface": "#2e3037",
+                        "on-tertiary-container": "#00478b",
+                        "on-background": "#e1e2eb",
+                        "secondary": "#aec7fb",
+                        "surface-container-low": "#191b22",
+                        "surface-variant": "#33353c",
+                        "secondary-fixed-dim": "#aec7fb",
+                        "on-tertiary-fixed-variant": "#00468a",
+                        "surface-tint": "#54d9db",
+                        "on-surface": "#e1e2eb",
+                        "on-secondary-fixed-variant": "#2e4673",
+                        "on-primary-fixed": "#002020",
+                        "surface-container-highest": "#33353c",
+                        "text": "#e8edf7",
+                        "tertiary-fixed-dim": "#a8c8ff",
+                        "outline": "#869393",
+                        "on-secondary-container": "#9db5e8",
+                        "primary-container": "#3fc9cb",
+                        "on-primary-fixed-variant": "#004f50",
+                        "surface-container": "#1d1f26",
+                        "outline-variant": "#3c4949",
+                        "on-tertiary-fixed": "#001b3c",
+                        "on-primary-container": "#005152",
+                        "secondary-container": "#2e4673",
+                        "border-strong": "#2c3654",
+                        "tertiary": "#bbd3ff",
+                        "inverse-surface": "#e1e2eb",
+                        "text-faint": "#5a6480",
+                        "primary-fixed": "#75f6f8",
+                        "panel": "#0f1422",
+                        "inverse-primary": "#00696b",
+                        "tertiary-fixed": "#d5e3ff",
+                        "text-muted": "#8a93ab",
+                        "accent-2-soft": "rgba(110, 168, 255, 0.18)",
+                        "on-primary": "#003738",
+                        "on-surface-variant": "#bbc9c9",
+                        "on-secondary-fixed": "#001a40",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-lowest": "#0c0e14",
+                        "on-tertiary": "#003061",
+                        "bg-2": "#0b0f18",
+                        "on-secondary": "#15305b",
+                        "on-error": "#690005",
+                        "nit": "#94a3b8",
+                        "surface-dim": "#11131a",
+                        "primary": "#62e5e7",
+                        "panel-2": "#141a2a",
+                        "background": "#07090f",
+                        "surface-container-high": "#282a31",
+                        "secondary-fixed": "#d7e2ff",
+                        "surface-bright": "#373940",
+                        "surface": "#11131a",
+                        "minor": "#facc15",
+                        "major": "#fb923c",
+                        "primary-fixed-dim": "#54d9db",
+                        "critical": "#f43f5e"
+                    },
+                    "fontFamily": {
+                        "body": ["Geist Sans", "sans-serif"],
+                        "mono": ["Geist Mono", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Geist Sans', sans-serif; background-color: #07090f; }
+        .aurora-glow {
+            background: radial-gradient(circle at 0% 0%, rgba(63, 201, 203, 0.08) 0%, transparent 40%);
+        }
+        .kinetic-hover:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+        .glass {
+            backdrop-filter: blur(12px);
+            background: rgba(11, 15, 24, 0.8);
+        }
+    </style>
+</head>
+<body class="text-on-surface min-h-screen overflow-x-hidden aurora-glow">
+<!-- Top Bar -->
+<header class="sticky top-0 z-50 glass border-b border-border-strong px-gutter py-4 flex items-center justify-between">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3">
+<div class="size-5 bg-primary rounded-sm flex items-center justify-center">
+<svg class="text-background w-4 h-4" fill="currentColor" viewbox="0 0 48 48">
+<path d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z"></path>
+</svg>
+</div>
+<h1 class="text-white font-semibold tracking-[0.25em] text-sm uppercase">ROVE</h1>
+</div>
+<div class="h-4 w-px bg-border-strong"></div>
+<nav class="flex items-center gap-2 text-sm">
+<span class="text-text-muted">Runs</span>
+<span class="text-text-faint material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-text font-mono">f5b81aef</span>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-panel-2 border border-border-strong rounded-lg text-xs font-mono text-primary shadow-sm">
+<span class="size-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(98,229,231,0.8)]"></span>
+                Worker online
+            </div>
+<div class="px-3 py-1.5 bg-border border border-border-strong rounded-lg text-xs font-medium text-text-muted">
+                project: tankloop
+            </div>
+<div class="flex items-center gap-3 pl-2 border-l border-border-strong">
+<div class="size-8 rounded-full bg-surface-container-highest border border-border flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A high-contrast profile avatar for a technical dashboard user, set against a dark navy background with subtle cyan lighting. The aesthetic is clean and professional, using a sharp geometric icon representation. This visual element integrates perfectly with the dark-mode flight-deck UI and its futuristic atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVPfUKScp_42pRszNI-08C7Gp3t2YIqYRWan6U2Evtng7iZ2ivCfOrRzwhUcm8ZZljjp6_k7a_aKXOSyY8PkirLjDaDHha0D_dCTcWOnZygClrkJzg7YN7hSclHh_-LxWU0LMKK5NwPDeLUXgldWMZUt7A40AlEF8V_auSXu_g-aB9OaBCS2XDIFBLawG5o5wWMso5Cdes1776kl-gSTqmJ802_SlHNzZF4j0__mogq8fh9z02Tk_NrgC0iKrVKxoIJ2-XrRZSJG8"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1280px] mx-auto px-gutter py-8 space-y-8">
+<!-- Hero Panel -->
+<section class="relative bg-panel border border-border-strong rounded-2xl p-8 flex flex-col lg:flex-row justify-between gap-12 shadow-[0_24px_64px_-32px_rgba(16,44,87,0.55)] before:absolute before:top-0 before:left-0 before:right-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-primary/30 before:to-transparent">
+<div class="flex-1 space-y-4">
+<div class="font-mono text-eyebrow text-text-muted flex items-center gap-2">
+                    RUN <span class="size-1 rounded-full bg-text-faint"></span> EVAL_DASHBOARD.DISCOVER_FLOWS <span class="size-1 rounded-full bg-text-faint"></span> CLAUDE_BROWSER_AGENT
+                </div>
+<h2 class="text-[40px] font-semibold text-white tracking-tight leading-tight">Walking the app</h2>
+<div class="text-lead text-text-muted">Step 8 of an estimated 25 · 1m 32s elapsed</div>
+<div class="flex items-center gap-4 mt-6">
+<div class="flex items-center gap-3 bg-accent-soft border border-primary/20 px-4 py-2 rounded-full">
+<span class="text-text-muted text-xs uppercase font-medium">Clicking</span>
+<span class="text-primary font-mono text-sm">"Run walk"</span>
+<span class="size-2 rounded-full bg-primary animate-pulse ml-2"></span>
+<div class="w-px h-3 bg-primary/20 ml-2"></div>
+<span class="text-primary font-mono text-sm ml-1">00:01:32</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-x-12 gap-y-6 lg:border-l lg:border-border-strong lg:pl-12">
+<div class="space-y-1">
+<div class="text-eyebrow text-text-faint">TARGET URL</div>
+<div class="text-text text-sm font-mono truncate max-w-[180px]">https://app.tankloop.io</div>
+</div>
+<div class="space-y-1">
+<div class="text-eyebrow text-text-faint">PERSONA</div>
+<div class="text-text text-sm font-mono">claude_browser_agent</div>
+</div>
+<div class="space-y-1">
+<div class="text-eyebrow text-text-faint">FLOW ID</div>
+<div class="text-text text-sm font-mono">discover_flows</div>
+</div>
+<div class="space-y-1">
+<div class="text-eyebrow text-text-faint">STATUS</div>
+<div class="flex items-center gap-2 text-primary text-sm font-mono">
+<span class="size-1.5 rounded-full bg-primary animate-pulse"></span>
+                        Walking...
+                    </div>
+</div>
+</div>
+</section>
+<!-- Filmstrip -->
+<section class="space-y-4">
+<div class="flex items-center gap-8 border-b border-border-strong pb-px">
+<button class="px-2 py-3 text-sm font-medium text-primary border-b-2 border-primary">Filmstrip</button>
+<button class="px-2 py-3 text-sm font-medium text-text-muted hover:text-text">Steps</button>
+<button class="px-2 py-3 text-sm font-medium text-text-muted hover:text-text flex items-center gap-2">
+                    Findings <span class="px-1.5 py-0.5 bg-accent-soft text-primary rounded-full text-[10px] font-mono">3</span>
+</button>
+<button class="px-2 py-3 text-sm font-medium text-text-muted hover:text-text">Reflection</button>
+</div>
+<div class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+<!-- Step Tiles -->
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="h-[130px] w-full rounded-lg bg-panel-2 border border-border-strong overflow-hidden mb-2 relative">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100" data-alt="A clean, minimalist UI screenshot of a software dashboard landing page with a primary sidebar and empty state view. The design follows dark-mode principles with a charcoal gray background and crisp white typography. The image captures the initial 'list' view stage of a web application walk-through, maintaining a high-precision, technical aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZH9K1nm9BuLCsafODa1asIZwhhOSOMNbfHjFoNWIc_gj7fASvp796zhlA0qnLeVYFJ3Q6fBr4kvWRUrisBrhcxxI4JiU1xl2ZSOvuG4PDN3XmGaDpIpzv3Bwqo0-oVJsKKxEv_3Y5H9Ss77ZMBMFZhWOrQQKihuvjt_V7dJxBON9-nvdYJHLtDKPGYoclkcUwgIg7RBToktAb9r-YX3-WV2GsyXetKYmHoy8QT6GXdC0hp9bpqzLjPVE0yfRXhsWy2MJnDye5BPY"/>
+<div class="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-mono text-text">#01</div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between items-start">
+<div class="text-[10px] font-mono text-text-faint uppercase">click</div>
+<div class="text-[10px] font-mono text-text-faint">0.4s</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="h-[130px] w-full rounded-lg bg-panel-2 border border-border-strong overflow-hidden mb-2 relative">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100" data-alt="A detailed screenshot of a login form on a modern technical web application. The form is centered on a dark navy background with subtle border hairlines around the input fields. The overall lighting is low-key with a soft focus on the active text input area, embodying the 'flight-deck' design philosophy." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMmmYG_AU_QPQ97hkP0tQ_Vka8aSwiEy_9s1qVeHr_Q3d9K_jri0rnVclx2ADzp_t_58YRJz-PaD4X11JgHNQGnqwADLRiDmCxZppA-v4mscGoye2D7uDGkz3hLw1m6g3-yXNJBCD82CIqMGoQzUuGRSCpkYEpqX_XvoQLlmh5e25azuQOR_VsNkL9Nh5IHmJZZ99_EKRyAyz7QAmWlQOn_JNsQ_a6MPgLcfHMrCZGupyBNLGRZKR1nG1CX0trSuOkLGxm3WXWeYE"/>
+<div class="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-mono text-text">#02</div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between items-start">
+<div class="text-[10px] font-mono text-text-faint uppercase">type</div>
+<div class="text-[10px] font-mono text-text-faint">1.2s</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] group cursor-pointer">
+<div class="h-[130px] w-full rounded-lg bg-panel-2 border border-border-strong overflow-hidden mb-2 relative">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100" data-alt="A high-fidelity capture of a complex data table in a dark-themed monitoring tool. The rows have subtle dividers and the headers are styled with muted typography. The visual focus is on a loading state indicator, showing a technical interface in mid-transition with a refined, professional color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuASPZz8Uz77nx5sb2ssfULdFpCaZJXpNBANljnYX9awlY3eLF_-waqjYqmR-hzTcbAaXZcjarc7_HVIK3xMYT2TboMDWbJote0TjLutSRGs0bonTcm2od5o1C29qGnda84yLgVlMw6PsqXFWN73H9GK-rTpRxmfaEqy9gUe4VBBon9dHNKg6DWKc7AwRpYwlKvIvgFmab8pQArMVEGC2hWqxs7FTVdnmYcpESijw0-gAdqVzOijos8rfHFe5fPldHTSiE3u1zf7dtM"/>
+<div class="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-mono text-text">#03</div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between items-start">
+<div class="text-[10px] font-mono text-text-faint uppercase">wait</div>
+<div class="text-[10px] font-mono text-text-faint">0.8s</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] group cursor-pointer bg-error-container/10 border border-error/20 p-1 rounded-xl">
+<div class="h-[130px] w-full rounded-lg bg-panel-2 border border-error/30 overflow-hidden mb-2 relative">
+<img class="w-full h-full object-cover opacity-80 group-hover:opacity-100" data-alt="A screenshot capturing a user interface error state within a dark-mode web application. A subtle rose-tinted glow highlights a field where an error occurred. The typography is sharp and legible, with technical details about the error displayed in a minimalist panel, keeping the overall look consistent with a high-end IDE." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsCFQNQhMX2g11sbLiiZoIcw1y7Snawdy4gW8AojI_1SdRnNaeJsWAuIgl_FFWUejD7ILb7snrBfIzc86znAGV0HlsP2OGEKxD-U6FqB8dKV2PhR65rilGFJv8Syn7cr2bGBqCNeJEXL0R1NBdHWSHl0a9UB9KxnCdM0055jJqmd3rlZqkxzPY-ULIGncmOSAwzZxQ4xAAQGz1Ua4i5VY5P-Duw9q8A6Pck5mwhCDlQ0mmrQb68jcBITLDjhGHLQMoF8CohTEAxx4"/>
+<div class="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-mono text-text">#05</div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-critical shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>
+</div>
+<div class="flex justify-between items-start px-1 pb-1">
+<div class="text-[10px] font-mono text-critical uppercase">error</div>
+<div class="text-[10px] font-mono text-critical">2.1s</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] group cursor-pointer p-1 border-2 border-primary rounded-xl ring-4 ring-primary/10">
+<div class="h-[130px] w-full rounded-lg bg-panel-2 overflow-hidden mb-2 relative">
+<img class="w-full h-full object-cover" data-alt="A large, clear preview of a web application screen currently being interacted with by an agent. The view shows a high-contrast 'Run' button being targeted by a virtual cursor. The background is a sophisticated layered dark surface with thin cyan border hairlines, matching the global flight-deck aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOhEzPSaLMx-hO384hi6nKOSVLvYkfpISjN_8bvM9CAbgJx9md2_dFbrfo2aa6ccG2if5oyr3NPqYpGfaNiTIQJewHl76AT1oTw3ugSQ3AsTkyxLVP8RcHZchvPehbCGkKKMtkCEcd9kkH1e_v1nlUHddE-bh0zJHYw3AZlFn2bByaAOBsDigsfE3Nk7vpAxuvZo4i7SHGHWnvP6KiQ03WfGXs9sNxp34MhOLdIQ6qnTEbIYl6jMVFp7mogzszytGVoiz5ItELqXU"/>
+<div class="absolute top-2 left-2 px-1.5 py-0.5 bg-background/80 rounded text-[10px] font-mono text-text">#08</div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-primary animate-ping"></div>
+<div class="absolute top-2 right-2 size-2 rounded-full bg-primary"></div>
+</div>
+<div class="flex justify-between items-start px-1 pb-1">
+<div class="text-[10px] font-mono text-primary uppercase">running</div>
+<div class="text-[10px] font-mono text-primary animate-pulse">active</div>
+</div>
+</div>
+<div class="flex-shrink-0 w-[220px] border-2 border-dashed border-border-strong rounded-xl flex items-center justify-center bg-panel-2/30">
+<div class="text-[10px] font-mono text-text-faint">#09 AWAITING</div>
+</div>
+</div>
+</section>
+<!-- Detail View -->
+<section class="grid lg:grid-cols-3 gap-6 pt-4">
+<div class="lg:col-span-2 space-y-4">
+<div class="aspect-video w-full rounded-2xl border border-border-strong bg-panel-2 p-1 overflow-hidden">
+<img class="w-full h-full object-cover rounded-xl" data-alt="A wide-screen 16:9 high-fidelity screenshot of a technical dashboard in a dark environment. The scene showcases precise UI elements like buttons and data chips with a soft cyan focus ring around a primary call-to-action button. The overall mood is serious and professional, with high-precision typography and deep tonal layering." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6vo4bm36FxKxCteuuShCxOsdz-VjwUxRsD53EAtIkPYhHbtxL1v4vDaZz_P_NSyULw1A5waF0asrf68TTQJeMPAzt0fsJgN5OoMpWcrSmVEHKEeV8qDlOxgqTyJRHyGSDMzG8gTMMUB8Ppz9nCvzyC1oKNjtvjNjXKjl4pcoMpMRmnxP_ZOluEvTOQJSnhsVcERGOdxSUUJ2CVVlCVOwuBtBso592QZDmO4MSMAWxwpHka05tJTqJvXhFxFm0FXanxrczqHLLWZw"/>
+</div>
+<div class="flex items-center justify-between">
+<div class="text-sm font-mono text-text-muted">step 08 — clicking <span class="text-primary">"Run walk"</span></div>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-panel border border-border-strong rounded text-[11px] font-mono text-text-faint">TOOL: click</span>
+<span class="px-2 py-1 bg-panel border border-border-strong rounded text-[11px] font-mono text-text-faint">URL: /dashboard</span>
+<span class="px-2 py-1 bg-panel border border-border-strong rounded text-[11px] font-mono text-text-faint">DUR: --</span>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="bg-panel border border-border-strong rounded-2xl h-full flex flex-col">
+<div class="p-4 border-b border-border-strong">
+<div class="text-eyebrow text-text-faint">ACCESSIBILITY TREE</div>
+</div>
+<div class="p-4 font-mono text-[11px] text-text-muted space-y-2 overflow-y-auto max-h-[480px]">
+<div class="pl-0 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">expand_more</span> [RootWebArea] "Tankloop Dashboard"</div>
+<div class="pl-4 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">expand_more</span> [navigation]</div>
+<div class="pl-8 flex items-center gap-2 text-text-faint">... (12 nodes)</div>
+<div class="pl-4 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">expand_more</span> [main]</div>
+<div class="pl-8 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">expand_more</span> [heading] "Controls"</div>
+<div class="pl-8 bg-accent-soft text-primary border-l-2 border-primary py-1 px-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">ads_click</span>
+                            [button] "Run walk"
+                        </div>
+<div class="pl-8 flex items-center gap-2 opacity-50">[button] "Reset"</div>
+<div class="pl-8 flex items-center gap-2 opacity-50">[checkbox] "Auto-save"</div>
+<div class="pl-4 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">chevron_right</span> [footer]</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Findings Stream -->
+<section class="space-y-6 pt-12 border-t border-border-strong">
+<div class="flex items-center gap-3">
+<h3 class="text-eyebrow text-text-faint">FINDINGS FILED THIS WALK</h3>
+<span class="px-2 py-0.5 bg-accent-soft text-primary rounded-full text-xs font-mono">3</span>
+</div>
+<div class="grid md:grid-cols-3 gap-4">
+<!-- Finding Card 1 -->
+<div class="kinetic-hover group bg-panel-2 border border-border-strong rounded-2xl p-4 space-y-4 cursor-pointer">
+<div class="flex items-start justify-between">
+<span class="px-2 py-1 bg-critical/20 text-critical text-[10px] font-bold rounded uppercase tracking-wider">Critical</span>
+<div class="size-12 rounded border border-border overflow-hidden">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0" data-alt="A detailed thumbnail showing a specific accessibility failure on a login button. The image uses a technical focus box over the element, highlighting the lack of descriptive labels. The visual style is consistent with high-precision engineering tools, featuring dark surfaces and diagnostic overlays." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC-MrKEDjuQN0wtPC0i1FDc0eM6mMDgG5touQFT6JTqGusNXgok_RKpV-z6A42Sr5T_7vuCJj1Wra31E0qDhT3PJRu2o942Kp5PVZ7gQUWBsTE7TSC0AmDZAtDVJoAC_a-dG53fsy6srgr7G5o4_46X-i1L1_5G8uRZ13m70S7a455FxUKHk4zlWr7T6KfVFfLb5zo2d2_Fel4tans2XqKuYlpmznw_uF-77xkjFUxavcm4H5HU2zYquFfrkE7UgM64_biua2yG68"/>
+</div>
+</div>
+<div>
+<div class="text-text font-medium text-sm line-clamp-2">Login button lacks accessible name</div>
+<div class="text-text-faint font-mono text-[10px] mt-2">agent.accessibility_tree_completeness</div>
+</div>
+</div>
+<!-- Finding Card 2 -->
+<div class="kinetic-hover group bg-panel-2 border border-border-strong rounded-2xl p-4 space-y-4 cursor-pointer">
+<div class="flex items-start justify-between">
+<span class="px-2 py-1 bg-major/20 text-major text-[10px] font-bold rounded uppercase tracking-wider">Major</span>
+<div class="size-12 rounded border border-border overflow-hidden">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0" data-alt="A visual diagnostic showing a missing aria-live region on a loading state within a dark-mode app. The image features high-contrast technical annotations pointing out the structural omission in the code view, maintaining a professional and stable visual atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJ18Cte5VB290bSWZLXJIIOe4ZNIBwPJANEJo2W06fG6I6nRyTXQckDOl3C5CeKtGPf-_cI4dppaFeIBoIQC_yGWE-9ZFUXF3SNLxLtunU8Ray0JI8QtlDXpiEqCxot6my_V0SybFfr8pzIUe1mVBDAYDH9p6umDK4kWtoDGgMgTaCGS5C67iSwh0wn3pqi5qwnavrc8pSwFQe5kyxNms7T8ks5i2Bet1K_ERh7wKPbafn8Ni4Jf1xKSMvdPsiUIB6AW7PvkGazIw"/>
+</div>
+</div>
+<div>
+<div class="text-text font-medium text-sm line-clamp-2">Loading state has no aria-live region</div>
+<div class="text-text-faint font-mono text-[10px] mt-2">agent.feedback_announced</div>
+</div>
+</div>
+<!-- Finding Card 3 -->
+<div class="kinetic-hover group bg-panel-2 border border-border-strong rounded-2xl p-4 space-y-4 cursor-pointer">
+<div class="flex items-start justify-between">
+<span class="px-2 py-1 bg-minor/20 text-minor text-[10px] font-bold rounded uppercase tracking-wider">Minor</span>
+<div class="size-12 rounded border border-border overflow-hidden">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0" data-alt="A screenshot identifying a heading hierarchy issue in a clean web layout. The visual highlights the skip from h1 to h3 with a technical overlay, using a palette of deep grays and vibrant amber accents to denote the minor severity of the finding." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDavmRtH2zPoUGYFb3hnq9hlnWGyXslXI_VjkgVACIupeiZQEVL4eDcyxoLe-cUKYY8sRIVJKsvrcGmeSVcTwn3EeQhavdFQnbKTa9BQVNil6kPFS7kaMsCRufrKs3TuoIp94LwhCQOmwRCgQT2jv52L7UX3wsvFhZfTsODDoUo4BpfxJ1ytdjm-qrotASdMXrPhxSXzl5_Q2x39TN_QqrH5OjnY4EFOOIjF2VCoIfYP1JqwqB8uhVVJ6jMgndK3TpyVrViwTOVtv8"/>
+</div>
+</div>
+<div>
+<div class="text-text font-medium text-sm line-clamp-2">Heading hierarchy skips h2</div>
+<div class="text-text-faint font-mono text-[10px] mt-2">agent.semantic_html</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="mt-20 border-t border-border-strong py-8 px-gutter">
+<div class="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between gap-4 text-text-faint font-mono text-[10px] uppercase tracking-widest">
+<div class="flex gap-4">
+<span>commit 64ccef7</span>
+<span>branch main</span>
+</div>
+<div class="flex gap-4">
+<span>daemon WrangleMeThis-Mac</span>
+<span>run id f5b81aef</span>
+</div>
+</div>
+</footer>
+</body></html>
