@@ -17,9 +17,10 @@ type TabId = "filmstrip" | "steps" | "findings" | "reflection";
 
 interface PreviewLiveWalkProps {
   view: RunDetailView;
+  projectSwitcher?: React.ReactNode;
 }
 
-export function PreviewLiveWalk({ view: initialView }: PreviewLiveWalkProps) {
+export function PreviewLiveWalk({ view: initialView, projectSwitcher }: PreviewLiveWalkProps) {
   const view = useTickingView(initialView);
   const [tab, setTab] = useState<TabId>("filmstrip");
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
@@ -39,7 +40,7 @@ export function PreviewLiveWalk({ view: initialView }: PreviewLiveWalkProps) {
       style={{ background: "var(--color-bg)", zIndex: 100 }}
     >
       <BackgroundAurora />
-      <TopBar view={view.topBar} />
+      <TopBar view={view.topBar} projectSwitcher={projectSwitcher} />
       <main
         className="mx-auto relative"
         style={{ maxWidth: 1280, padding: "28px 32px 64px", zIndex: 1 }}

@@ -17,6 +17,7 @@ import {
 import type { RunDetail, RunFinding, RunStep } from "./types";
 import { RunDetailLive } from "@/components/run-detail/RunDetailLive";
 import { buildRunDetailView } from "@/components/run-detail/adapters";
+import { ProjectSwitcher } from "@/components/project-switcher";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +122,14 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     workerOnline: false, // not yet wired — pull from workers table in a follow-up
   });
 
-  return <RunDetailLive runId={id} projectId={projectId} initialView={view} />;
+  return (
+    <RunDetailLive
+      runId={id}
+      projectId={projectId}
+      initialView={view}
+      projectSwitcher={<ProjectSwitcher />}
+    />
+  );
 }
 
 async function signScreenshotUrls(

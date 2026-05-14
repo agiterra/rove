@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { buildMockRunDetailView } from "@/components/run-detail/mock-data";
+import { ProjectSwitcher } from "@/components/project-switcher";
 import { PreviewLiveWalk } from "./PreviewLiveWalk";
 
 export const metadata: Metadata = {
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function LiveWalkPreviewPage() {
-  return <PreviewLiveWalk view={buildMockRunDetailView()} />;
+  return <PreviewLiveWalk view={buildMockRunDetailView()} projectSwitcher={<ProjectSwitcher />} />;
 }

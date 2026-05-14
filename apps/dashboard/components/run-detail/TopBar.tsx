@@ -1,8 +1,19 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { AppMark } from "@/components/app-mark";
 import type { TopBarView } from "./types";
 
-export function TopBar({ view }: { view: TopBarView }) {
+interface TopBarProps {
+  view: TopBarView;
+  /**
+   * Server-rendered project switcher (rendered by the parent page so this
+   * component stays usable from inside a client tree). When null, falls
+   * back to a static `project: <slug>` pill.
+   */
+  projectSwitcher?: ReactNode;
+}
+
+export function TopBar({ view, projectSwitcher }: TopBarProps) {
   const runsHref = `/runs?p=${encodeURIComponent(view.project)}`;
   return (
     <header
@@ -31,10 +42,12 @@ export function TopBar({ view }: { view: TopBarView }) {
         </nav>
 
         <div className="ml-auto flex items-center gap-2.5">
-          <Pill>
-            <span className="text-[var(--color-text-faint)]">project:</span>
-            <span className="text-[var(--color-text)]">{view.project}</span>
-          </Pill>
+          {projectSwitcher ?? (
+            <Pill>
+              <span className="text-[var(--color-text-faint)]">project:</span>
+              <span className="text-[var(--color-text)]">{view.project}</span>
+            </Pill>
+          )}
           {view.userLabel ? (
             <Pill>
               <UserIcon />

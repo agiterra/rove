@@ -29,7 +29,7 @@
 | Breadcrumb "Runs ›" | `Link href="/runs?p=<project>"` in `TopBar` — project pulled from `view.topBar.project`. | ✅ | — |
 | Breadcrumb run id (short) | `runs.id.slice(0, 8)` | ✅ | — |
 | Secondary breadcrumb row (`← all runs`) | `Link href="/runs?p=<project>"` in `RunDetailLive.BreadcrumbRow`. | ✅ | — |
-| Project pill (`project: tankloop`) | `resolveProjectId(searchParams)` from `lib/project-context.ts` | 🟡 | Click → open `ProjectSwitcher` menu. Replace inline `<span>` with `<ProjectSwitcher size="sm">` from `components/project-switcher.tsx` |
+| Project pill (`project: tankloop`) | `ProjectSwitcher` (server) rendered by `app/runs/[id]/page.tsx` + `app/preview/live-walk/page.tsx`; passed through `RunDetailLive` / `PreviewLiveWalk` → `TopBar` as a `projectSwitcher` children prop so it stays a server component even inside the client tree. | ✅ | — |
 | User pill (`alex`) | `supabase.auth.getUser().user_metadata.user_name`, falls back to `email.split('@')[0]` | ✅ | — |
 | Worker status pill (`Worker online`, pulsing dot) | Not derivable from `runs` today. `initiator_label` is the requester label, not the daemon. | ❌ | First add an explicit run↔job/worker link (`runs.agent_job_id` or `runs.worker_id`, or make queued walks use a daemon-provided run id and store it in `agent_jobs.result`). Then resolve `agent_jobs.claimed_by_worker_id → workers.id`; online if `last_heartbeat_at > now() - 90s` and not stopped/disabled. |
 | Click brand mark | `Link href="/runs?p=<project>"` wrap in `TopBar`. | ✅ | — |

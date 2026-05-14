@@ -18,6 +18,8 @@ interface RunDetailLiveProps {
   runId: string;
   projectId: string;
   initialView: RunDetailView;
+  /** Server-rendered ProjectSwitcher; forwarded to TopBar. */
+  projectSwitcher?: React.ReactNode;
 }
 
 type TabId = "filmstrip" | "steps" | "findings" | "reflection";
@@ -32,7 +34,7 @@ type TabId = "filmstrip" | "steps" | "findings" | "reflection";
  * RunDetailView from a one-shot read; this component subscribes to
  * Realtime updates and replaces the view as new rows arrive.
  */
-export function RunDetailLive({ runId, projectId, initialView }: RunDetailLiveProps) {
+export function RunDetailLive({ runId, projectId, initialView, projectSwitcher }: RunDetailLiveProps) {
   const liveView = useLiveRun({ runId, projectId, initialView });
   const baseView = liveView ?? initialView;
   const view = useTickingView(baseView);
@@ -70,7 +72,7 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
       style={{ background: "var(--color-bg)", zIndex: 100 }}
     >
       <BackgroundAurora />
-      <TopBar view={view.topBar} />
+      <TopBar view={view.topBar} projectSwitcher={projectSwitcher} />
       <main
         className="mx-auto relative"
         style={{ maxWidth: 1280, padding: "28px 32px 64px", zIndex: 1 }}
