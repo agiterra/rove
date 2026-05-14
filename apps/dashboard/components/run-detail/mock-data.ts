@@ -119,6 +119,17 @@ export const FINDINGS: MockFinding[] = [
 // shapes that /runs/[id]'s adapter (./adapters.ts) produces from real
 // Supabase rows.
 
+const MOCK_ARIA_SNAPSHOT = `- banner:
+  - navigation:
+    - link "Runs" [ref=e1]: /runs
+    - link "Flows" [ref=e2]: /flows
+- main:
+  - region "Walk overview":
+    - heading "Walking the app" [level=1] [ref=e6]
+    - region "Live action":
+      - button "Run walk" [ref=e7]
+`;
+
 function mockActionTarget(s: MockStep): ActionTarget | null {
   if (s.toolName.startsWith("browser_click")) {
     if (s.index === 8) return { target: "e7", element: "Run walk button" };
@@ -149,6 +160,7 @@ export function buildMockRunDetailView(): RunDetailView {
     url: s.url,
     thumb: { kind: "mock", name: s.thumb },
     actionTarget: mockActionTarget(s),
+    ariaSnapshot: s.index === 8 ? MOCK_ARIA_SNAPSHOT : null,
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({

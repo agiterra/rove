@@ -35,6 +35,8 @@ export interface StepView {
   thumb: StepThumb;
   /** Null for tools without a target (e.g., `browser_snapshot`). */
   actionTarget: ActionTarget | null;
+  /** Raw Playwright MCP aria-snapshot text, parsed at render time. */
+  ariaSnapshot: string | null;
 }
 
 export interface FindingView {

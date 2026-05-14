@@ -136,6 +136,7 @@ interface StepRow {
   url_after: string | null;
   duration_ms: number | null;
   screenshot_key?: string | null;
+  aria_snapshot?: string | null;
 }
 
 interface FindingRow {
@@ -456,6 +457,10 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
     url: step.url_after ?? "",
     thumb,
     actionTarget: extractActionTarget(toolName, step.args),
+    ariaSnapshot:
+      typeof step.aria_snapshot === "string" && step.aria_snapshot.length > 0
+        ? step.aria_snapshot
+        : null,
   };
 }
 

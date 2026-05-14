@@ -1,5 +1,7 @@
 import { MockThumb } from "./MockThumbs";
 import { TankloopPreview, PreviewCursor } from "./TankloopPreview";
+import { parseAriaSnapshot, type AriaNode } from "./parseAriaSnapshot";
+import { highlightAriaTarget } from "./highlightAriaTarget";
 import type { StepView } from "./types";
 
 interface DetailSplitProps {
@@ -169,7 +171,11 @@ function MonoPill({ label, value, accent = false }: { label: string; value: stri
   );
 }
 
-function A11yTree({ liveTarget }: { step: StepView; liveTarget?: string }) {
+function A11yTree({ step, liveTarget }: { step: StepView; liveTarget?: string }) {
+  const parsed = parseAriaSnapshot(step.ariaSnapshot);
+  const highlightId = highlightAriaTarget(parsed, step.actionTarget);
+  const hasParsed = parsed.length > 0 && parsed[0].role !== "raw";
+
   return (
     <aside
       style={{
@@ -186,15 +192,97 @@ function A11yTree({ liveTarget }: { step: StepView; liveTarget?: string }) {
         ACCESSIBILITY TREE
       </p>
       <div className="font-mono text-[var(--color-text)]" style={{ fontSize: 12.5 }}>
-        {liveTarget ? <SampleAriaTree liveTarget={liveTarget} /> : <NoTreeYet />}
+        {hasParsed ? (
+          <ParsedTree nodes={parsed} highlightId={highlightId} />
+        ) : parsed.length > 0 && parsed[0].rawText ? (
+          <RawTree text={parsed[0].rawText} />
+        ) : liveTarget ? (
+          <SampleAriaTree liveTarget={liveTarget} />
+        ) : (
+          <NoTreeYet />
+        )}
       </div>
     </aside>
   );
 }
 
-/** Renders the canonical role-name tree used in the preview when a live
- * target is known. Real /runs/[id] would parse run_step.aria_snapshot
- * (markdown-ish text) into a tree — deferred to a later PR. */
+function ParsedTree({ nodes, highlightId }: { nodes: AriaNode[]; highlightId: string | null }) {
+  return (
+    <>
+      {nodes.map((n, i) => (
+        <TreeNode key={n.id} node={n} depth={0} isLast={i === nodes.length - 1} highlightId={highlightId} />
+      ))}
+    </>
+  );
+}
+
+function TreeNode({
+  node,
+  depth,
+  isLast,
+  highlightId,
+}: {
+  node: AriaNode;
+  depth: number;
+  isLast: boolean;
+  highlightId: string | null;
+}) {
+  const hasChildren = node.children.length > 0;
+  const rails: ("line" | "gap")[] = Array(depth).fill("line");
+  const cap: "tee" | "elbow" | undefined = depth === 0 ? undefined : isLast ? "elbow" : "tee";
+  const isHit = node.id === highlightId;
+
+  const inner = (
+    <>
+      {hasChildren ? <Tw>▼</Tw> : null}
+      <Role>{node.role}</Role>
+      {node.name ? <Name>&ldquo;{node.name}&rdquo;</Name> : null}
+      {node.inlineValue ? <Href>{node.inlineValue}</Href> : null}
+    </>
+  );
+
+  return (
+    <>
+      {isHit ? (
+        <div
+          className="lw-tree-highlight flex items-center gap-1.5 self-start"
+          style={{ padding: "4px 8px", margin: "2px 0 2px 48px" }}
+        >
+          {inner}
+        </div>
+      ) : (
+        <TreeRow rails={rails} cap={cap}>
+          {inner}
+        </TreeRow>
+      )}
+      {hasChildren
+        ? node.children.map((c, i) => (
+            <TreeNode
+              key={c.id}
+              node={c}
+              depth={depth + 1}
+              isLast={i === node.children.length - 1}
+              highlightId={highlightId}
+            />
+          ))
+        : null}
+    </>
+  );
+}
+
+function RawTree({ text }: { text: string }) {
+  return (
+    <pre
+      className="m-0 whitespace-pre-wrap break-words text-[var(--color-text-muted)]"
+      style={{ fontSize: 12 }}
+    >
+      {text}
+    </pre>
+  );
+}
+
+/** Hand-built preview-only tree used when `liveTarget` is set but no
+ * `aria_snapshot` exists (the preview route's mock data path). */
 function SampleAriaTree({ liveTarget }: { liveTarget: string }) {
   return (
     <>

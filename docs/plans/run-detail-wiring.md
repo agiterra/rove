@@ -109,8 +109,8 @@
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Eyebrow `ACCESSIBILITY TREE` | Static | ✅ | — |
-| Tree node rendering (`▼ banner` → indent rails → `link "Runs"`) | Hardcoded sample on preview; real rows have `run_steps.aria_snapshot` text, but `StepView` drops it today | ❌ | Extend `StepView` with `ariaSnapshot: string | null`, then parse Playwright MCP's YAML-like aria snapshot format (`- role "Name" [attr=value]:`, nested sequences, text nodes, iframe / `<changed>` lines). Parser failures render raw text, never throw. |
-| Highlighted target node (cyan-soft fill + pulse) | Currently hardcoded "Run walk" button on preview | ❌ | Highlight by `args.target` ref when the parsed snapshot contains `[ref=<target>]`; fall back to role/name matching only when `args.element` is present. If the selected row is an action without its own snapshot, use the nearest preceding snapshot or no highlight. |
+| Tree node rendering (`▼ banner` → indent rails → `link "Runs"`) | `parseAriaSnapshot(step.ariaSnapshot)` → `AriaNode[]`; rendered by `ParsedTree` in `DetailSplit`. Parser falls back to raw-text node on failure. | ✅ | — |
+| Highlighted target node (cyan-soft fill + pulse) | `highlightAriaTarget(parsed, step.actionTarget)` matches by `[ref=…]` first, accessible-name second. | ✅ | Nearest-preceding-snapshot lookup for action rows is owed when daemon-side per-step writes land (Track B2). |
 | Empty state ("No aria-snapshot captured for this step yet") | Rendered when `step.ariaSnapshot` is null after `StepView` grows the field | ✅ | — |
 | Indent rails + highlight animation | Static CSS `.lw-rail*`, `.lw-tree-highlight` | ✅ | Preserve reduced-motion suppression |
 | Click a tree node → ? | No-op today | 🟡 | Defer interactivity; tree is read-only at first land |
@@ -211,8 +211,8 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
 | Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |
 | `extractActionTarget(toolName, args)` helper | ✅ shipped | `components/run-detail/adapters.ts`; recognizes Playwright MCP `target` / `ref` / `selector` + `element` for action tools; `url` for navigation. |
-| `parseAriaSnapshot(text)` parser | New | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a raw-text node. |
-| `aria-snapshot ↔ action target` matcher | New | `components/run-detail/highlightAriaTarget.ts`; given parsed tree + `args.target` / `args.element`, returns the node id (or null) that should render with `lw-tree-highlight` |
+| `parseAriaSnapshot(text)` parser | ✅ shipped | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a single raw-text node. |
+| `aria-snapshot ↔ action target` matcher | ✅ shipped | `components/run-detail/highlightAriaTarget.ts`; ref-first, name-fallback. |
 | Reflection panel | ✅ shipped | `components/run-detail/Reflection.tsx` + `Reflection.parts.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
 | MetricsStrip restyle | ✅ shipped | `MetricsStrip` inside `Reflection.parts.tsx`; renders all 8 trajectory metrics in a 2-row 4-col grid (no "6 tiles" misclaim) |
 | Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
