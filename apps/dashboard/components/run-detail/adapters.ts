@@ -11,6 +11,7 @@
  */
 
 import type {
+  ActionTarget,
   FindingView,
   FooterView,
   HeroView,
@@ -25,6 +26,53 @@ import type {
   SurpriseView,
   TopBarView,
 } from "./types";
+
+/**
+ * Pull the action target + (optional) human-readable element name out of
+ * a Playwright MCP `arguments` payload. Recognized arg shapes:
+ *
+ *   - `browser_click`  / `browser_type` / `browser_hover` / `browser_drag`:
+ *       target = args.target ?? args.ref ?? args.selector
+ *       element = args.element  (set by Playwright MCP for accessible-name)
+ *   - `browser_navigate`:
+ *       target = args.url
+ *
+ * Returns null for tools without a meaningful target (`browser_snapshot`,
+ * `browser_take_screenshot`, `browser_press_key`, etc).
+ */
+export function extractActionTarget(toolName: string, args: unknown): ActionTarget | null {
+  if (!toolName) return null;
+  const a = (args && typeof args === "object" ? (args as Record<string, unknown>) : {}) as Record<
+    string,
+    unknown
+  >;
+
+  if (toolName.startsWith("browser_navigate")) {
+    const url = typeof a.url === "string" ? a.url : null;
+    return url ? { target: url, element: null } : null;
+  }
+
+  const TARGETED = new Set([
+    "browser_click",
+    "browser_type",
+    "browser_hover",
+    "browser_drag",
+    "browser_fill",
+    "browser_select_option",
+    "browser_file_upload",
+  ]);
+  if (!TARGETED.has(toolName)) return null;
+
+  const target =
+    pickString(a.target) ?? pickString(a.ref) ?? pickString(a.selector) ?? null;
+  const element = pickString(a.element);
+  if (!target && !element) return null;
+  return { target, element };
+}
+
+function pickString(v: unknown): string | null {
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
 
 interface PlanRowStep {
   step?: unknown;
@@ -353,7 +401,7 @@ function buildHeroStatusBits(
   if (status === "running") {
     const lastStep = steps[steps.length - 1];
     const inferredNowDoing = lastStep
-      ? { verb: humanizeVerb(lastStep.toolName), target: shortTarget(lastStep.url) }
+      ? { verb: humanizeVerb(lastStep.toolName), target: deriveNowDoingTarget(lastStep) }
       : null;
     return {
       headline: "Walking the app",
@@ -398,14 +446,16 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
     ? { kind: "image", src: signedUrls[step.screenshot_key] }
     : { kind: "placeholder", reason: status === "running" ? "running" : "no-screenshot" };
 
+  const toolName = step.tool_name ?? "unknown";
   return {
     index: step.step_index,
-    toolName: step.tool_name ?? "unknown",
+    toolName,
     status,
     durationLabel:
       step.duration_ms != null ? `${(step.duration_ms / 1000).toFixed(1)}s` : "—",
     url: step.url_after ?? "",
     thumb,
+    actionTarget: extractActionTarget(toolName, step.args),
   };
 }
 
@@ -481,4 +531,16 @@ function shortTarget(url: string): string {
   if (!url) return "—";
   const stripped = url.replace(/^https?:\/\//, "");
   return stripped.length > 48 ? stripped.slice(0, 45) + "…" : stripped;
+}
+
+/**
+ * Prefer the human-readable element name (e.g., "Run walk"); fall back to
+ * the stable target ref; fall back to the step URL. NowDoing speaks human
+ * first, machine second.
+ */
+function deriveNowDoingTarget(step: StepView): string {
+  const at = step.actionTarget;
+  if (at?.element) return at.element;
+  if (at?.target) return at.target;
+  return shortTarget(step.url);
 }

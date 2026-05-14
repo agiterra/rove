@@ -93,6 +93,12 @@ function PreviewPanel({
       <div className="flex flex-wrap gap-2 mt-3.5">
         <MonoPill label="tool" value={step.toolName} />
         <MonoPill label="url" value={step.url ? `https://${step.url.replace(/^https?:\/\//, "")}` : "—"} />
+        {step.actionTarget?.target ? (
+          <MonoPill label="target" value={step.actionTarget.target} />
+        ) : null}
+        {step.actionTarget?.element ? (
+          <MonoPill label="element" value={step.actionTarget.element} />
+        ) : null}
         <MonoPill label="duration" value={step.durationLabel} />
         <MonoPill label="status" value={step.status} accent={step.status === "running"} />
       </div>

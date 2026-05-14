@@ -40,7 +40,7 @@
 |---|---|---|---|
 | Eyebrow `RUN · <flow_id> · <persona_id>` | `runs.flow_id`, `runs.persona_id` | ✅ | — |
 | NowDoing pill — verb (`Clicking`, `Reading`, `Typing into`, `Navigating to`, `Capturing`) | Derived from latest `run_steps.tool_name` via `humanizeVerb()` in `adapters.ts` | ✅ | — |
-| NowDoing pill — target (`"Run walk"`, `/admin/foo`) | For action tools, derive from `run_steps.args.target` plus optional `args.element`; for navigation, use `args.url` / `url_after` | 🟡 | Add `extractActionTarget(tool_name, args, ariaSnapshot?)`. Playwright MCP uses `target`, not `selector`; accessible name requires `args.element` or matching the target ref against a parsed snapshot. |
+| NowDoing pill — target (`"Run walk"`, `/admin/foo`) | `deriveNowDoingTarget(step)` in `adapters.ts`: prefers `step.actionTarget.element`, falls back to `step.actionTarget.target`, falls back to `shortTarget(step.url)`. `extractActionTarget(tool_name, args)` recognizes Playwright MCP `target`/`ref`/`selector` + `element`. | ✅ | — |
 | NowDoing pill — timer | `runs.started_at` → `now()` (running) / `runs.finished_at` (done). Computed client-side; ticks via 1Hz interval | 🟡 | Wire 1Hz ticker in `RunDetailLive` for running walks; freeze on terminal status. Do not put the ticking value inside the `aria-live` region, or it will announce every second. |
 | NowDoing pill — sweep animation | `.lw-sweep::after` keyframes in `globals.css` | ✅ | — |
 | NowDoing pill — visibility | Only render when `status === "running"` | ✅ | — |
@@ -94,14 +94,14 @@
 
 | Element | Data source | Status | TODO |
 |---|---|---|---|
-| Caption `step 08 — clicking "Run walk"` | `selectedStep.index`, `selectedStep.toolName`, `selectedStep.url` via `humanVerb()` in DetailSplit | 🟡 | Verb derivation uses URL right now; same fix as §2 NowDoing — prefer click target from `args` |
+| Caption `step 08 — clicking "Run walk"` | `selectedStep.index`, `selectedStep.toolName`. On the live route the verb-only caption renders (no `liveTarget`); the preview route passes the mock `liveTarget`. NowDoing target lives in the hero pill (wired via `extractActionTarget`); duplicating it in the caption is preview-only. | ✅ | — |
 | Screenshot (16:9, white-bg) | `step.thumb` → `<img>` for signed URL, `<MockThumb>` for preview, striped placeholder otherwise | 🟡 | Same daemon-side block as §3 — Track B2 |
 | No selected step empty state | `selectedStep === null` | ✅ | Keep copy static; this is reached when there are no step rows |
 | Inline Tankloop preview (preview route only) | `inlineTankloop` prop. `TankloopPreview` is static HTML/CSS, not data-driven | ✅ | Preview-only fixture; see §15 for explicit non-wiring scope |
 | Preview cursor overlay (preview route only) | Static `PreviewCursor` SVG | ✅ | Preview-only fixture; no real-data wiring |
 | Tag pills below (`tool`, `url`, `duration`, `status`) | `step.toolName`, `step.url`, `step.durationLabel`, `step.status` | ✅ | — |
-| `target` tag | Not rendered on real `/runs/[id]` | 🟡 | Extract from `run_steps.args.target` for `browser_click` / `browser_type`; label as `target`, not `selector`, unless the value is a non-ref selector |
-| `element` tag | Optional Playwright MCP human-readable element description | 🟡 | Render only when `run_steps.args.element` is a non-empty string |
+| `target` tag | `step.actionTarget.target` — extracted from `args.target`/`args.ref`/`args.selector` via `extractActionTarget`. | ✅ | — |
+| `element` tag | `step.actionTarget.element` — extracted from `args.element`. Rendered only when present. | ✅ | — |
 | `coordinates` tag | Not supported for normal `browser_click` / `browser_type` rows | ❌ | Do not wire for normal click/type steps. Only render for future low-level mouse tools that actually carry `x`/`y`. |
 
 ### Right accessibility-tree panel
@@ -210,7 +210,7 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Extend run-detail view model | 🟡 partially shipped | `components/run-detail/types.ts` + `adapters.ts`; plan / surprises / metrics / gap / confidence slots now wired (§7). Step args, result summary, aria snapshot, and finding screenshot URLs still owed (§5 / §8). |
 | Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
 | Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |
-| `extractActionTarget(toolName, args, ariaSnapshot?)` helper | New | `components/run-detail/adapters.ts`; recognizes `browser_click` + `browser_type` arg shapes from `@playwright/mcp` (`target`, optional `element`, text metadata) |
+| `extractActionTarget(toolName, args)` helper | ✅ shipped | `components/run-detail/adapters.ts`; recognizes Playwright MCP `target` / `ref` / `selector` + `element` for action tools; `url` for navigation. |
 | `parseAriaSnapshot(text)` parser | New | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a raw-text node. |
 | `aria-snapshot ↔ action target` matcher | New | `components/run-detail/highlightAriaTarget.ts`; given parsed tree + `args.target` / `args.element`, returns the node id (or null) that should render with `lw-tree-highlight` |
 | Reflection panel | ✅ shipped | `components/run-detail/Reflection.tsx` + `Reflection.parts.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |

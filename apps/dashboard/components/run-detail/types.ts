@@ -14,6 +14,18 @@ export type StepThumb =
   | { kind: "image"; src: string; alt?: string }
   | { kind: "placeholder"; reason: "no-screenshot" | "running" };
 
+/**
+ * Action target metadata extracted from a Playwright MCP tool-call's
+ * `arguments` payload. Stable across `browser_click` / `browser_type` /
+ * navigation tools.
+ */
+export interface ActionTarget {
+  /** Stable identifier the agent passed (`ref`, `target`, or `selector`). */
+  target: string | null;
+  /** Optional human-readable description of the element. */
+  element: string | null;
+}
+
 export interface StepView {
   index: number;
   toolName: string;
@@ -21,6 +33,8 @@ export interface StepView {
   durationLabel: string;
   url: string;
   thumb: StepThumb;
+  /** Null for tools without a target (e.g., `browser_snapshot`). */
+  actionTarget: ActionTarget | null;
 }
 
 export interface FindingView {

@@ -5,6 +5,17 @@
  * re-typing.
  */
 
+import type {
+  ActionTarget,
+  FindingView,
+  FooterView,
+  HeroView,
+  ReflectionView,
+  RunDetailView,
+  StepView,
+  TopBarView,
+} from "./types";
+
 export type StepStatus = "done" | "running" | "errored" | "pending";
 
 export type ThumbKind =
@@ -108,15 +119,19 @@ export const FINDINGS: MockFinding[] = [
 // shapes that /runs/[id]'s adapter (./adapters.ts) produces from real
 // Supabase rows.
 
-import type {
-  FindingView,
-  FooterView,
-  HeroView,
-  ReflectionView,
-  RunDetailView,
-  StepView,
-  TopBarView,
-} from "./types";
+function mockActionTarget(s: MockStep): ActionTarget | null {
+  if (s.toolName.startsWith("browser_click")) {
+    if (s.index === 8) return { target: "e7", element: "Run walk button" };
+    if (s.index === 5) return { target: "e3", element: "Open Runs nav item" };
+    if (s.index === 7) return { target: "e4", element: "Apply saved view" };
+    return { target: `e${s.index}`, element: null };
+  }
+  if (s.toolName.startsWith("browser_type")) {
+    if (s.index === 6) return { target: "e2", element: 'Search input — "walk"' };
+    return { target: `e${s.index}`, element: null };
+  }
+  return null;
+}
 
 const STATUS_MAP = {
   done: "done",
@@ -133,6 +148,7 @@ export function buildMockRunDetailView(): RunDetailView {
     durationLabel: s.durationLabel,
     url: s.url,
     thumb: { kind: "mock", name: s.thumb },
+    actionTarget: mockActionTarget(s),
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({
