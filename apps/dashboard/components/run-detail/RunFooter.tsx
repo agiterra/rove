@@ -1,13 +1,14 @@
-import { RUN_META } from "./mock-data";
+import type { FooterView } from "./types";
 
-export function RunFooter() {
-  const bits: [string, string][] = [
-    ["commit", RUN_META.commitSha],
-    ["branch", RUN_META.branch],
-    ["daemon", RUN_META.daemon],
-    ["run", RUN_META.runShort],
-    ["started", RUN_META.startedAgo],
+export function RunFooter({ view }: { view: FooterView }) {
+  const bits: [string, string | null][] = [
+    ["commit", view.commit],
+    ["branch", view.branch],
+    ["daemon", view.daemon],
+    ["run", view.runShort],
+    ["started", view.startedLabel],
   ];
+  const present = bits.filter(([, v]) => v != null) as [string, string][];
   return (
     <footer
       className="flex flex-wrap items-center gap-3.5 mt-10 pt-5 font-mono"
@@ -17,7 +18,7 @@ export function RunFooter() {
         color: "var(--color-text-faint)",
       }}
     >
-      {bits.map(([k, v], i) => (
+      {present.map(([k, v], i) => (
         <span key={k} className="inline-flex items-center gap-1.5">
           {i > 0 ? <span style={{ color: "#2b3454" }}>·</span> : null}
           <span style={{ color: "#6b7591" }}>{k}</span>

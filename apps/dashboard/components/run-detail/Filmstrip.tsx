@@ -2,20 +2,26 @@
 
 import { useRef } from "react";
 import { MockThumb } from "./MockThumbs";
-import { STEPS, SELECTED_STEP_INDEX } from "./mock-data";
-import type { MockStep, StepStatus } from "./mock-data";
+import type { StepView } from "./types";
 
 interface FilmstripProps {
-  selectedIndex?: number;
+  steps: StepView[];
+  selectedIndex: number | null;
   onSelect?: (n: number) => void;
+  /** Render a dashed "+ awaiting next step" tile at the end. */
+  showAwaitingTile?: boolean;
 }
 
-export function Filmstrip({ selectedIndex = SELECTED_STEP_INDEX, onSelect }: FilmstripProps) {
+export function Filmstrip({ steps, selectedIndex, onSelect, showAwaitingTile = false }: FilmstripProps) {
   const stripRef = useRef<HTMLDivElement | null>(null);
 
   const scrollBy = (dir: number) => {
     stripRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
   };
+
+  const doneCount = steps.filter((s) => s.status === "done").length;
+  const errCount = steps.filter((s) => s.status === "errored").length;
+  const runCount = steps.filter((s) => s.status === "running").length;
 
   return (
     <section aria-label="Step filmstrip" className="mt-7">
@@ -24,39 +30,67 @@ export function Filmstrip({ selectedIndex = SELECTED_STEP_INDEX, onSelect }: Fil
           className="font-mono uppercase text-[var(--color-text-faint)]"
           style={{ fontSize: 11, letterSpacing: "0.18em" }}
         >
-          STEP FILMSTRIP · 8 OF ~25
+          STEP FILMSTRIP · {steps.length} STEP{steps.length === 1 ? "" : "S"}
+          {runCount > 0 ? <span style={{ marginLeft: 12 }}>{runCount} running</span> : null}
+          {errCount > 0 ? <span style={{ marginLeft: 12, color: "#fca5b5" }}>{errCount} errored</span> : null}
+        </p>
+        <p
+          className="font-mono text-[var(--color-text-faint)]"
+          style={{ fontSize: 11 }}
+        >
+          {doneCount} done
         </p>
       </div>
 
-      <div className="relative">
-        <Arrow side="left" onClick={() => scrollBy(-1)} />
-        <Arrow side="right" onClick={() => scrollBy(1)} />
-        <div
-          ref={stripRef}
-          className="flex gap-3 overflow-x-auto pt-1.5 pb-4 px-0.5"
-          style={{
-            scrollSnapType: "x mandatory",
-            scrollbarWidth: "thin",
-            scrollbarColor: "var(--color-border-strong) transparent",
-            scrollBehavior: "smooth",
-          }}
-        >
-          {STEPS.map((step) => (
-            <Tile
-              key={step.index}
-              step={step}
-              isSelected={step.index === selectedIndex}
-              onClick={() => onSelect?.(step.index)}
-            />
-          ))}
-          <AwaitingTile />
+      {steps.length === 0 ? (
+        <EmptyStrip />
+      ) : (
+        <div className="relative">
+          <Arrow side="left" onClick={() => scrollBy(-1)} />
+          <Arrow side="right" onClick={() => scrollBy(1)} />
+          <div
+            ref={stripRef}
+            className="flex gap-3 overflow-x-auto pt-1.5 pb-4 px-0.5"
+            style={{
+              scrollSnapType: "x mandatory",
+              scrollbarWidth: "thin",
+              scrollbarColor: "var(--color-border-strong) transparent",
+              scrollBehavior: "smooth",
+            }}
+          >
+            {steps.map((step) => (
+              <Tile
+                key={step.index}
+                step={step}
+                isSelected={step.index === selectedIndex}
+                onClick={() => onSelect?.(step.index)}
+              />
+            ))}
+            {showAwaitingTile ? <AwaitingTile /> : null}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
 
-function Tile({ step, isSelected, onClick }: { step: MockStep; isSelected: boolean; onClick?: () => void }) {
+function EmptyStrip() {
+  return (
+    <div
+      className="flex items-center justify-center font-mono text-[var(--color-text-faint)]"
+      style={{
+        height: 184,
+        borderRadius: 12,
+        border: "1px dashed var(--color-border-strong)",
+        fontSize: 12,
+      }}
+    >
+      No steps recorded yet for this walk.
+    </div>
+  );
+}
+
+function Tile({ step, isSelected, onClick }: { step: StepView; isSelected: boolean; onClick?: () => void }) {
   const running = step.status === "running";
   const errored = step.status === "errored";
 
@@ -93,7 +127,7 @@ function Tile({ step, isSelected, onClick }: { step: MockStep; isSelected: boole
           background: "#f4f5f8",
         }}
       >
-        <MockThumb kind={step.thumb} />
+        <ThumbContent step={step} />
       </div>
       <div className="flex flex-col gap-1 px-0.5" style={{ lineHeight: 1 }}>
         <div className="flex items-center gap-1.5 font-mono text-[var(--color-text)]" style={{ fontSize: 11.5 }}>
@@ -113,7 +147,42 @@ function Tile({ step, isSelected, onClick }: { step: MockStep; isSelected: boole
   );
 }
 
-function borderForState(status: StepStatus, selected: boolean): string {
+function ThumbContent({ step }: { step: StepView }) {
+  if (step.thumb.kind === "mock") return <MockThumb kind={step.thumb.name} />;
+  if (step.thumb.kind === "image") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={step.thumb.src}
+        alt={step.thumb.alt ?? `Step ${step.index} screenshot`}
+        className="block h-full w-full object-cover"
+      />
+    );
+  }
+  return <PlaceholderThumb reason={step.thumb.reason} />;
+}
+
+function PlaceholderThumb({ reason }: { reason: "no-screenshot" | "running" }) {
+  return (
+    <div
+      className="h-full w-full grid place-items-center"
+      style={{
+        background:
+          "repeating-linear-gradient(135deg, #eef0f5 0px, #eef0f5 8px, #f4f5f8 8px, #f4f5f8 16px)",
+        color: "#9aa2b1",
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        textAlign: "center",
+        padding: 6,
+        lineHeight: 1.3,
+      }}
+    >
+      {reason === "running" ? "capturing…" : "no screenshot"}
+    </div>
+  );
+}
+
+function borderForState(status: StepView["status"], selected: boolean): string {
   if (status === "errored") {
     return `1px solid ${selected ? "rgba(244,63,94,0.55)" : "rgba(244,63,94,0.30)"}`;
   }
@@ -123,7 +192,7 @@ function borderForState(status: StepStatus, selected: boolean): string {
   return "1px solid var(--color-border)";
 }
 
-function shadowForState(status: StepStatus, selected: boolean): string | undefined {
+function shadowForState(status: StepView["status"], selected: boolean): string | undefined {
   if (status === "errored" && selected) {
     return "0 0 0 1px rgba(244,63,94,0.22)";
   }
@@ -133,16 +202,15 @@ function shadowForState(status: StepStatus, selected: boolean): string | undefin
   return undefined;
 }
 
-function StatusDot({ status }: { status: StepStatus }) {
+function StatusDot({ status }: { status: StepView["status"] }) {
   if (status === "running") return <span aria-label="running" className="lw-dot lw-pulse" />;
   if (status === "errored") return <span aria-label="errored" className="lw-dot lw-rose" />;
   return <span aria-label="done" className="lw-dot" />;
 }
 
-function StatusText({ status }: { status: StepStatus }) {
+function StatusText({ status }: { status: StepView["status"] }) {
   const label = status === "running" ? "Running" : status === "errored" ? "Error" : "Complete";
-  const color =
-    status === "errored" ? "var(--color-severity-critical)" : "#6ee2e4";
+  const color = status === "errored" ? "var(--color-severity-critical)" : "#6ee2e4";
   return <span style={{ fontSize: 11, color }}>{label}</span>;
 }
 

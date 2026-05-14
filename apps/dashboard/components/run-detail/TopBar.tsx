@@ -1,7 +1,7 @@
 import { AppMark } from "@/components/app-mark";
-import { RUN_META } from "./mock-data";
+import type { TopBarView } from "./types";
 
-export function TopBar() {
+export function TopBar({ view }: { view: TopBarView }) {
   return (
     <header
       className="sticky top-0 z-50 backdrop-blur-md"
@@ -18,24 +18,31 @@ export function TopBar() {
         >
           <span>Runs</span>
           <span className="text-[var(--color-text-faint)]">›</span>
-          <span className="text-[var(--color-text)]">{RUN_META.id}</span>
+          <span className="text-[var(--color-text)]">{view.runIdShort}</span>
         </nav>
 
         <div className="ml-auto flex items-center gap-2.5">
           <Pill>
             <span className="text-[var(--color-text-faint)]">project:</span>
-            <span className="text-[var(--color-text)]">{RUN_META.project}</span>
-            <Chev />
+            <span className="text-[var(--color-text)]">{view.project}</span>
           </Pill>
-          <Pill>
-            <UserIcon />
-            <span className="text-[var(--color-text)]">{RUN_META.user}</span>
-            <Chev />
-          </Pill>
-          <Pill accent>
-            <span className="lw-dot lw-pulse" />
-            <span>Worker online</span>
-          </Pill>
+          {view.userLabel ? (
+            <Pill>
+              <UserIcon />
+              <span className="text-[var(--color-text)]">{view.userLabel}</span>
+            </Pill>
+          ) : null}
+          {view.workerStatus === "online" ? (
+            <Pill accent>
+              <span className="lw-dot lw-pulse" />
+              <span>Worker online</span>
+            </Pill>
+          ) : view.workerStatus === "offline" ? (
+            <Pill>
+              <span className="lw-dot lw-slate" />
+              <span>Worker offline</span>
+            </Pill>
+          ) : null}
         </div>
       </div>
     </header>
@@ -45,7 +52,7 @@ export function TopBar() {
 function Pill({ children, accent = false }: { children: React.ReactNode; accent?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-2 h-8 px-3.5 rounded-full text-[13px] whitespace-nowrap focus-rove"
+      className="inline-flex items-center gap-2 h-8 px-3.5 rounded-full text-[13px] whitespace-nowrap"
       style={{
         border: accent ? "1px solid rgba(63,201,203,0.32)" : "1px solid var(--color-border)",
         background: accent ? "rgba(63,201,203,0.08)" : "rgba(15,20,34,0.7)",
@@ -54,23 +61,6 @@ function Pill({ children, accent = false }: { children: React.ReactNode; accent?
     >
       {children}
     </span>
-  );
-}
-
-function Chev() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width={14}
-      height={14}
-      stroke="currentColor"
-      strokeWidth={1.6}
-      fill="none"
-      className="text-[var(--color-text-faint)]"
-      aria-hidden
-    >
-      <path d="M4 6l4 4 4-4" />
-    </svg>
   );
 }
 

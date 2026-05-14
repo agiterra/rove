@@ -1,4 +1,5 @@
 import type { ThumbKind } from "./mock-data";
+export type { ThumbKind };
 
 /**
  * Light-theme realistic SVG thumbnails of the target app being walked.

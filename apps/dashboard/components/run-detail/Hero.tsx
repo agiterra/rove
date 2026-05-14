@@ -1,15 +1,11 @@
 import { NowDoingPill } from "./NowDoingPill";
-import { RUN_META, NOW_DOING } from "./mock-data";
+import type { HeroView } from "./types";
 
-interface HeroProps {
-  status?: "running" | "done" | "errored" | "pending";
-}
-
-export function Hero({ status = "running" }: HeroProps) {
+export function Hero({ view }: { view: HeroView }) {
   // Bright cyan perimeter halo only while the walk is live; calmer for
   // completed / errored / paused walks. CSS default is 0.7; running
   // ramps it to 1.
-  const glow = status === "running" ? 1 : 0.7;
+  const glow = view.status === "running" ? 1 : 0.7;
   return (
     <section
       className="lw-hero"
@@ -24,27 +20,43 @@ export function Hero({ status = "running" }: HeroProps) {
             className="font-mono uppercase text-[var(--color-text-faint)] mb-4"
             style={{ fontSize: 11, letterSpacing: "0.18em" }}
           >
-            RUN <span className="opacity-60">·</span> {RUN_META.flowId}{" "}
-            <span className="opacity-60">·</span> {RUN_META.personaId}
+            RUN <span className="opacity-60">·</span> {view.flowId}{" "}
+            <span className="opacity-60">·</span> {view.personaId}
           </p>
-          <NowDoingPill
-            verb={NOW_DOING.verb}
-            target={NOW_DOING.target}
-            timer={RUN_META.elapsedLabel}
-          />
-          <h1 className="font-semibold mt-[18px] mb-2.5" style={{ fontSize: 44, lineHeight: 1.05, letterSpacing: "-0.02em" }}>
-            Walking the app
+          {view.nowDoing ? (
+            <NowDoingPill verb={view.nowDoing.verb} target={view.nowDoing.target} timer={view.timerLabel} />
+          ) : null}
+          <h1
+            className="font-semibold mt-[18px] mb-2.5"
+            style={{
+              fontSize: 44,
+              lineHeight: 1.05,
+              letterSpacing: "-0.02em",
+              ...(view.outcomeGlow === "accent"
+                ? { textShadow: "0 0 24px rgba(63,201,203,0.45), 0 0 56px rgba(63,201,203,0.22)" }
+                : view.outcomeGlow === "rose"
+                  ? { textShadow: "0 0 24px rgba(244,63,94,0.45), 0 0 56px rgba(244,63,94,0.22)" }
+                  : {}),
+            }}
+          >
+            {view.headline}
           </h1>
           <p className="font-mono text-[15px] m-0 text-[var(--color-text-muted)]">
-            Step 8 of an estimated 25
+            {view.estimatedStepCount != null
+              ? `Step ${view.stepCount} of an estimated ${view.estimatedStepCount}`
+              : `${view.stepCount} step${view.stepCount === 1 ? "" : "s"}`}
             <Sep />
-            {RUN_META.elapsedLabel} elapsed
-            <Sep />
-            {RUN_META.remainingLabel} remaining budget
+            {view.elapsedLabel} elapsed
+            {view.remainingLabel ? (
+              <>
+                <Sep />
+                {view.remainingLabel} remaining budget
+              </>
+            ) : null}
           </p>
         </div>
 
-        <Metrics />
+        <Metrics view={view} />
       </div>
     </section>
   );
@@ -54,39 +66,58 @@ function Sep() {
   return <span style={{ color: "#2b3454", margin: "0 6px" }}>·</span>;
 }
 
-function Metrics() {
+function Metrics({ view }: { view: HeroView }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <Metric>
         <Key icon={<Globe />} label="target URL" />
         <ValMono>
-          <span className="text-[var(--color-text-faint)]">https://</span>
-          <span>app.tankloop.com</span>
+          {view.targetUrl.startsWith("https://") ? (
+            <>
+              <span className="text-[var(--color-text-faint)]">https://</span>
+              <span>{view.targetUrl.slice(8)}</span>
+            </>
+          ) : (
+            <span>{view.targetUrlHostPath}</span>
+          )}
         </ValMono>
       </Metric>
       <Metric>
         <Key icon={<User />} label="persona" />
-        <Val>{RUN_META.personaLabel}</Val>
+        <Val>{view.personaLabel}</Val>
       </Metric>
       <Metric>
         <Key icon={<Hash />} label="flow id" />
-        <ValMono>{RUN_META.flowUuid}</ValMono>
+        <ValMono>{view.flowId}</ValMono>
       </Metric>
       <Metric>
         <Key icon={<Dot />} label="status" />
         <span
           className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12.5px]"
           style={{
-            background: "rgba(63,201,203,0.10)",
-            border: "1px solid rgba(63,201,203,0.32)",
+            background: pillBg(view.status),
+            border: `1px solid ${pillBorder(view.status)}`,
           }}
         >
-          <span className="lw-dot lw-pulse" />
-          <span>Walking</span>
+          <span className={`lw-dot ${view.statusPill.pulsing ? "lw-pulse" : ""} ${dotClass(view.status)}`} />
+          <span>{view.statusPill.label}</span>
         </span>
       </Metric>
     </div>
   );
+}
+
+function pillBg(status: HeroView["status"]): string {
+  if (status === "errored") return "rgba(244,63,94,0.10)";
+  return "rgba(63,201,203,0.10)";
+}
+function pillBorder(status: HeroView["status"]): string {
+  if (status === "errored") return "rgba(244,63,94,0.32)";
+  return "rgba(63,201,203,0.32)";
+}
+function dotClass(status: HeroView["status"]): string {
+  if (status === "errored") return "lw-rose";
+  return "";
 }
 
 function Metric({ children }: { children: React.ReactNode }) {

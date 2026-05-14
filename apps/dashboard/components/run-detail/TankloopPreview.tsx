@@ -1,11 +1,24 @@
-import { RUN_META } from "./mock-data";
-
 /**
  * Light-theme realistic render of the target app (Tankloop) at the moment
  * the agent is clicking "Run walk". Ported from Claude Design — keeps the
  * embedded-product-screenshot feel without using any external imagery.
+ *
+ * Preview-only. The canonical /runs/[id] never renders this; it shows
+ * the actual signed-URL screenshot from run_steps.screenshot_key.
  */
-export function TankloopPreview() {
+export interface TankloopPreviewProps {
+  elapsedLabel?: string;
+  budgetLabel?: string;
+  targetUrl?: string;
+  flowId?: string;
+}
+
+export function TankloopPreview({
+  elapsedLabel = "00:01:32",
+  budgetLabel = "5m 00s",
+  targetUrl = "https://app.tankloop.com",
+  flowId = "d3f5c9a8-7b21-4e2c",
+}: TankloopPreviewProps = {}) {
   const nav: { id: NavId; label: string; active?: boolean }[] = [
     { id: "Overview", label: "Overview", active: true },
     { id: "Runs", label: "Runs" },
@@ -47,7 +60,7 @@ export function TankloopPreview() {
 
         <div className="tk-card">
           <div className="ttl">
-            Progress <span className="meta">{RUN_META.elapsedLabel} elapsed</span>
+            Progress <span className="meta">{elapsedLabel} elapsed</span>
           </div>
           <div className="tk-progress">
             <div className="bar" />
@@ -78,9 +91,9 @@ export function TankloopPreview() {
       <aside className="tk-right">
         <h4>Run details</h4>
         <KV k="Persona" v="Power User" />
-        <KV k="Budget" v={RUN_META.budgetLabel} />
-        <KV k="Target URL" v={RUN_META.targetUrl} mono />
-        <KV k="Flow ID" v={RUN_META.flowUuid} mono />
+        <KV k="Budget" v={budgetLabel} />
+        <KV k="Target URL" v={targetUrl} mono />
+        <KV k="Flow ID" v={flowId} mono />
         <h4 style={{ marginTop: 14 }}>Recent findings</h4>
         <FindingsRow color="#c41a2e" bg="#fdecef" label="Critical" />
         <FindingsRow color="#b04a0a" bg="#fff1e6" label="Major" />

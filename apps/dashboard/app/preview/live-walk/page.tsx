@@ -1,40 +1,45 @@
 import type { Metadata } from "next";
-import { TopBar } from "@/components/live-walk-preview/TopBar";
-import { Hero } from "@/components/live-walk-preview/Hero";
-import { Filmstrip } from "@/components/live-walk-preview/Filmstrip";
-import { TabBar } from "@/components/live-walk-preview/TabBar";
-import { DetailSplit } from "@/components/live-walk-preview/DetailSplit";
-import { FindingsStream } from "@/components/live-walk-preview/FindingsStream";
-import { RunFooter } from "@/components/live-walk-preview/RunFooter";
+import { TopBar } from "@/components/run-detail/TopBar";
+import { Hero } from "@/components/run-detail/Hero";
+import { Filmstrip } from "@/components/run-detail/Filmstrip";
+import { TabBar } from "@/components/run-detail/TabBar";
+import { DetailSplit } from "@/components/run-detail/DetailSplit";
+import { FindingsStream } from "@/components/run-detail/FindingsStream";
+import { RunFooter } from "@/components/run-detail/RunFooter";
+import { buildMockRunDetailView, NOW_DOING } from "@/components/run-detail/mock-data";
 
 export const metadata: Metadata = {
   title: "Live walk · preview",
   description:
-    "Visual preview of the live walk run-detail page. Ported from Claude Design's Live Walk.html handoff bundle.",
+    "Visual preview of the live walk run-detail page. Hard-coded fixtures — no live data.",
 };
 
 export default function LiveWalkPreviewPage() {
-  // Fixed full-viewport overlay so the preview escapes the dashboard's
-  // root <main className="max-w-7xl mx-auto px-6 py-10"> container. The
-  // preview is a standalone visual artifact, not a page inside the
-  // signed-in dashboard chrome.
+  const view = buildMockRunDetailView();
+  const selectedStep =
+    view.steps.find((s) => s.index === view.selectedStepIndex) ?? view.steps[view.steps.length - 1] ?? null;
   return (
     <div
       className="fixed inset-0 overflow-y-auto"
       style={{ background: "var(--color-bg)", zIndex: 100 }}
     >
       <BackgroundAurora />
-      <TopBar />
+      <TopBar view={view.topBar} />
       <main
         className="mx-auto relative"
         style={{ maxWidth: 1280, padding: "28px 32px 64px", zIndex: 1 }}
       >
-        <Hero />
-        <Filmstrip />
+        <Hero view={view.hero} />
+        <Filmstrip steps={view.steps} selectedIndex={view.selectedStepIndex} showAwaitingTile />
         <TabBar active="filmstrip" />
-        <DetailSplit />
-        <FindingsStream />
-        <RunFooter />
+        <DetailSplit
+          step={selectedStep}
+          inlineTankloop
+          liveVerb={NOW_DOING.verb.toLowerCase()}
+          liveTarget={NOW_DOING.target.replace(/"/g, "")}
+        />
+        <FindingsStream findings={view.findings} />
+        <RunFooter view={view.footer} />
       </main>
     </div>
   );
