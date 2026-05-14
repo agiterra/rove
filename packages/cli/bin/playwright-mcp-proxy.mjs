@@ -79,12 +79,16 @@ function logLine(dir, raw) {
 }
 
 // ── Track B2 live-step writes ───────────────────────────────────────────
-// Map jsonrpc id → { rowId, toolName, args, startedAt, stepIndex }. The
-// "rowId" is the Supabase-generated id we discover from the insert response.
+// For each jsonrpc id we keep:
+//   - rowIdPromise: resolves to the Supabase-generated run_steps.id once
+//     the INSERT round-trip completes. The response handler awaits this
+//     before issuing its PATCH, which fixes the race where the MCP server
+//     responds faster than the insert returns.
+//   - meta: toolName, args, startedAt, stepIndex.
 
 const pending = new Map();
 let stepCounter = 0;
-const screenshotUploads = []; // for graceful shutdown
+const inFlight = []; // bookkeeping for graceful shutdown
 
 function onJsonRpc(dir, msg) {
   if (!msg || typeof msg !== "object") return;
@@ -99,14 +103,11 @@ function onJsonRpc(dir, msg) {
     const stepIndex = stepCounter;
     const startedAt = new Date().toISOString();
     const args = params.arguments ?? null;
-    insertCallRow({ stepIndex, toolName, args, startedAt })
-      .then((rowId) => {
-        pending.set(id, { rowId, toolName, args, startedAt, stepIndex });
-      })
-      .catch((err) => {
-        process.stderr.write(`mcp-proxy: insert run_step failed: ${err?.message ?? err}\n`);
-        pending.set(id, { rowId: null, toolName, args, startedAt, stepIndex });
-      });
+    const rowIdPromise = insertCallRow({ stepIndex, toolName, args }).catch((err) => {
+      process.stderr.write(`mcp-proxy: insert run_step failed: ${err?.message ?? err}\n`);
+      return null;
+    });
+    pending.set(id, { rowIdPromise, toolName, args, startedAt, stepIndex });
     return;
   }
   if (dir === "out") {
@@ -130,18 +131,23 @@ function onJsonRpc(dir, msg) {
       url_after: urlAfter,
       duration_ms: Number.isFinite(durationMs) ? durationMs : null,
     };
-    if (match.rowId) {
-      updateRow(match.rowId, update).catch((err) => {
-        process.stderr.write(`mcp-proxy: update run_step failed: ${err?.message ?? err}\n`);
-      });
-    }
 
-    if (match.toolName === "browser_take_screenshot" && !isError && match.rowId) {
-      const p = uploadScreenshotForStep(match).catch((err) => {
-        process.stderr.write(`mcp-proxy: screenshot upload failed: ${err?.message ?? err}\n`);
-      });
-      screenshotUploads.push(p);
-    }
+    const work = match.rowIdPromise.then(async (rowId) => {
+      if (!rowId) return;
+      try {
+        await updateRow(rowId, update);
+      } catch (err) {
+        process.stderr.write(`mcp-proxy: update run_step failed: ${err?.message ?? err}\n`);
+      }
+      if (match.toolName === "browser_take_screenshot" && !isError) {
+        try {
+          await uploadScreenshotForStep({ ...match, rowId });
+        } catch (err) {
+          process.stderr.write(`mcp-proxy: screenshot upload failed: ${err?.message ?? err}\n`);
+        }
+      }
+    });
+    inFlight.push(work);
   }
 }
 
@@ -319,8 +325,8 @@ child.stderr.on("data", (chunk) => {
 child.on("close", (code) => {
   if (outBuf.length > 0) logLine("out", outBuf);
   if (errBuf.length > 0) logLine("err", errBuf);
-  // Best-effort drain of in-flight screenshot uploads before exit.
-  Promise.allSettled(screenshotUploads).finally(() => {
+  // Best-effort drain of in-flight PATCH + screenshot uploads.
+  Promise.allSettled(inFlight).finally(() => {
     logStream.end(() => process.exit(code ?? 0));
   });
 });
