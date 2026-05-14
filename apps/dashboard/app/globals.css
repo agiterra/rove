@@ -214,3 +214,58 @@ select {
   -webkit-background-clip: text;
   color: transparent;
 }
+
+/*
+ * Live walk — running-state indicators. A ping ring expands and fades
+ * around a solid dot to imply "this is happening right now". Slow enough
+ * to feel attentive, not nervous. Reduced-motion users get a static dot.
+ */
+@keyframes livedot-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes livedot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.animate-livedot-ping {
+  animation: livedot-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.animate-livedot-pulse {
+  animation: livedot-pulse 1.6s ease-in-out infinite;
+}
+
+/*
+ * Canonical focus ring — applied to every interactive element in the
+ * live-walk surfaces. Single class so a future audit greps for one name
+ * and gets the full surface.
+ */
+.focus-rove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-livedot-ping,
+  .animate-livedot-pulse {
+    animation: none;
+  }
+  .kinetic-hover {
+    transition-property: background-color, border-color;
+  }
+  .kinetic-hover:hover {
+    transform: none;
+  }
+}
