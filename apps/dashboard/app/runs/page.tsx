@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createReadClient } from "../../lib/supabase/server";
 import { relativeTime, shortSha } from "../../lib/format";
-import { EmptyState, PageHeader } from "../../components/page-header";
+import { EmptyState } from "../../components/page-header";
 import { resolveProjectId } from "../../lib/project-context";
 
 export const dynamic = "force-dynamic";
@@ -53,13 +53,22 @@ export default async function RunsPage({ searchParams }: PageProps) {
   }
   const runs = (data ?? []) as unknown as RunRow[];
 
+  const counts = runs.reduce(
+    (acc, r) => {
+      acc.total += 1;
+      if (r.status === "completed") acc.completed += 1;
+      else if (r.status === "running") acc.running += 1;
+      else if (r.status === "failed") acc.failed += 1;
+      if (r.goal_reached === true) acc.goalReached += 1;
+      acc.findings += r.findings?.[0]?.count ?? 0;
+      return acc;
+    },
+    { total: 0, completed: 0, running: 0, failed: 0, goalReached: 0, findings: 0 },
+  );
+
   return (
-    <div>
-      <PageHeader
-        eyebrow="activity"
-        title="Recent runs"
-        description="Each row is one walk by one persona on one commit. Click a flow to see its trend."
-      />
+    <div className="space-y-7">
+      <Hero projectId={projectId} counts={counts} />
 
       {runs.length === 0 ? (
         <EmptyState
@@ -129,6 +138,98 @@ export default async function RunsPage({ searchParams }: PageProps) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+interface RunCounts {
+  total: number;
+  completed: number;
+  running: number;
+  failed: number;
+  goalReached: number;
+  findings: number;
+}
+
+function Hero({ projectId, counts }: { projectId: string; counts: RunCounts }) {
+  const hasRunning = counts.running > 0;
+  const headline =
+    counts.total === 0
+      ? "No runs yet"
+      : counts.total === 1
+        ? "1 walk in this project"
+        : `${counts.total} walks in this project`;
+  return (
+    <section
+      className="lw-hero"
+      style={{ ["--lw-glow" as keyof React.CSSProperties]: hasRunning ? 1 : 0.6 } as React.CSSProperties}
+    >
+      <div className="lw-hero-aurora" />
+      {hasRunning ? <div className="lw-hero-streak" /> : null}
+      <div className="lw-hero-edge" />
+      <div className="relative z-[1] flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p
+            className="font-mono uppercase text-[var(--color-text-faint)] mb-3"
+            style={{ fontSize: 11, letterSpacing: "0.18em" }}
+          >
+            ACTIVITY <span className="opacity-60">·</span> {projectId}
+          </p>
+          <h1
+            className="font-semibold tracking-tight"
+            style={{
+              fontSize: 38,
+              lineHeight: 1.1,
+              textShadow: hasRunning
+                ? "0 0 24px rgba(63,201,203,0.35), 0 0 56px rgba(63,201,203,0.18)"
+                : undefined,
+            }}
+          >
+            {headline}
+          </h1>
+          <p className="mt-3 text-sm text-[var(--color-text-muted)] max-w-xl">
+            Each row is one walk by one persona on one commit. Click a row to open the
+            run-detail surface with its filmstrip, aria tree, and reflection.
+          </p>
+        </div>
+        <div className="grid grid-cols-4 gap-2 min-w-[420px]">
+          <StatTile label="completed" value={counts.completed} accent="cyan" />
+          <StatTile label="running" value={counts.running} accent={hasRunning ? "cyan" : "muted"} pulse={hasRunning} />
+          <StatTile label="failed" value={counts.failed} accent={counts.failed > 0 ? "rose" : "muted"} />
+          <StatTile label="findings" value={counts.findings} accent="muted" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  accent,
+  pulse = false,
+}: {
+  label: string;
+  value: number;
+  accent: "cyan" | "rose" | "muted";
+  pulse?: boolean;
+}) {
+  const dot = accent === "cyan" ? "var(--color-accent)" : accent === "rose" ? "rgb(239 68 68)" : "var(--color-text-faint)";
+  return (
+    <div
+      className="rounded-xl backdrop-blur px-3 py-2.5"
+      style={{ background: "rgba(20,26,42,0.55)", border: "1px solid var(--color-border)" }}
+    >
+      <div
+        className="font-mono uppercase mb-1 flex items-center gap-1.5"
+        style={{ fontSize: 10.5, letterSpacing: "0.12em", color: "var(--color-text-faint)" }}
+      >
+        <span aria-hidden className={`lw-dot${pulse ? " lw-pulse" : ""}`} style={{ background: dot }} />
+        {label}
+      </div>
+      <div className="font-mono tabular-nums text-[var(--color-text)]" style={{ fontSize: 22 }}>
+        {value}
+      </div>
     </div>
   );
 }
