@@ -141,6 +141,15 @@ export async function POST(request: Request) {
         token: minted.token,
         supabase_url: env.supabaseUrl(),
         supabase_publishable_key: env.supabasePublishableKey(),
+        // ALPHA CONCESSION: ships the service-role key to the worker so the
+        // existing sink path (getSupabaseClient) just works. The proper
+        // architecture is a trusted relay (see
+        // docs/proposals/wire-sink-relay.md) that keeps service-role
+        // server-side. Until that lands, the install code becomes the
+        // capture window for service-role too — same 5-min one-shot
+        // exposure, much larger blast radius. Don't ship this to external
+        // operators outside Agiterra without re-evaluating.
+        supabase_service_role_key: env.supabaseServiceRoleKey(),
         project_id: row.project_id,
         worker_name: row.worker_name,
         github_handle: member.github_handle ?? null,
