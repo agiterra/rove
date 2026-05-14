@@ -42,11 +42,18 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+  // Paths that authenticate themselves (or don't need auth at all). The
+  // install bash script + exchange endpoint use a short-lived install_code
+  // as their credential; the prune cron uses Authorization: Bearer
+  // <CRON_SECRET>; the install script is just a public text artifact.
   const isPublic =
     path.startsWith("/signin") ||
     path.startsWith("/auth/callback") ||
     path.startsWith("/_next") ||
-    path === "/favicon.ico";
+    path === "/favicon.ico" ||
+    path === "/install" ||
+    path === "/api/install/exchange" ||
+    path === "/api/install/codes/prune";
 
   const devBypass = process.env.DEV_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";
 
