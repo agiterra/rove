@@ -123,7 +123,16 @@ async function signScreenshotUrls(
     .filter((k): k is string => typeof k === "string" && k.length > 0);
   if (keys.length === 0) return out;
 
-  const service = createServiceRoleSupabase();
+  // service-role is required to mint signed URLs; if the env isn't
+  // present (e.g., a fresh Preview deployment) we degrade to the
+  // 'no screenshot' placeholder rather than throwing the whole page.
+  let service: ReturnType<typeof createServiceRoleSupabase>;
+  try {
+    service = createServiceRoleSupabase();
+  } catch {
+    return out;
+  }
+
   // Signed URLs minted in a single batch — Supabase JS supports
   // createSignedUrls() for arrays. Falls back to per-key calls if a
   // single one fails.
@@ -137,8 +146,12 @@ async function signScreenshotUrls(
     }
   } catch {
     for (const key of keys) {
-      const { data } = await service.storage.from("walks").createSignedUrl(key, 60 * 10);
-      if (data?.signedUrl) out[key] = data.signedUrl;
+      try {
+        const { data } = await service.storage.from("walks").createSignedUrl(key, 60 * 10);
+        if (data?.signedUrl) out[key] = data.signedUrl;
+      } catch {
+        // skip — placeholder fallback in the UI
+      }
     }
   }
   return out;
