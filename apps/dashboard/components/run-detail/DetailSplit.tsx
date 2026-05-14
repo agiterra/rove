@@ -4,6 +4,7 @@ import { TankloopPreview, PreviewCursor } from "./TankloopPreview";
 import { parseAriaSnapshot, type AriaNode } from "./parseAriaSnapshot";
 import { highlightAriaTarget } from "./highlightAriaTarget";
 import { AffordanceInventory } from "./AffordanceInventory";
+import { PlanVsRealityInlineDiff } from "./PlanVsRealityInlineDiff";
 import type { StepView } from "./types";
 
 interface DetailSplitProps {
@@ -34,6 +35,7 @@ export function DetailSplit({ step, inlineTankloop = false, liveVerb, liveTarget
         <PreviewPanel step={step} inlineTankloop={inlineTankloop} liveVerb={liveVerb} liveTarget={liveTarget} />
         <A11yTree step={step} liveTarget={liveTarget} />
       </div>
+      <PlanVsRealityInlineDiff step={step} />
       <AffordanceInventory step={step} />
     </div>
   );

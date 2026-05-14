@@ -27,3 +27,6 @@ apps/dashboard/public/install/*.tgz
 # Supabase CLI local metadata.
 supabase/.temp/
 infra/supabase/supabase/.temp/
+
+# Claude Code agent worktrees (created by the Agent tool with isolation: worktree).
+.claude/worktrees/

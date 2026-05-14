@@ -10,6 +10,7 @@ import { DetailSplit } from "./DetailSplit";
 import { FindingsStream } from "./FindingsStream";
 import { Reflection } from "./Reflection";
 import { NegativeSpaceSection } from "./NegativeSpaceSection";
+import { PlanVsRealitySection } from "./PlanVsRealitySection";
 import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
 import { formatElapsed } from "./adapters";
@@ -108,6 +109,12 @@ export function RunDetailLive({ runId, projectId, initialView, projectSwitcher }
         {tab === "reflection" ? (
           <>
             <Reflection view={view.reflection} runStatus={view.hero.status} />
+            <PlanVsRealitySection
+              projectId={projectId}
+              priorPlan={view.priorPlan}
+              priorPlanCapturedAt={view.priorPlanCapturedAt}
+              steps={view.steps}
+            />
             <div className="mt-5">
               <NegativeSpaceSection
                 runId={runId}

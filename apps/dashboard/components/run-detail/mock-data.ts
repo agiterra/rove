@@ -12,6 +12,8 @@ import type {
   FindingView,
   FooterView,
   HeroView,
+  PlanDelta,
+  PriorPlan,
   ReflectionView,
   RunDetailView,
   StepView,
@@ -245,6 +247,7 @@ export function buildMockRunDetailView(): RunDetailView {
           }
         : null,
     affordance_gaps: MOCK_AFFORDANCE_GAPS_BY_STEP[s.index],
+    planDelta: MOCK_PLAN_DELTA_BY_STEP[s.index] ?? null,
   }));
 
   const findingViews: FindingView[] = FINDINGS.map((f) => ({
@@ -353,6 +356,8 @@ export function buildMockRunDetailView(): RunDetailView {
     lastFindingAt: new Date(Date.now() - 92_000).toISOString(),
     reflection,
     footer,
+    priorPlan: MOCK_PRIOR_PLAN,
+    priorPlanCapturedAt: new Date(Date.now() - 600_000).toISOString(),
   };
 }
 
@@ -398,4 +403,54 @@ const MOCK_AFFORDANCE_GAPS_BY_STEP: Record<number, AffordanceGap[]> = {
       suggested_location: "Empty-state card in the members list with a 'Invite first teammate' CTA",
     },
   ],
+};
+
+// ── Mock plan-delta + prior plan (additive, 2026-05-14) ─────────────────────
+// Demonstrates each verdict (match is implicit — most steps have no plan_delta)
+// against a frozen saas-dashboard archetype prior. The deviations are the
+// finding-worthy moments.
+const MOCK_PRIOR_PLAN: PriorPlan = {
+  archetypeAssumed: "saas-dashboard",
+  expectedRoutePattern: ["/", "/runs", "/runs/[id]", "/projects/[id]/gaps"],
+  expectedStepCount: 9,
+  expectedAffordancesByRoute: {
+    "/runs": ["primary CTA: 'Run walk'", "list of recent runs", "filter by project"],
+    "/runs/[id]": [
+      "step filmstrip",
+      "findings stream",
+      "delete-run affordance in toolbar overflow",
+    ],
+  },
+  anticipatedFriction: [
+    "auth wall on /signin",
+    "empty state on a fresh project",
+  ],
+  affordanceAssumptions: [
+    "cart icon top-right is irrelevant for saas-dashboard",
+    "primary action lives in the page hero, not in a floating button",
+  ],
+};
+
+const MOCK_PLAN_DELTA_BY_STEP: Record<number, PlanDelta | null> = {
+  3: {
+    verdict: "extension",
+    whatRevised:
+      "Walked through an unexpected /signin gate before the run list; coherent but added two steps to the plan.",
+    expected: "Direct nav from / to /runs",
+    observed: "/ redirected to /signin, then /signin → /runs after auth",
+  },
+  8: {
+    verdict: "deviation",
+    whatRevised:
+      "Expected a Delete affordance on /runs/[id]; the toolbar exposes Re-run and Share only, with no overflow menu.",
+    expected: "Toolbar overflow → Delete on run-detail page",
+    observed: "Re-run + Share only; no Delete anywhere on the page",
+  },
+  11: {
+    verdict: "surprise",
+    whatRevised:
+      "Long form had 8 fields with no save-state indicator — recoverable but I had to remind myself to copy values before navigating.",
+    expected: "Auto-save indicator or unsaved-changes warning on long forms",
+    observed: "Plain Save button at bottom, no other state cues",
+  },
 };

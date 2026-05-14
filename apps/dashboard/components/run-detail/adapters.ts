@@ -132,6 +132,8 @@ interface RunRow {
   largest_expectation_gap?: string | null;
   persona_success_confidence?: number | null;
   metrics?: MetricsRow | null;
+  prior_plan?: unknown;
+  prior_plan_captured_at?: string | null;
 }
 
 interface StepRow {
@@ -147,6 +149,7 @@ interface StepRow {
   dialog_payload?: unknown;
   affordance_gaps?: unknown;
   affordance_enum_phase?: boolean | null;
+  plan_delta?: unknown;
 }
 
 interface FindingRow {
@@ -228,6 +231,8 @@ export function buildRunDetailView(input: AdapterInput): RunDetailView {
     lastFindingAt,
     reflection: buildReflection(run),
     footer: buildFooter(run, elapsedLabel),
+    priorPlan: normalizePriorPlan(run.prior_plan),
+    priorPlanCapturedAt: run.prior_plan_captured_at ?? null,
   };
 }
 
@@ -538,6 +543,82 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
         : null,
     dialog: normalizeDialogPayload(step.dialog_payload),
     affordance_gaps: normalizeAffordanceGaps(step.affordance_gaps),
+    planDelta: normalizePlanDelta(step.plan_delta),
+  };
+}
+
+// ── Plan-delta + prior-plan normalization (additive, 2026-05-14) ────────────
+const PLAN_VERDICTS: ReadonlySet<PlanVerdict> = new Set([
+  "match",
+  "extension",
+  "surprise",
+  "deviation",
+]);
+
+function normalizePlanDelta(raw: unknown): PlanDelta | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const verdict = obj.verdict;
+  if (typeof verdict !== "string" || !PLAN_VERDICTS.has(verdict as PlanVerdict)) return null;
+  return {
+    verdict: verdict as PlanVerdict,
+    whatRevised:
+      typeof obj.what_revised === "string" ? obj.what_revised : (obj.whatRevised as string) ?? null,
+    revisedPlanDiff:
+      obj.revised_plan_diff && typeof obj.revised_plan_diff === "object"
+        ? (obj.revised_plan_diff as Record<string, unknown>)
+        : null,
+    expected: typeof obj.expected === "string" ? obj.expected : null,
+    observed: typeof obj.observed === "string" ? obj.observed : null,
+  };
+}
+
+function normalizePriorPlan(raw: unknown): PriorPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const route = Array.isArray(obj.expected_route_pattern)
+    ? obj.expected_route_pattern.filter((s): s is string => typeof s === "string")
+    : Array.isArray(obj.expectedRoutePattern)
+      ? obj.expectedRoutePattern.filter((s): s is string => typeof s === "string")
+      : [];
+  const stepCount =
+    typeof obj.expected_step_count === "number"
+      ? obj.expected_step_count
+      : typeof obj.expectedStepCount === "number"
+        ? obj.expectedStepCount
+        : null;
+  const friction = Array.isArray(obj.anticipated_friction)
+    ? obj.anticipated_friction.filter((s): s is string => typeof s === "string")
+    : Array.isArray(obj.anticipatedFriction)
+      ? obj.anticipatedFriction.filter((s): s is string => typeof s === "string")
+      : [];
+  const assumptions = Array.isArray(obj.affordance_assumptions)
+    ? obj.affordance_assumptions.filter((s): s is string => typeof s === "string")
+    : Array.isArray(obj.affordanceAssumptions)
+      ? obj.affordanceAssumptions.filter((s): s is string => typeof s === "string")
+      : [];
+  const affordancesRaw =
+    obj.expected_affordances_by_route ?? obj.expectedAffordancesByRoute ?? {};
+  const affordances: Record<string, string[]> = {};
+  if (affordancesRaw && typeof affordancesRaw === "object") {
+    for (const [k, v] of Object.entries(affordancesRaw)) {
+      if (Array.isArray(v)) {
+        affordances[k] = v.filter((s): s is string => typeof s === "string");
+      }
+    }
+  }
+  return {
+    archetypeAssumed:
+      typeof obj.archetype_assumed === "string"
+        ? obj.archetype_assumed
+        : typeof obj.archetypeAssumed === "string"
+          ? obj.archetypeAssumed
+          : null,
+    expectedRoutePattern: route,
+    expectedStepCount: stepCount,
+    expectedAffordancesByRoute: affordances,
+    anticipatedFriction: friction,
+    affordanceAssumptions: assumptions,
   };
 }
 

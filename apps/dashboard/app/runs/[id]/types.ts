@@ -62,6 +62,7 @@ export interface RunStep {
   dialog_payload?: unknown;
   affordance_gaps?: unknown;
   affordance_enum_phase?: boolean | null;
+  plan_delta?: unknown;
 }
 
 export type WalkKind = "flow" | "change_review";
@@ -122,6 +123,8 @@ export interface RunDetail {
   reference_routes: string[] | null;
   design_contract: DesignContract | null;
   deltas: ChangeDelta[] | null;
+  prior_plan?: unknown;
+  prior_plan_captured_at?: string | null;
 }
 
 export interface RunFinding {

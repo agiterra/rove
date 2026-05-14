@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { StepThumbArtifact } from "./StepArtifact";
+import { VerdictChip } from "./VerdictChip";
 import type { StepView } from "./types";
 
 interface FilmstripProps {
@@ -161,6 +162,9 @@ function Tile({
           <StatusText status={step.status} />
         </div>
         {step.dialog ? <DialogChip dialog={step.dialog} /> : null}
+        {step.planDelta ? (
+          <VerdictChip verdict={step.planDelta.verdict} whatRevised={step.planDelta.whatRevised} />
+        ) : null}
         <div className="flex items-center justify-between gap-1.5 font-mono text-[var(--color-text-muted)]" style={{ fontSize: 11 }}>
           <span className="truncate">{step.toolName}</span>
           <span className="text-[var(--color-text-faint)] shrink-0">
