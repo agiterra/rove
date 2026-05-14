@@ -122,7 +122,7 @@
 | Header row (`#`, `TOOL`, `URL`, `DUR`, `STATUS`) | Static | ✅ | — |
 | Row cells | Each step's `step_index`, `toolName`, `url`, `durationLabel`, `status` | ✅ | — |
 | Selected-row highlight | `selectedIndex` state, cyan-soft tint | ✅ | — |
-| Click row → swap to Filmstrip tab + scroll filmstrip to that tile | `onPick(idx)` setter; doesn't actually switch tab today | 🟡 | After `setSelectedIdx(idx)`, also `setTab("filmstrip")` so the user sees their selection in the visual context |
+| Click row → swap to Filmstrip tab + scroll filmstrip to that tile | `onPickStep` in `RunDetailLive` sets `selectedIdx` and switches `tab` to `filmstrip`. Filmstrip auto-scroll is wired in §3. | ✅ | — |
 | Empty state (no steps) | `view.steps.length === 0`; static copy | ✅ | Preserve dashed container and copy |
 | Row focus treatment | `.focus-rove` on a `display: contents` button | 🟡 | Verify focus outline is visible in browser; if not, replace contents-button with grid rows that can receive visible focus |
 
@@ -164,7 +164,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 |---|---|---|---|
 | `commit <sha>` | `runs.commit_sha.slice(0, 7)` (null-safe) | ✅ | — |
 | `branch <branch>` | `runs.branch` | ✅ | — |
-| `daemon <handle>` | Currently `runs.initiator_label`, which is the requester / best-effort initiator label, not the daemon | 🟡 | Rename to `initiated by` now. Do not claim actual daemon attribution until a run↔job/worker link exists. |
+| `initiated by <handle>` | `runs.initiator_label` (requester / best-effort initiator label). Renamed from `daemon` because we don't yet have a run↔worker link to claim actual daemon attribution. | ✅ | — |
 | `run <short>` | `runs.id.slice(0, 8)` | ✅ | — |
 | `started <Nm ago>` | `runs.started_at` → `relativeAgo()` | ✅ | — |
 
@@ -218,9 +218,9 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 | Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
 | 1Hz timer ticker | New | `RunDetailLive` `useEffect(setInterval(1000))` while `view.hero.status === "running"` |
 | Auto-scroll filmstrip to running tile | New | `Filmstrip` ref + `useEffect` watching the running step's index |
-| Steps-tab click → switch to Filmstrip tab | One-line change | `RunDetailLive.tsx` `onPick` handler |
+| Steps-tab click → switch to Filmstrip tab | ✅ shipped | `RunDetailLive.tsx` `onPickStep` now calls `setTab("filmstrip")` |
 | Worker status pill | New | `TopBar` consumes `view.topBar.workerStatus`; `online` / `offline` / `unknown` already typed |
-| `initiated by` label change | One-line | `RunFooter` |
+| `initiated by` label change | ✅ shipped | `RunFooter` |
 
 ## 13. Acceptance criteria
 

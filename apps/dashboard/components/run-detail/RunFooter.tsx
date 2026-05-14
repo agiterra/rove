@@ -4,7 +4,7 @@ export function RunFooter({ view }: { view: FooterView }) {
   const bits: [string, string | null][] = [
     ["commit", view.commit],
     ["branch", view.branch],
-    ["daemon", view.daemon],
+    ["initiated by", view.daemon],
     ["run", view.runShort],
     ["started", view.startedLabel],
   ];

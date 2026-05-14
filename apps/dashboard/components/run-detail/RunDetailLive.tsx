@@ -59,6 +59,7 @@ export function RunDetailLive({ runId, projectId, initialView }: RunDetailLivePr
   function onPickStep(idx: number) {
     setStickToRunning(false);
     setSelectedIdx(idx);
+    setTab("filmstrip");
   }
 
   return (
