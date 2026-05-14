@@ -28,6 +28,28 @@ export const flowDraftSchema = z.object({
 });
 export type FlowDraft = z.infer<typeof flowDraftSchema>;
 
+// ── Keyboard-navigation expectations (additive, 2026-05-14) ─────────────────
+// Flow YAML may optionally declare expected Tab transitions so the
+// accessibility + agent personas can assert focus order against intent
+// rather than guess at it.
+export const expectedKeyboardNavigationStepSchema = z.object({
+  from_selector: z.string().min(1).max(240),
+  to_selector: z.string().min(1).max(240),
+  description: z.string().min(1).max(280).optional(),
+});
+export type ExpectedKeyboardNavigationStep = z.infer<
+  typeof expectedKeyboardNavigationStepSchema
+>;
+
+export const expectedKeyboardNavigationSchema = z
+  .array(expectedKeyboardNavigationStepSchema)
+  .max(50);
+
+export const flowDraftWithKeyboardNavSchema = flowDraftSchema.extend({
+  expected_keyboard_navigation: expectedKeyboardNavigationSchema.optional(),
+});
+export type FlowDraftWithKeyboardNav = z.infer<typeof flowDraftWithKeyboardNavSchema>;
+
 export const personaDraftSchema = z.object({
   persona_id: z
     .string()
