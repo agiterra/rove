@@ -130,6 +130,7 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     projectId: config.projectId,
     flowId: flow.flowId,
     personaId: persona.id,
+    personaPolicy: persona.constraints.native_dialog_policy ?? "perceive_and_act",
     dispatcherId: opts.dispatcher,
     sinks: opts.sinks,
     commitSha,
@@ -255,12 +256,20 @@ async function maybePrepareLiveStepWrites(input: {
   projectId: string;
   flowId: string;
   personaId: string;
+  personaPolicy: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
   dispatcherId: DispatcherId;
   sinks: SinkId[];
   commitSha?: string;
   branch?: string;
   startedAt: Date;
-}): Promise<{ runId: string; projectId: string; supabaseUrl: string; supabaseServiceRoleKey: string } | null> {
+}): Promise<{
+  runId: string;
+  projectId: string;
+  supabaseUrl: string;
+  supabaseServiceRoleKey: string;
+  personaId: string;
+  personaPolicy: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
+} | null> {
   if (!input.sinks.includes("supabase")) return null;
   const { readRoveSupabaseEnv } = await import("../supabase/env.js");
   const env = readRoveSupabaseEnv();
@@ -290,6 +299,8 @@ async function maybePrepareLiveStepWrites(input: {
     projectId: input.projectId,
     supabaseUrl: env.url,
     supabaseServiceRoleKey: env.serviceRoleKey,
+    personaId: input.personaId,
+    personaPolicy: input.personaPolicy,
   };
 }
 

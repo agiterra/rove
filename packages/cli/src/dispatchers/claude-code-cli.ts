@@ -229,6 +229,12 @@ async function writeMcpConfig(opts: {
         "--live-screenshots-dir",
         opts.screenshotsDir ?? "",
       );
+      if (opts.liveStepWrites.personaId) {
+        proxyArgs.push("--live-persona-id", opts.liveStepWrites.personaId);
+      }
+      if (opts.liveStepWrites.personaPolicy) {
+        proxyArgs.push("--live-persona-policy", opts.liveStepWrites.personaPolicy);
+      }
       proxyEnv = {
         ROVE_SUPABASE_URL: opts.liveStepWrites.supabaseUrl,
         ROVE_SUPABASE_SERVICE_ROLE_KEY: opts.liveStepWrites.supabaseServiceRoleKey,

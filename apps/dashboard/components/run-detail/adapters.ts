@@ -12,6 +12,7 @@
 
 import type {
   ActionTarget,
+  DialogView,
   FindingView,
   FooterView,
   HeroView,
@@ -137,6 +138,7 @@ interface StepRow {
   duration_ms: number | null;
   screenshot_key?: string | null;
   aria_snapshot?: string | null;
+  dialog_payload?: unknown;
 }
 
 interface FindingRow {
@@ -526,6 +528,23 @@ function toStepView(step: StepRow, signedUrls: Record<string, string> | undefine
       typeof step.result_summary === "string" && step.result_summary.length > 0
         ? step.result_summary
         : null,
+    dialog: normalizeDialogPayload(step.dialog_payload),
+  };
+}
+
+const DIALOG_TYPES = new Set(["alert", "confirm", "prompt", "beforeunload"]);
+function normalizeDialogPayload(raw: unknown): DialogView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const type = typeof r.type === "string" ? r.type : null;
+  if (!type || !DIALOG_TYPES.has(type)) return null;
+  const message = typeof r.message === "string" ? r.message : "";
+  const personaPerceived =
+    typeof r.persona_perceived === "boolean" ? r.persona_perceived : true;
+  return {
+    type: type as DialogView["type"],
+    message,
+    personaPerceived,
   };
 }
 
