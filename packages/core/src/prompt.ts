@@ -169,6 +169,8 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     ``,
     persona.category === "agent" ? buildAgentRubric() : buildHumanRubric(),
     ``,
+    buildKeyboardNavigationSection(persona, toolPrefix),
+    ``,
     `Phase C — Reflect, adversarially.`,
     `After the walk, ask yourself: "If this app shipped tomorrow, what specific`,
     `reasons would a different user of this persona FAIL to accomplish this goal?"`,
@@ -352,4 +354,72 @@ function buildAgentRubric(): string {
     `- minor: friction (extra hop, ambiguous role name)`,
     `- nit: cosmetic (missing meta description on a non-critical page)`,
   ].join("\n");
+}
+
+// ── Keyboard-navigation section (additive, 2026-05-14) ───────────────────────
+// New section. Edit here, not inside buildWalkPrompt. The header literal
+// `### Keyboard navigation` is the anchor downstream tests / parallel agents
+// look for; keep it stable.
+function buildKeyboardNavigationSection(persona: Persona, toolPrefix: string): string {
+  const pressKey = `${toolPrefix}press_key`;
+  const click = `${toolPrefix}click`;
+
+  const common = [
+    `### Keyboard navigation`,
+    ``,
+    `You may use ${pressKey} for keyboard input. The keys you will reach for`,
+    `most often are Tab, Shift+Tab, Enter, Space, the arrow keys, and Escape.`,
+    `Real users of every persona occasionally hit a key; agents that only ever`,
+    `click do not catch keyboard-path failures.`,
+    ``,
+    `File a finding when:`,
+    `- Focus disappears off-document after Tab (no visible focus ring AND no`,
+    `  ${toolPrefix}snapshot ref for the focused element).`,
+    `- A custom widget (combobox, menu, tabs, switch, disclosure) does not`,
+    `  respond to Space or Enter the way its role implies.`,
+    `- A skip-link is present but Enter on it does not move focus past the nav.`,
+    `- The flow declared an \`expected_keyboard_navigation\` step (from_selector`,
+    `  → to_selector) and Tab from \`from_selector\` did not land on`,
+    `  \`to_selector\`. Cite the step in your evidence.`,
+    ``,
+    `If a keyboard probe is ambiguous — you pressed Tab and you cannot tell`,
+    `from the snapshot where focus went — that ambiguity is itself the`,
+    `finding. Do NOT retry until it works; do NOT switch to ${click} to`,
+    `paper over it. The absence of perceivable focus is the UX problem.`,
+  ];
+
+  if (persona.category === "accessibility") {
+    return [
+      ...common,
+      ``,
+      `You are an accessibility persona. Keyboard-only operation is REQUIRED.`,
+      `Do NOT use ${click} for any affordance that has a keyboard path —`,
+      `navigate with Tab / Shift+Tab, activate with Enter or Space. ${click}`,
+      `is permitted only when the element provably has no keyboard path (which`,
+      `is itself the finding — file it under WCAG 2.1.1 or 2.4.7).`,
+      ``,
+      `Map findings to WCAG criteria:`,
+      `- 2.1.1 Keyboard — any control reachable by mouse but not by keyboard.`,
+      `- 2.1.2 No Keyboard Trap — focus enters a region and cannot leave by`,
+      `  Tab / Shift+Tab / Escape.`,
+      `- 2.4.3 Focus Order — Tab order does not match the visual reading order`,
+      `  or the order declared in \`expected_keyboard_navigation\`.`,
+      `- 2.4.7 Focus Visible — focused element has no visible indicator.`,
+    ].join("\n");
+  }
+
+  if (persona.category === "agent") {
+    return [
+      ...common,
+      ``,
+      `You are an agent persona. Use the keyboard to probe affordances that`,
+      `might be hover-only in disguise — Tab to the element first; if a menu`,
+      `or tooltip only appears via hover, that is an agent.no_hover_only`,
+      `finding even when the element itself receives focus. Cite the`,
+      `agent.accessibility_tree_completeness heuristic when Tab moves focus`,
+      `to a region your ${toolPrefix}snapshot cannot describe.`,
+    ].join("\n");
+  }
+
+  return common.join("\n");
 }
