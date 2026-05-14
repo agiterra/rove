@@ -28,9 +28,10 @@
 | Rove brand mark (gradient `R` glyph + 'ROVE' wordmark) | Static — `components/app-mark.tsx` reads `/brand/Rove_Icon_NoFill.png` | ✅ | — |
 | Breadcrumb "Runs ›" | Static label; links to `/runs?p=<project>` | 🟡 | Add `<Link href="/runs?p=...">` wrapper |
 | Breadcrumb run id (short) | `runs.id.slice(0, 8)` | ✅ | — |
+| Secondary breadcrumb row (`← all runs`) | Static label; links to `/runs` today | 🟡 | Preserve focus ring; make href project-aware (`/runs?p=<project>`) when `TopBar` project routing lands |
 | Project pill (`project: tankloop`) | `resolveProjectId(searchParams)` from `lib/project-context.ts` | 🟡 | Click → open `ProjectSwitcher` menu. Replace inline `<span>` with `<ProjectSwitcher size="sm">` from `components/project-switcher.tsx` |
 | User pill (`alex`) | `supabase.auth.getUser().user_metadata.user_name`, falls back to `email.split('@')[0]` | ✅ | — |
-| Worker status pill (`Worker online`, pulsing dot) | Currently hardcoded `"unknown"` → no pill rendered | ❌ | Query `workers WHERE github_handle = <run.initiator_label>` (or the daemon that wrote the run's most recent step) → render `online` if `last_heartbeat_at > now() - 90s`, `offline` otherwise. New util: `lib/supabase/resolve-run-worker.ts` |
+| Worker status pill (`Worker online`, pulsing dot) | Not derivable from `runs` today. `initiator_label` is the requester label, not the daemon. | ❌ | First add an explicit run↔job/worker link (`runs.agent_job_id` or `runs.worker_id`, or make queued walks use a daemon-provided run id and store it in `agent_jobs.result`). Then resolve `agent_jobs.claimed_by_worker_id → workers.id`; online if `last_heartbeat_at > now() - 90s` and not stopped/disabled. |
 | Click brand mark | `Link href="/runs"` | 🟡 | Wrap in `<Link>` |
 
 ## 2. Hero
@@ -39,17 +40,19 @@
 |---|---|---|---|
 | Eyebrow `RUN · <flow_id> · <persona_id>` | `runs.flow_id`, `runs.persona_id` | ✅ | — |
 | NowDoing pill — verb (`Clicking`, `Reading`, `Typing into`, `Navigating to`, `Capturing`) | Derived from latest `run_steps.tool_name` via `humanizeVerb()` in `adapters.ts` | ✅ | — |
-| NowDoing pill — target (`"Run walk"`, `/admin/foo`) | Derived from latest `run_steps.url_after` (truncated to 48 chars) | 🟡 | For `browser_click`, prefer extracting the click target from `run_steps.args` (the actual selector / button name) over URL. New: `extractClickTarget(args)` in `adapters.ts` |
-| NowDoing pill — timer | `runs.started_at` → `now()` (running) / `runs.finished_at` (done). Computed client-side; ticks via 1Hz interval | 🟡 | Wire 1Hz ticker in `RunDetailLive` for running walks; freeze on terminal status |
+| NowDoing pill — target (`"Run walk"`, `/admin/foo`) | For action tools, derive from `run_steps.args.target` plus optional `args.element`; for navigation, use `args.url` / `url_after` | 🟡 | Add `extractActionTarget(tool_name, args, ariaSnapshot?)`. Playwright MCP uses `target`, not `selector`; accessible name requires `args.element` or matching the target ref against a parsed snapshot. |
+| NowDoing pill — timer | `runs.started_at` → `now()` (running) / `runs.finished_at` (done). Computed client-side; ticks via 1Hz interval | 🟡 | Wire 1Hz ticker in `RunDetailLive` for running walks; freeze on terminal status. Do not put the ticking value inside the `aria-live` region, or it will announce every second. |
 | NowDoing pill — sweep animation | `.lw-sweep::after` keyframes in `globals.css` | ✅ | — |
 | NowDoing pill — visibility | Only render when `status === "running"` | ✅ | — |
+| Hero aurora / streak / edge layers | Static CSS (`.lw-hero-*` in `globals.css`) with intensity from `view.hero.status` | ✅ | Preserve reduced-motion fallback and avoid adding data dependencies |
 | Headline ("Walking the app" / "Goal reached" / "Goal not reached" / "Walk failed" / "Walk pending") | `runs.status` + `runs.goal_reached` via `buildHeroStatusBits()` | ✅ | — |
 | Headline glow (cyan for goal reached, rose for errored) | Same derivation | ✅ | — |
-| Subline `Step N of estimated M · 1m 32s elapsed · 3m 28s remaining budget` | `runs.actual_step_count`, `runs.predicted_step_count`, computed elapsed | 🟡 | "Remaining budget" requires `flows.budget_seconds_max` (currently not on the run row). New: join `flows` on `run.flow_id` server-side; expose `budget_seconds_max` on view. Hide subline budget chunk when null. |
+| Subline `Step N of estimated M · 1m 32s elapsed · 3m 28s remaining budget` | `runs.actual_step_count` or `run_steps.length`, `runs.predicted_step_count`, computed elapsed. No budget DB source exists yet. | 🟡 | Do not join a nonexistent `flows.budget_seconds_max`. Add a schema/sync PR for `flows.budget jsonb` or `flows.budget_seconds_max int`, populated from YAML `budget.max_seconds`; only then expose remaining budget. Until then hide the budget chunk. |
 | Metric tile — `target URL` | `runs.walked_url` | ✅ | — |
 | Metric tile — `persona` | `runs.persona_id` → `prettyPersona(id)` | ✅ | — |
 | Metric tile — `flow id` | Currently `runs.id` (wrong); should be `runs.flow_id` | 🟡 | Fix label semantics: this tile shows `runs.flow_id` (the slug); add a fourth row `run id` below with the run uuid short form OR move run-id to footer only (already there) and replace this tile with `started`/`branch` |
 | Metric tile — `status` pill | Derived `statusPill` in adapter | ✅ | — |
+| Metric tile icons | Static inline SVGs in `Hero.tsx` | ✅ | Keep display-only; no data source |
 
 ## 3. Filmstrip
 
@@ -63,11 +66,12 @@
 | Status text (`Complete` / `Running` / `Error`) | Same derivation | ✅ | — |
 | Tool name (`browser_click`, etc.) | `run_steps.tool_name` | ✅ | — |
 | Duration label (`1.4s` / `live`) | `run_steps.duration_ms` formatted; `"live"` if running | ✅ | — |
-| Selected-tile cyan ring | `selectedIndex === step.index` client state | ✅ | — |
-| Running-tile glow keyframe | `.lw-tile-running` CSS animation, applied when `step.status === "running"` | ✅ | — |
+| Tile ARIA label + `aria-current` | `step.index`, `step.toolName`, `step.status`, `selectedIndex === step.index` | ✅ | Preserve while adding auto-scroll |
+| Selected-tile cyan ring | `selectedIndex === step.index` client state | ✅ | Preserve `.focus-rove` on the tile button |
+| Running-tile glow keyframe | `.lw-tile-running` CSS animation, applied when `step.status === "running"` | ✅ | Preserve reduced-motion suppression in `globals.css` |
 | Errored-tile rose border | `step.status === "errored"` | ✅ | — |
 | "Awaiting next step" dashed placeholder | Rendered when `hero.status === "running"` (filmstrip prop `showAwaitingTile`) | ✅ | — |
-| Scroll arrows (left/right) | Local `useRef` + `scrollBy({left: ±320})` | ✅ | — |
+| Scroll arrows (left/right) | Local `useRef` + `scrollBy({left: ±320})`; static icon-only buttons | ✅ | Preserve `aria-label`, `.focus-rove`, and keyboard activation |
 | Auto-follow running tile | `stickToRunning` state in `RunDetailLive`; flips false on manual click | ✅ | Add `scrollIntoView({ behavior: "smooth", inline: "center" })` on the running tile when its index changes |
 | Filmstrip section "scroll-snap" annotation | Removed in c209a3b | ✅ | — |
 | Empty state (no steps) | Renders dashed placeholder with copy "No steps recorded yet" | ✅ | — |
@@ -92,19 +96,23 @@
 |---|---|---|---|
 | Caption `step 08 — clicking "Run walk"` | `selectedStep.index`, `selectedStep.toolName`, `selectedStep.url` via `humanVerb()` in DetailSplit | 🟡 | Verb derivation uses URL right now; same fix as §2 NowDoing — prefer click target from `args` |
 | Screenshot (16:9, white-bg) | `step.thumb` → `<img>` for signed URL, `<MockThumb>` for preview, striped placeholder otherwise | 🟡 | Same daemon-side block as §3 — Track B2 |
-| Inline Tankloop preview (preview route only) | `inlineTankloop` prop. `TankloopPreview` is HTML, not data-driven | ✅ | — |
+| No selected step empty state | `selectedStep === null` | ✅ | Keep copy static; this is reached when there are no step rows |
+| Inline Tankloop preview (preview route only) | `inlineTankloop` prop. `TankloopPreview` is static HTML/CSS, not data-driven | ✅ | Preview-only fixture; see §15 for explicit non-wiring scope |
+| Preview cursor overlay (preview route only) | Static `PreviewCursor` SVG | ✅ | Preview-only fixture; no real-data wiring |
 | Tag pills below (`tool`, `url`, `duration`, `status`) | `step.toolName`, `step.url`, `step.durationLabel`, `step.status` | ✅ | — |
-| `selector` tag | Currently hardcoded `button[name="Run walk"]` on preview; not rendered on real `/runs/[id]` | 🟡 | Extract from `run_steps.args.selector` or `.element` for `browser_click`, `browser_type`; new helper in `adapters.ts` |
-| `coordinates` tag (preview only) | Static for now | 🟡 | Real `/runs/[id]` should show this when `run_steps.args.x` / `.y` exist on click steps |
+| `target` tag | Not rendered on real `/runs/[id]` | 🟡 | Extract from `run_steps.args.target` for `browser_click` / `browser_type`; label as `target`, not `selector`, unless the value is a non-ref selector |
+| `element` tag | Optional Playwright MCP human-readable element description | 🟡 | Render only when `run_steps.args.element` is a non-empty string |
+| `coordinates` tag | Not supported for normal `browser_click` / `browser_type` rows | ❌ | Do not wire for normal click/type steps. Only render for future low-level mouse tools that actually carry `x`/`y`. |
 
 ### Right accessibility-tree panel
 
 | Element | Data source | Status | TODO |
 |---|---|---|---|
 | Eyebrow `ACCESSIBILITY TREE` | Static | ✅ | — |
-| Tree node rendering (`▼ banner` → indent rails → `link "Runs"`) | Hardcoded sample on preview; **not rendered on real /runs/[id]** | ❌ | Parse `run_steps.aria_snapshot` (Markdown-ish indented role-name text emitted by Playwright MCP). New file: `components/run-detail/parseAriaSnapshot.ts` returning `AriaNode[]`. The tree renders from that array. |
-| Highlighted target node (cyan-soft fill) | Currently hardcoded "Run walk" button on preview | ❌ | Highlight the node whose role-name matches the action taken at this step. Derive from `run_steps.args.selector` ↔ aria-snapshot match. If no match found, no highlight. |
-| Empty state ("No aria-snapshot captured for this step yet") | Rendered when `step.aria_snapshot` is null | ✅ | — |
+| Tree node rendering (`▼ banner` → indent rails → `link "Runs"`) | Hardcoded sample on preview; real rows have `run_steps.aria_snapshot` text, but `StepView` drops it today | ❌ | Extend `StepView` with `ariaSnapshot: string | null`, then parse Playwright MCP's YAML-like aria snapshot format (`- role "Name" [attr=value]:`, nested sequences, text nodes, iframe / `<changed>` lines). Parser failures render raw text, never throw. |
+| Highlighted target node (cyan-soft fill + pulse) | Currently hardcoded "Run walk" button on preview | ❌ | Highlight by `args.target` ref when the parsed snapshot contains `[ref=<target>]`; fall back to role/name matching only when `args.element` is present. If the selected row is an action without its own snapshot, use the nearest preceding snapshot or no highlight. |
+| Empty state ("No aria-snapshot captured for this step yet") | Rendered when `step.ariaSnapshot` is null after `StepView` grows the field | ✅ | — |
+| Indent rails + highlight animation | Static CSS `.lw-rail*`, `.lw-tree-highlight` | ✅ | Preserve reduced-motion suppression |
 | Click a tree node → ? | No-op today | 🟡 | Defer interactivity; tree is read-only at first land |
 
 ## 6. Steps tab
@@ -115,6 +123,8 @@
 | Row cells | Each step's `step_index`, `toolName`, `url`, `durationLabel`, `status` | ✅ | — |
 | Selected-row highlight | `selectedIndex` state, cyan-soft tint | ✅ | — |
 | Click row → swap to Filmstrip tab + scroll filmstrip to that tile | `onPick(idx)` setter; doesn't actually switch tab today | 🟡 | After `setSelectedIdx(idx)`, also `setTab("filmstrip")` so the user sees their selection in the visual context |
+| Empty state (no steps) | `view.steps.length === 0`; static copy | ✅ | Preserve dashed container and copy |
+| Row focus treatment | `.focus-rove` on a `display: contents` button | 🟡 | Verify focus outline is visible in browser; if not, replace contents-button with grid rows that can receive visible focus |
 
 ## 7. Reflection tab
 
@@ -127,7 +137,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 | Surprises list | `runs.surprises` (`Surprise[]`) | ❌ | Card list — `kind` badge + `expected` vs `observed` columns + `recovered: yes/no` |
 | Reflection text — "largest expectation gap" | `runs.largest_expectation_gap` | ❌ | Paragraph below surprises |
 | Reflection numeric — persona success confidence | `runs.persona_success_confidence` (0–1) | ❌ | Big-number tile: `{Math.round(x * 100)}%` + label "agent's self-rated confidence" |
-| Metrics strip — actual_tool_calls, snapshots, actions, screenshots, recovery_count, errors, time_to_first_action_ms | `runs.metrics` (`TrajectoryMetrics`) | ❌ | 6-tile strip at top of Reflection tab. Reuse existing `MetricsStrip` component's logic from `app/runs/[id]/trajectory.tsx` but restyled to match the new design |
+| Metrics strip | `runs.metrics` (`TrajectoryMetrics` jsonb) | ❌ | Render a 7-tile strip if showing `actual_tool_calls`, `actions`, `snapshots`, `screenshots`, `snapshots_per_action`, `recovery_count`, `errors`, and `time_to_first_action_ms`; otherwise explicitly choose the old 6-tile set and omit screenshots/time-to-first. Do not claim "6 tiles" while listing seven metrics. |
 | "Walk in progress — reflection populates when complete" empty state | Render when `runs.status === "running"` AND `run.plan` is null | ✅ | (already handled, refine copy) |
 
 ## 8. Findings stream
@@ -140,10 +150,11 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 | Severity badge | Same | ✅ | — |
 | Title | `findings.title` | ✅ | — |
 | Heuristic chip | `findings.heuristic` | ✅ | — |
-| Secondary WCAG/standard chip | Not on real data today; mock had it | ❌ | Parse from `findings.heuristic` — if it contains `:` (`agent.foo:wcag.2.1.1`), split. Or add `findings.standard_ref` column in a later migration. For now, derive: WCAG mapping table in `adapters.ts` keyed by heuristic |
+| Secondary WCAG/standard chip | No stored source today | ❌ | Either add `findings.standard_ref` in a later migration or add optional `secondaryStandardChip` as a documented display-only inference from a fixed local mapping. Do not imply `findings.heuristic` parsing is authoritative. |
 | Thumbnail (110×62) | Currently looks up `run_steps.screenshot_key` for step matching `findings.step_index`; falls back to placeholder | 🟡 | Once `finding_screenshots` is loaded, prefer those (`finding_screenshots.storage_key` → signed URL) over the step's screenshot. New: server-side fetch `finding_screenshots` joined to findings, mint signed URLs, hand to adapter |
 | Step reference (`Step 08 →`) | `findings.step_index` | ✅ | — |
-| Click card | `findingHref` → `/findings?run=X&open=Y` | ✅ | — |
+| Click card | `findingHref` → `/findings?run=X&open=Y`; falls back to static `<article>` when no href | ✅ | Preserve `.focus-rove` only on link-rendered cards; no fake click target for static articles |
+| Card hover/focus motion | `.kinetic-hover` + `.focus-rove` | ✅ | Preserve reduced-motion behavior |
 | Empty state | Render when `findings.length === 0` | ✅ | — |
 | Streaming (new finding fades in at top) | Realtime INSERT on `findings` triggers a full re-fetch in `useLiveRun`; no animation yet | 🟡 | Add `framer-motion` `<AnimatePresence>` wrapper OR pure CSS `@keyframes` slide-in. Track new IDs vs prior render; animate only the diff |
 
@@ -153,7 +164,7 @@ Currently a single placeholder paragraph. The OLD `/runs/[id]` rendered three co
 |---|---|---|---|
 | `commit <sha>` | `runs.commit_sha.slice(0, 7)` (null-safe) | ✅ | — |
 | `branch <branch>` | `runs.branch` | ✅ | — |
-| `daemon <handle>` | `runs.initiator_label` (the daemon's github_handle) | 🟡 | "Daemon" is misleading — `initiator_label` is the **user** who initiated. Rename to `initiated by`. The actual daemon name lives on the `agent_jobs` row that birthed this run, or on `workers` if we can join. New: `workers WHERE id = (SELECT claimed_by FROM agent_jobs WHERE run_id = X)`. For now, label change is sufficient. |
+| `daemon <handle>` | Currently `runs.initiator_label`, which is the requester / best-effort initiator label, not the daemon | 🟡 | Rename to `initiated by` now. Do not claim actual daemon attribution until a run↔job/worker link exists. |
 | `run <short>` | `runs.id.slice(0, 8)` | ✅ | — |
 | `started <Nm ago>` | `runs.started_at` → `relativeAgo()` | ✅ | — |
 
@@ -181,11 +192,12 @@ Lives in `packages/cli`. This plan **contracts** these changes; it does NOT ship
 
 | Commitment | File | Contract |
 |---|---|---|
-| Per-step `run_steps` insert at `tools/call` request time | `packages/cli/bin/playwright-mcp-proxy.mjs` (or equivalent hook in `packages/cli/src/daemon/runner.ts`) | Insert row with `direction='call'`, `tool_name`, `args`, `step_index=<incrementing>`. Initial `screenshot_key=null`. |
-| Per-step update on tool response | Same | Update row to `direction='result'` (or `'error'`) with `result_summary`, `aria_snapshot`, `url_after`, `duration_ms` |
-| Screenshot upload at capture | Same | On any `browser_take_screenshot` response, upload PNG to `walks/runs/<run_id>/step-<NN>.png` via service-role client; stamp `run_steps.screenshot_key` |
-| Finding insert at file-time | `packages/cli/src/sinks/supabase.ts` | When the agent emits a finding (via the existing `<<<FINDINGS_JSON>>>` markers), insert each finding row immediately, not in the post-walk batch |
-| `runs.status` transitions | Already exists — daemon writes `running` at start, `completed`/`failed` at end. No change. | ✅ |
+| Run/job/worker identity | `packages/cli/src/commands/run.ts`, `packages/cli/src/daemon/handlers/walk.ts`, migrations | Make queued walks use a daemon-known run id (or persist `runs.agent_job_id`) so `/runs/[id]` can resolve the worker and the queued job can deep-link to the run while it is still running. |
+| Per-step `run_steps` insert at `tools/call` request time | Reworked `packages/cli/bin/playwright-mcp-proxy.mjs` | The proxy already sees JSON-RPC request lines, but it has no Supabase client, `run_id`, or `project_id`. Add explicit proxy args/env for those values, maintain `jsonrpc id → step row id`, insert `direction='call'`, `tool_name`, `args`, `step_index=<incrementing>`, `screenshot_key=null`. |
+| Per-step update on tool response | Reworked `packages/cli/bin/playwright-mcp-proxy.mjs` | The proxy already sees response lines, but live update requires pairing by JSON-RPC id. Update the pending row to `direction='result'` or `'error'` with `result_summary`, `aria_snapshot` when the response includes a snapshot, `url_after`, `duration_ms`. |
+| Screenshot upload at capture | Reworked MCP proxy + storage upload helper | `browser_take_screenshot` writes into MCP `--output-dir`; do not assume PNG bytes are in the response. Read the local file after the response, upload to `walks/runs/<run_id>/step-<NN>.png`, then stamp `run_steps.screenshot_key`. |
+| Finding insert at file-time | `packages/cli/src/commands/run.ts` + dispatcher stdout streaming + reusable Supabase sink helper | Today findings are parsed only after the dispatcher exits. Streaming requires an incremental stdout parser upstream of `routeToSinks`; the sink can expose/reuse `insertFinding`, but it is not the hook point by itself. |
+| `runs.status` transitions | Existing sink path creates `running` and completes/fails at end, but queued jobs do not know the run id until the child run pipeline creates it | 🟡 | Once the run/job identity contract lands, keep current run status writes and expose the run id in `agent_jobs.result` early enough for the dashboard. |
 
 Without B2, the dashboard wiring above renders correctly for **completed** walks (the post-walk batch populates all rows) but a **running** walk on `/runs/[id]` will show an empty filmstrip until the daemon's batch sync fires.
 
@@ -195,13 +207,14 @@ Without B2, the dashboard wiring above renders correctly for **completed** walks
 |---|---|---|
 | Sign screenshot URLs server-side (batch + per-key fallback) | ✅ already shipped | `app/runs/[id]/page.tsx` |
 | Mint signed URLs for `finding_screenshots` (separate from step screenshots) | New | Extend `app/runs/[id]/page.tsx` to fetch `finding_screenshots` joined on `findings.id`; sign all keys; pass into adapter as `signedFindingScreenshotUrls` |
-| Resolve `current worker` for the run | New | `lib/supabase/resolve-run-worker.ts`: joins `agent_jobs` (claimed_by) → `workers` for status |
-| Resolve `flows.budget_seconds_max` for the hero subline | New | Add `flows` join in `app/runs/[id]/page.tsx`; pass into adapter |
-| `extractClickTarget(args)` helper | New | `components/run-detail/adapters.ts`; recognizes `browser_click` + `browser_type` arg shapes from `@playwright/mcp` |
-| `parseAriaSnapshot(text)` parser | New | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from indented role-name text. Failures: return one root node with the raw text body. |
-| `aria-snapshot ↔ click target` matcher | New | `components/run-detail/highlightAriaTarget.ts`; given parsed tree + click args, returns the node id (or null) that should render with `lw-tree-highlight` |
+| Extend run-detail view model | New | `components/run-detail/types.ts` + `adapters.ts`; add plan, surprises, metrics, step args, result summary, aria snapshot, and finding screenshot URL slots before wiring dependent UI |
+| Resolve `current worker` for the run | Blocked | Requires the Track B2 run/job/worker identity contract first; then add `lib/supabase/resolve-run-worker.ts` using `agent_jobs.claimed_by_worker_id → workers.id` |
+| Persist and resolve flow budget | Blocked | Add a migration + sync change for YAML `budget.max_seconds` (`flows.budget jsonb` or `flows.budget_seconds_max int`) before any server-side join |
+| `extractActionTarget(toolName, args, ariaSnapshot?)` helper | New | `components/run-detail/adapters.ts`; recognizes `browser_click` + `browser_type` arg shapes from `@playwright/mcp` (`target`, optional `element`, text metadata) |
+| `parseAriaSnapshot(text)` parser | New | `components/run-detail/parseAriaSnapshot.ts`; returns `AriaNode[]` from Playwright MCP YAML-like role/name/ref text. Failures return a raw-text node. |
+| `aria-snapshot ↔ action target` matcher | New | `components/run-detail/highlightAriaTarget.ts`; given parsed tree + `args.target` / `args.element`, returns the node id (or null) that should render with `lw-tree-highlight` |
 | Reflection panel | New | `components/run-detail/Reflection.tsx`; renders plan / surprises / largest_expectation_gap / persona_success_confidence / metrics |
-| MetricsStrip restyle | New | `components/run-detail/MetricsStrip.tsx`; 6 tiles inline, same brand vars |
+| MetricsStrip restyle | New | `components/run-detail/MetricsStrip.tsx`; explicitly choose six old metrics or render all planned metrics without lying about tile count |
 | Animated finding stream | New | Add `<AnimatePresence>` (or CSS keyframes — pick after install audit) to `FindingsStream` |
 | 1Hz timer ticker | New | `RunDetailLive` `useEffect(setInterval(1000))` while `view.hero.status === "running"` |
 | Auto-scroll filmstrip to running tile | New | `Filmstrip` ref + `useEffect` watching the running step's index |
@@ -218,21 +231,26 @@ The plan is done when **every** row in §1–§9 above is ✅ (or the daemon-sid
 - Aria-snapshot tree renders for at least 90% of real `run_steps.aria_snapshot` payloads. Parser failures fall back to "raw text" view, never throw.
 - `kind=change_review` runs still render via the old layout (untouched until a later PR explicitly ports them).
 - Keyboard-only walkthrough of `/runs/[id]` reaches every interactive element with visible `focus-rove` rings.
+- Motion audit passes with `prefers-reduced-motion: reduce`: NowDoing sweep, running tile glow, tree highlight pulse, and kinetic finding-card hover all suppress nonessential motion.
 
 ## 14. PR breakdown
 
-To keep diffs reviewable, this lands as ~8 PRs on top of the current `live-walk-preview` branch:
+To keep diffs reviewable, this lands as dashboard PRs plus a separate Track B2 daemon/runtime series:
 
-1. **`wire-reflection`** — Reflection tab with plan / surprises / largest_expectation_gap / persona_success_confidence / metrics. Adapter extension + new Reflection component.
-2. **`wire-flow-budget`** — server-side `flows` join for `budget_seconds_max`; hero subline shows remaining budget.
-3. **`wire-worker-status`** — resolve current worker for the run; top-bar pill goes from `unknown` → `online`/`offline`.
-4. **`wire-finding-screenshots`** — `finding_screenshots` signed URLs replace placeholder thumbs in `FindingsStream`.
-5. **`wire-aria-tree`** — `parseAriaSnapshot` + `highlightAriaTarget`; DetailSplit a11y panel renders real trees with the click target highlighted.
-6. **`wire-step-args`** — `extractClickTarget` + selector/coordinates tags on DetailSplit + accurate NowDoing target.
-7. **`wire-ux-polish`** — 1Hz timer ticker, auto-scroll filmstrip, animated finding inserts, Steps→Filmstrip tab switch on row click, keyboard nav on tabs.
-8. **`wire-change-review-adopt`** — port the `kind=change_review` branch onto the same Hero/Filmstrip/Detail/Findings shape (the only `change_review`-specific surface stays as `DeltasSection` inside the Reflection tab).
+1. **`wire-view-model-fields`** — extend `RunDetailView` / adapter with plan, surprises, metrics, step args, result summary, aria snapshot, and finding screenshot URL slots.
+2. **`wire-reflection`** — Reflection tab with plan / surprises / largest_expectation_gap / persona_success_confidence / metrics.
+3. **`wire-finding-screenshots`** — `finding_screenshots` signed URLs replace placeholder thumbs in `FindingsStream`.
+4. **`wire-step-args`** — `extractActionTarget` + `target` / `element` tags on DetailSplit + accurate NowDoing target.
+5. **`wire-aria-tree`** — `parseAriaSnapshot` + `highlightAriaTarget`; depends on `wire-step-args`.
+6. **`wire-a11y-polish`** — keyboard nav on tabs, Steps→Filmstrip tab switch on row click, focus-ring verification for `display: contents` rows, reduced-motion audit.
+7. **`wire-motion-polish`** — 1Hz visual timer ticker outside the live region, auto-scroll filmstrip, animated finding inserts.
+8. **`persist-flow-budget`** — migration + sync update for YAML `budget.max_seconds`; after it lands, hero subline shows remaining budget.
+9. **`link-runs-to-workers`** — Track B2 schema/runtime contract that records which `agent_jobs` / `workers` row produced a run.
+10. **`wire-worker-status`** — dashboard resolver/pill using the explicit run↔worker link.
 
-Track B2 (daemon-side) is its own PR series under `packages/cli` and lands independently. Without B2 the wired dashboard renders completed walks perfectly; with B2 it renders live walks just as well.
+`change_review` adoption is explicitly out of this PR breakdown. It conflicts with §13's acceptance criterion and belongs in a later design migration.
+
+Track B2 (daemon-side) is its own PR series under `packages/cli` and lands independently. Without B2 the wired dashboard renders completed walks with the data that exists today, but worker attribution, live per-step inserts, screenshot-at-capture, and streamed findings remain blocked by Track B2.
 
 ## 15. What does NOT get wired in this plan
 
@@ -241,5 +259,7 @@ Track B2 (daemon-side) is its own PR series under `packages/cli` and lands indep
 - Multi-user "watching the walk together" presence indicators (explicit non-goal in `live-walk.md`)
 - Step-level inline expansion in the Steps tab (current row click handles selection; inline expand isn't needed)
 - `run_steps.aria_snapshot` parsing for non-Playwright tools — only the Playwright MCP format is supported initially. Other dispatchers' output falls back to raw text.
+- Real-data wiring for `/preview/live-walk` fixtures — `TankloopPreview`, `PreviewCursor`, and the 12 `MockThumb` SVGs are static review assets by design.
+- `kind=change_review` adoption — old layout stays in place until a separate plan ports it.
 
 These are documented here so they don't reappear as "missing" in future audits.

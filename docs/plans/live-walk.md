@@ -51,10 +51,10 @@ A single PR (`live-walk-preview`) carries every visual + dashboard-side piece ne
 
 **Still owed (separate PRs):**
 
-- **Track B2** — daemon-side per-step writes. The MCP proxy needs a hook that inserts a `run_steps` row at request time (`direction='call'`, `status='running'`) and updates it on response. Today the dashboard only sees rows after the daemon's post-walk batch sync, so an in-progress walk on `/runs/[id]` will look mostly empty until the daemon settles.
-- **Track B2 (continued)** — screenshot uploads at capture time. The proxy currently writes screenshots to a local dir and the sink uploads them post-walk. Flipping the order populates `run_steps.screenshot_key` per step.
+- **Track B2** — daemon-side per-step writes. The MCP proxy needs an explicit live-write mode: pass `run_id` / `project_id` / auth config into the proxy, insert a `run_steps` row at each `tools/call` request (`direction='call'`), maintain `jsonrpc id → row id`, and update that row on response. Today the dashboard only sees rows after the daemon's post-walk batch sync, so an in-progress walk on `/runs/[id]` will look mostly empty until the daemon settles.
+- **Track B2 (continued)** — screenshot uploads at capture time. Playwright MCP writes screenshots into its `--output-dir`; the proxy should read the local file after a `browser_take_screenshot` response, upload it, and populate `run_steps.screenshot_key`. Do not assume the response contains PNG bytes.
 - **aria-snapshot parser.** `run_steps.aria_snapshot` is captured but unparsed. The `DetailSplit` a11y tree panel currently shows "No aria-snapshot captured for this step yet" for every real-data step.
-- **Worker-status pill in `TopBar`** — hard-coded to `unknown` for real `/runs/[id]`. Should query `workers` for the run's daemon and show online/offline.
+- **Worker-status pill in `TopBar`** — hard-coded to `unknown` for real `/runs/[id]`. This needs a run↔job/worker identity link first (`agent_jobs.claimed_by_worker_id → workers.id` is valid, but there is no run→job link today); after that the dashboard can show online/offline.
 - **Completed-walk hero variant tweaks** — outcome glow (cyan for goal reached, rose for not reached) is wired; needs visual review on real completed runs.
 - **`change_review` adoption.** This branch leaves `kind === "change_review"` on the old layout intact. A later PR ports it to the new components.
 
@@ -121,26 +121,20 @@ A3 is *not* strictly required to ship live walk, but it is required to ship live
 
 ### B1 — `run_steps` schema update + storage upload helper
 
-A migration that adds:
+The current schema already has `run_steps.screenshot_key` and `direction in ('call','result','error')`. Do **not** add parallel `screenshot_path` / `status` columns unless a later migration explicitly replaces the existing model.
 
-```sql
-alter table public.run_steps
-  add column screenshot_path text,             -- supabase storage path
-  add column screenshot_thumb_path text,       -- 240px wide jpeg for filmstrip
-  add column status text not null default 'completed'
-    check (status in ('running','completed','errored'));
-```
-
-A new helper in `packages/cli/src/sinks/supabase.ts` that uploads a single screenshot from the local screenshots dir to Supabase Storage and returns the path. Re-used by B2.
+This track adds a small storage helper that uploads a single screenshot from the MCP output directory to Supabase Storage and returns the `screenshot_key` path. Re-used by B2 and the post-walk reconciliation path.
 
 ### B2 — daemon-side per-step writes (replace the post-walk batch)
 
 Today the MCP proxy at `packages/cli/bin/playwright-mcp-proxy.mjs` tees JSON-RPC traffic to a local `trajectory.jsonl`, and the sink at `packages/cli/src/sinks/supabase.ts` parses + inserts after the walk finishes. We flip the order:
 
-- The proxy gets a Supabase write hook. On each `tools/call` *response*:
-  - Insert a new `run_steps` row with `status = 'running'` at request time.
-  - On response, `update` it to `completed` / `errored` with `result_summary`, `aria_snapshot`, `duration_ms`, `url_after`.
-  - For `browser_take_screenshot` responses, immediately upload the screenshot bytes to Supabase Storage and stamp `screenshot_path` + `screenshot_thumb_path` (thumb generated via sharp; daemon-side, fits in the existing tarball).
+- The proxy gets a Supabase write hook. On each `tools/call` request / response pair:
+  - Insert a new `run_steps` row with `direction = 'call'` at request time.
+  - Store `jsonrpc id → step row id` so the response updates the correct row.
+  - On response, update it to `direction = 'result'` / `'error'` with `result_summary`, `aria_snapshot` when the response includes one, `duration_ms`, and `url_after`.
+  - For `browser_take_screenshot` responses, read the screenshot from MCP `--output-dir`, upload it to Supabase Storage, and stamp `run_steps.screenshot_key`.
+  - This requires the proxy to receive `run_id`, `project_id`, and write credentials/config explicitly; the current proxy only tees JSON-RPC frames to a local file.
 - The local `trajectory.jsonl` write stays as a debugging fallback and as the source of truth if the daemon ever runs offline.
 - The post-walk parse-and-batch path becomes a reconciliation pass: on walk completion, the sink reads `trajectory.jsonl` and `upsert`s any steps the live pipeline missed (network blip safety net).
 
@@ -166,7 +160,7 @@ The dense vertical alternative to the filmstrip. One row per step: status icon, 
 
 ### C3 — `NowDoing` indicator
 
-A small pill near the top of the run detail page that describes the agent's current action in natural language. Source: the latest `run_steps` row with `status = 'running'`. Examples: `Reading the page at /admin/scheduling`, `Clicking "Create job"`, `Filling form field "Customer email"`. The mapping from tool name → human description is a small lookup table.
+A small pill near the top of the run detail page that describes the agent's current action in natural language. Source: the latest in-flight `run_steps` call row (`direction = 'call'`) before its matching `result` / `error` reconciliation; there is no `run_steps.status` column. Examples: `Reading the page at /admin/scheduling`, `Clicking "Create job"`, `Filling form field "Customer email"`. The mapping from tool name → human description is a small lookup table.
 
 When the walk completes, the pill collapses into a static `Walk completed in X minutes (Y steps)` summary.
 
