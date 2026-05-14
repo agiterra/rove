@@ -51,13 +51,14 @@ export interface TrajectoryMetrics {
 
 export interface RunStep {
   step_index: number;
-  direction: "result" | "error";
+  direction: "result" | "error" | "call";
   tool_name: string | null;
   args: unknown;
   result_summary: string | null;
   aria_snapshot: string | null;
   url_after: string | null;
   duration_ms: number | null;
+  screenshot_key?: string | null;
 }
 
 export type WalkKind = "flow" | "change_review";

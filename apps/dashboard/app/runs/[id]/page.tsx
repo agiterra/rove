@@ -2,12 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import { createReadClient } from "../../../lib/supabase/server";
+import {
+  createReadClient,
+  createServiceRoleSupabase,
+} from "../../../lib/supabase/server";
 import { resolveProjectId } from "../../../lib/project-context";
-import { Hero, PlanSection, ReflectionSection, FindingsSection } from "./parts";
+import { ReflectionSection, FindingsSection } from "./parts";
 import { TrajectorySection } from "./trajectory";
-import { ChangeReviewHero, DeltasSection, DesignContractSection } from "./change-review";
+import {
+  ChangeReviewHero,
+  DeltasSection,
+  DesignContractSection,
+} from "./change-review";
 import type { RunDetail, RunFinding, RunStep } from "./types";
+import { RunDetailLive } from "@/components/run-detail/RunDetailLive";
+import { buildRunDetailView } from "@/components/run-detail/adapters";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +29,7 @@ const RUN_COLUMNS =
   "id, project_id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, walked_url, summary, goal_reached, plan, surprises, predicted_step_count, actual_step_count, largest_expectation_gap, persona_success_confidence, metrics, kind, changed_routes, reference_routes, design_contract, deltas";
 
 const RUN_STEP_COLUMNS =
-  "step_index, direction, tool_name, args, result_summary, aria_snapshot, url_after, duration_ms";
+  "step_index, direction, tool_name, args, result_summary, aria_snapshot, url_after, duration_ms, screenshot_key";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
@@ -32,7 +41,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
   const projectId = await resolveProjectId(sp);
   const supabase = await createReadClient();
 
-  const [runRes, findingsRes, stepsRes] = await Promise.all([
+  const [runRes, findingsRes, stepsRes, userRes] = await Promise.all([
     supabase
       .from("runs")
       .select(RUN_COLUMNS)
@@ -42,7 +51,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     supabase
       .from("findings")
       .select(
-        "id, severity, title, description, status, heuristic, github_issue_url, first_seen_at, last_seen_at, content_hash",
+        "id, severity, title, description, status, heuristic, github_issue_url, first_seen_at, last_seen_at, content_hash, step_index",
       )
       .eq("run_id", id)
       .eq("project_id", projectId)
@@ -53,6 +62,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
       .eq("run_id", id)
       .eq("project_id", projectId)
       .order("step_index", { ascending: true }),
+    supabase.auth.getUser(),
   ]);
 
   if (runRes.error || !runRes.data) notFound();
@@ -60,34 +70,89 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
   const findings = (findingsRes.data ?? []) as unknown as RunFinding[];
   const steps = (stepsRes.data ?? []) as unknown as RunStep[];
 
-  return (
-    <div className="aurora space-y-6">
-      <Link
-        href="/runs"
-        className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-      >
-        <ChevronLeft className="w-3.5 h-3.5" />
-        all runs
-      </Link>
+  // change_review keeps the existing sections. Only the default flow path
+  // adopts the new design while we wire it in.
+  if (run.kind === "change_review") {
+    return (
+      <div className="aurora space-y-6">
+        <Link
+          href="/runs"
+          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          all runs
+        </Link>
+        <ChangeReviewHero run={run} />
+        <DesignContractSection contract={run.design_contract} />
+        <DeltasSection deltas={run.deltas} />
+        <TrajectorySection steps={steps} metrics={run.metrics} />
+        <ReflectionSection run={run} />
+        <FindingsSection runId={run.id} findings={findings} />
+      </div>
+    );
+  }
 
-      {run.kind === "change_review" ? (
-        <>
-          <ChangeReviewHero run={run} />
-          <DesignContractSection contract={run.design_contract} />
-          <DeltasSection deltas={run.deltas} />
-          <TrajectorySection steps={steps} metrics={run.metrics} />
-          <ReflectionSection run={run} />
-          <FindingsSection runId={run.id} findings={findings} />
-        </>
-      ) : (
-        <>
-          <Hero run={run} findingCount={findings.length} />
-          <PlanSection run={run} />
-          <TrajectorySection steps={steps} metrics={run.metrics} />
-          <ReflectionSection run={run} />
-          <FindingsSection runId={run.id} findings={findings} />
-        </>
-      )}
-    </div>
-  );
+  // ── New design path (kind="flow") ────────────────────────────────────────
+  // Mint signed URLs for any run_steps with a screenshot_key.
+  const stepsWithKeys = steps.filter((s) => Boolean(s.screenshot_key));
+  const signedScreenshotUrls = await signScreenshotUrls(stepsWithKeys);
+
+  const userLabel = derivePreferredUserLabel(userRes.data?.user);
+
+  // Adapter expects rows shaped like `RunRow` / `StepRow` / `FindingRow`.
+  // Our typed rows happen to satisfy those structurally; cast to keep
+  // adapters.ts pure of dashboard-specific dependencies.
+  const view = buildRunDetailView({
+    run: run as unknown as Parameters<typeof buildRunDetailView>[0]["run"],
+    steps: steps as unknown as Parameters<typeof buildRunDetailView>[0]["steps"],
+    findings: findings as unknown as Parameters<typeof buildRunDetailView>[0]["findings"],
+    signedScreenshotUrls,
+    currentUserLabel: userLabel,
+    workerOnline: false, // not yet wired — pull from workers table in a follow-up
+  });
+
+  return <RunDetailLive runId={id} projectId={projectId} initialView={view} />;
 }
+
+async function signScreenshotUrls(
+  steps: Array<{ screenshot_key?: string | null }>,
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const keys = steps
+    .map((s) => s.screenshot_key)
+    .filter((k): k is string => typeof k === "string" && k.length > 0);
+  if (keys.length === 0) return out;
+
+  const service = createServiceRoleSupabase();
+  // Signed URLs minted in a single batch — Supabase JS supports
+  // createSignedUrls() for arrays. Falls back to per-key calls if a
+  // single one fails.
+  try {
+    const { data, error } = await service.storage
+      .from("walks")
+      .createSignedUrls(keys, 60 * 10);
+    if (error) throw error;
+    for (const entry of data ?? []) {
+      if (entry.path && entry.signedUrl) out[entry.path] = entry.signedUrl;
+    }
+  } catch {
+    for (const key of keys) {
+      const { data } = await service.storage.from("walks").createSignedUrl(key, 60 * 10);
+      if (data?.signedUrl) out[key] = data.signedUrl;
+    }
+  }
+  return out;
+}
+
+function derivePreferredUserLabel(
+  user: { email?: string | null; user_metadata?: Record<string, unknown> | null } | null | undefined,
+): string | null {
+  if (!user) return null;
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+  const handle = typeof meta.user_name === "string" ? meta.user_name : null;
+  if (handle) return handle;
+  const email = user.email;
+  if (typeof email === "string" && email.includes("@")) return email.split("@")[0];
+  return null;
+}
+
