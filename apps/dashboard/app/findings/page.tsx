@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ExternalLink, Image as ImageIcon } from "lucide-react";
 import { createReadClient, createServiceRoleSupabase } from "../../lib/supabase/server";
 import { relativeTime } from "../../lib/format";
-import { EmptyState, PageHeader, SeverityBadge } from "../../components/page-header";
+import { EmptyState, SeverityBadge } from "../../components/page-header";
 import { resolveProjectId } from "../../lib/project-context";
 import { FindingDrawer } from "./drawer";
 
@@ -109,13 +109,18 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
     }
   }
 
+  const sevCounts = findings.reduce(
+    (acc, f) => {
+      const s = (f.severity || "minor") as keyof typeof acc;
+      if (s in acc) acc[s] += 1;
+      return acc;
+    },
+    { critical: 0, major: 0, minor: 0, nit: 0 },
+  );
+
   return (
-    <div>
-      <PageHeader
-        eyebrow="evidence"
-        title="Findings"
-        description="Every UX issue the agents flagged across all runs. Click a row to read the full description and see screenshots."
-      />
+    <div className="space-y-7">
+      <FindingsHero projectId={projectId} total={findings.length} sevCounts={sevCounts} />
 
       <Filters current={searchParams} />
 
@@ -315,6 +320,103 @@ function FilterChip({
     <Link href={href} className={`px-2 py-1 text-xs rounded border ${cls}`}>
       {children}
     </Link>
+  );
+}
+
+interface SevCounts {
+  critical: number;
+  major: number;
+  minor: number;
+  nit: number;
+}
+
+function FindingsHero({
+  projectId,
+  total,
+  sevCounts,
+}: {
+  projectId: string;
+  total: number;
+  sevCounts: SevCounts;
+}) {
+  const hasCritical = sevCounts.critical > 0;
+  const headline =
+    total === 0
+      ? "No findings yet"
+      : total === 1
+        ? "1 finding across this project"
+        : `${total} findings across this project`;
+  return (
+    <section
+      className="lw-hero"
+      style={{ ["--lw-glow" as keyof React.CSSProperties]: hasCritical ? 1 : 0.55 } as React.CSSProperties}
+    >
+      <div className="lw-hero-aurora" />
+      {hasCritical ? <div className="lw-hero-streak" /> : null}
+      <div className="lw-hero-edge" />
+      <div className="relative z-[1] flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p
+            className="font-mono uppercase text-[var(--color-text-faint)] mb-3"
+            style={{ fontSize: 11, letterSpacing: "0.18em" }}
+          >
+            EVIDENCE <span className="opacity-60">·</span> {projectId}
+          </p>
+          <h1
+            className="font-semibold tracking-tight"
+            style={{
+              fontSize: 38,
+              lineHeight: 1.1,
+              textShadow: hasCritical
+                ? "0 0 24px rgba(244,63,94,0.32), 0 0 56px rgba(244,63,94,0.15)"
+                : undefined,
+            }}
+          >
+            {headline}
+          </h1>
+          <p className="mt-3 text-sm text-[var(--color-text-muted)] max-w-xl">
+            Every UX issue the agents flagged across all runs. Click a row to read the full
+            description and see screenshots.
+          </p>
+        </div>
+        <div className="grid grid-cols-4 gap-2 min-w-[420px]">
+          <SevTile label="critical" value={sevCounts.critical} color="rgb(239 68 68)" pulse={hasCritical} />
+          <SevTile label="major" value={sevCounts.major} color="rgb(251 146 60)" />
+          <SevTile label="minor" value={sevCounts.minor} color="rgb(250 204 21)" />
+          <SevTile label="nit" value={sevCounts.nit} color="rgb(148 163 184)" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SevTile({
+  label,
+  value,
+  color,
+  pulse = false,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  pulse?: boolean;
+}) {
+  return (
+    <div
+      className="rounded-xl backdrop-blur px-3 py-2.5"
+      style={{ background: "rgba(20,26,42,0.55)", border: "1px solid var(--color-border)" }}
+    >
+      <div
+        className="font-mono uppercase mb-1 flex items-center gap-1.5"
+        style={{ fontSize: 10.5, letterSpacing: "0.12em", color: "var(--color-text-faint)" }}
+      >
+        <span aria-hidden className={`lw-dot${pulse ? " lw-pulse" : ""}`} style={{ background: color }} />
+        {label}
+      </div>
+      <div className="font-mono tabular-nums text-[var(--color-text)]" style={{ fontSize: 22 }}>
+        {value}
+      </div>
+    </div>
   );
 }
 
