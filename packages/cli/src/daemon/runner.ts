@@ -148,6 +148,15 @@ export async function startDaemon(
     }
   };
 
+  // Backup claim poll. Realtime push (channel subscription below) is the
+  // primary path, but it has been observed to flap (CHANNEL_ERROR cycles)
+  // and leave inserted jobs stranded in `pending` forever. This poll is the
+  // safety net — every 20s we re-drain. `busy` guards against overlap with
+  // realtime drains so we never run two claim loops concurrently.
+  const claimPollTimer = setInterval(() => {
+    if (claimMode === "all") void drainAll();
+  }, 20_000);
+
   const tryDispatchLegacy = async (jobId: string) => {
     if (busy) return;
     busy = true;
@@ -205,6 +214,7 @@ export async function startDaemon(
       console.log(`[daemon] ${signal} received — shutting down`);
       heartbeat.stop();
       clearInterval(recoveryTimer);
+      clearInterval(claimPollTimer);
       // Release any in-flight claims back to pending so peer daemons can
       // pick them up immediately, then stamp the worker as cleanly stopped
       // so the UI shows "offline" without waiting 90s for recovery.
