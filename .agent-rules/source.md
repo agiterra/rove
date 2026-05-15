@@ -41,6 +41,7 @@ Rove exists because there's a gap in the testing market for **non-deterministic,
 | Roadmap + what's done | `docs/ROADMAP.md` |
 | Feature backlog ("what's on our list") | `docs/BACKLOG.md` |
 | Worker daemons + dedicated team walkers | `docs/walkers.md` |
+| Dogfooding Rove against itself | `.claude/rules/dogfooding.md` |
 | Adding or extending an agent rule | `.agent-rules/README.md` |
 
 ## Hosting + infra
