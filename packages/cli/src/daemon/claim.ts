@@ -204,6 +204,33 @@ export async function recoverStaleClaims(
 }
 
 /**
+ * Stuck-walk timeout — flips `runs` rows from `running` to `failed` when
+ * no new `run_steps` row has arrived for `idleMinutes`. The job-side
+ * watchdog is `recover_stale_claims`; this is its run-side counterpart.
+ *
+ * Without this, a hung agent (or a dispatcher subprocess that crashed
+ * after marking the run row `running` and before its sink could write a
+ * terminal state) leaves the run stuck on the dashboard indefinitely. The
+ * RPC is SECURITY DEFINER so worker-token-mode daemons can drive it too.
+ */
+export async function sweepStuckRuns(
+  supabase: SupabaseClient,
+  projectId: string,
+  idleMinutes: number,
+): Promise<number> {
+  const { data, error } = await supabase.rpc("sweep_stuck_runs", {
+    p_project_id: projectId,
+    p_idle_minutes: idleMinutes,
+  });
+  if (error) {
+    handleWorkerTokenRejection(error);
+    console.error(`[recovery] sweep_stuck_runs: ${error.message}`);
+    return 0;
+  }
+  return (data as number) ?? 0;
+}
+
+/**
  * Graceful shutdown helper — release every job this worker still holds
  * back to `pending` so peer daemons can pick them up immediately.
  *

@@ -28,6 +28,7 @@ import {
   listClaimableIds,
   recoverStaleClaims,
   releaseInFlightClaims,
+  sweepStuckRuns,
   tryClaimJob,
   type AgentJobRow,
 } from "./claim.js";
@@ -125,10 +126,22 @@ export async function startDaemon(
   const heartbeat = startHeartbeat(supabase, workerId, auth);
 
   // Every daemon runs the recovery sweep on a 30s cadence. The first one
-  // to grab eligible rows wins; subsequent sweeps are no-ops.
+  // to grab eligible rows wins; subsequent sweeps are no-ops. Two passes:
+  //   - job side: release jobs whose claimer stopped heartbeating
+  //   - run side: flip stuck `running` runs to `failed` when no run_step
+  //     activity in ROVE_STUCK_RUN_IDLE_MINUTES (default 5)
+  const stuckIdleMinutes = (() => {
+    const raw = process.env.ROVE_STUCK_RUN_IDLE_MINUTES;
+    if (!raw) return 5;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 ? n : 5;
+  })();
   const recoveryTimer = setInterval(() => {
     void recoverStaleClaims(supabase, opts.projectId).then((n) => {
       if (n > 0) console.log(`[recovery] released ${n} stale claim(s)`);
+    });
+    void sweepStuckRuns(supabase, opts.projectId, stuckIdleMinutes).then((n) => {
+      if (n > 0) console.log(`[recovery] timed-out ${n} stuck run(s) (idle > ${stuckIdleMinutes}m)`);
     });
   }, 30_000);
 
