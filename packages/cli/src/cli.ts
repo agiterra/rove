@@ -7,6 +7,7 @@ import { runRunCommand } from "./commands/run.js";
 import { runChangeReviewCommand } from "./commands/change-review.js";
 import { runIngestCommand } from "./commands/ingest.js";
 import { runAuthSetupCommand } from "./commands/auth-setup.js";
+import { runDashboardAuthSetupCommand } from "./commands/dashboard-auth-setup.js";
 import { runCleanupResolvedCommand } from "./commands/cleanup-resolved.js";
 import { runDaemonCommand } from "./commands/daemon.js";
 import { runInitCommand } from "./commands/init.js";
@@ -128,6 +129,11 @@ program
   .option("--gh-dry-run", "GitHub sink only — log gh commands instead of running them", false)
   .option("--no-auth", "Walk anonymously (skip storage-state injection)")
   .option(
+    "--auth-agent",
+    "Allow agent personas to use the saved auth profile. Default is anonymous for agent-readiness walks.",
+    false,
+  )
+  .option(
     "--project-id <slug>",
     "Project slug. Required when running outside a repo checkout (e.g. a daemon installed via /setup). The flow YAML is fetched from Supabase and a transient workspace is synthesized under ~/.rove/run/<id>/.",
   )
@@ -150,6 +156,7 @@ program
         ghMinSeverity: rawOpts.ghMinSeverity as ReturnType<typeof parseSeverity> | undefined,
         ghDryRun: rawOpts.ghDryRun as boolean,
         authenticated: (rawOpts.auth as boolean | undefined) ?? true,
+        authenticateAgent: rawOpts.authAgent as boolean,
         projectIdOverride,
       }),
     );
@@ -260,6 +267,28 @@ program
         password: rawOpts.password as string,
         baseUrl: rawOpts.baseUrl as string,
         expectUrlContains: rawOpts.expectUrlContains as string,
+        headed: rawOpts.headed as boolean,
+        timeoutMs: rawOpts.timeoutMs as number,
+      }),
+    );
+  });
+
+program
+  .command("dashboard-auth-setup")
+  .description("Mint a Rove dashboard session for the configured walker user and save a Playwright profile")
+  .option("--role <role>", "Role profile to save: dispatcher | admin | technician", parseAuthRole, "dispatcher")
+  .option("--base-url <url>", "Dashboard base URL", "https://rove-agiterra.vercel.app")
+  .option("--project-id <slug>", "Project id to stamp into the verification URL")
+  .option("--secret <secret>", "Bearer secret for /api/agent-session. Defaults to ROVE_AGENT_SESSION_SECRET")
+  .option("--headed", "Show the browser (debug)", false)
+  .option("--timeout-ms <n>", "Per-step timeout", (s) => parseInt(s, 10), 15000)
+  .action(async (rawOpts: Record<string, unknown>) => {
+    process.exit(
+      await runDashboardAuthSetupCommand({
+        role: rawOpts.role as AuthRole,
+        baseUrl: rawOpts.baseUrl as string,
+        projectId: rawOpts.projectId as string | undefined,
+        secret: rawOpts.secret as string | undefined,
         headed: rawOpts.headed as boolean,
         timeoutMs: rawOpts.timeoutMs as number,
       }),

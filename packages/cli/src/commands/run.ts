@@ -38,6 +38,11 @@ export interface RunOptions {
    */
   authenticated: boolean;
   /**
+   * Agent personas stay anonymous by default. Set true only for dogfood walks
+   * that intentionally review authenticated surfaces.
+   */
+  authenticateAgent: boolean;
+  /**
    * When the workspace was synthesized from Supabase (no local
    * rove.config.ts), this is the project slug. Skips the second
    * loadRoveConfig() call and is passed through to live-step writes.
@@ -52,19 +57,22 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   if (!persona) return 1;
 
   let authProfilePath: string | undefined;
+  const isAgent = persona.category === "agent";
   // Agent personas walk anonymously by default — the whole point of the
   // agent-readiness rubric is "is this app usable by a fresh agent with
-  // no session context?" Pre-authenticating a Claude / Operator agent
-  // hides exactly the issues we want to surface.
-  const effectivelyAuthenticated = opts.authenticated && persona.category !== "agent";
+  // no session context?" Dogfood runs can opt into auth for protected surfaces.
+  const effectivelyAuthenticated = opts.authenticated && (!isAgent || opts.authenticateAgent);
   if (effectivelyAuthenticated) {
     const role = roleForPersonaCategory(persona.category);
     const candidate = userDataDir(role);
     if (existsSync(candidate)) {
       authProfilePath = candidate;
     } else {
+      const setupCommand = isAgent
+        ? "rove dashboard-auth-setup --role dispatcher"
+        : `rove auth-setup --role ${role}`;
       console.error(
-        `✗ No auth profile for role=${role} at ${candidate}. Run \`rove auth-setup --role ${role}\` first, ` +
+        `✗ No auth profile for role=${role} at ${candidate}. Run \`${setupCommand}\` first, ` +
           `or pass --no-auth to walk anonymously.`,
       );
       return 1;

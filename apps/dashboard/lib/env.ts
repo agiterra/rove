@@ -80,4 +80,17 @@ export const env = {
    */
   defaultProjectId: () =>
     readEither("ROVE_DEFAULT_PROJECT_ID", "EVAL_DEFAULT_PROJECT_ID") ?? "tankloop",
+
+  // ── Agent-session bootstrap for dogfooding protected dashboard routes ────
+  /**
+   * Shared bearer secret used only by trusted local workers to mint a
+   * browser-auth session for the configured walker user. This does not bypass
+   * dashboard auth; it creates a real Supabase Auth session for that user.
+   */
+  agentSessionSecret: () => optional("ROVE_AGENT_SESSION_SECRET"),
+  /**
+   * Supabase Auth user id for the dedicated dashboard walker. The user must
+   * also be bound to an active `team_members.supabase_user_id` row.
+   */
+  agentSessionUserId: () => optional("ROVE_AGENT_SESSION_USER_ID"),
 };
