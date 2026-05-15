@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // as their credential; the prune cron uses Authorization: Bearer
   // <CRON_SECRET>; the install script is just a public text artifact.
   const isPublic =
+    path === "/" ||
     path.startsWith("/signin") ||
     path.startsWith("/auth/callback") ||
     path.startsWith("/_next") ||
