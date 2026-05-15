@@ -1,0 +1,29 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e5]:
+      - img "Rove" [ref=e6]
+      - generic [ref=e7]: rove
+  - main [ref=e8]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - paragraph [ref=e12]: Rove · agentic UX evaluation
+        - heading "Walks. Findings. Real bugs your tests missed." [level=1] [ref=e13]:
+          - text: Walks. Findings.
+          - text: Real bugs your tests missed.
+        - paragraph [ref=e14]: Sign in to view runs, browse findings, and queue agentic walks against your app.
+      - generic [ref=e15]:
+        - button "Continue with GitHub" [ref=e16]:
+          - img [ref=e17]
+          - text: Continue with GitHub
+        - paragraph [ref=e19]: Team members of your workspace only.
+      - list [ref=e20]:
+        - listitem [ref=e21]:
+          - generic [ref=e22]: 🧭
+          - text: Browse flows
+        - listitem [ref=e23]:
+          - generic [ref=e24]: 🤖
+          - text: Queue walks
+        - listitem [ref=e25]:
+          - generic [ref=e26]: 🐛
+          - text: Read findings
+  - alert [ref=e27]
