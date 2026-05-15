@@ -42,7 +42,14 @@ export function RunActions({
         return;
       }
       setOpen(false);
-      router.push(`/runs?p=${encodeURIComponent(projectId)}`);
+      // `deleted=<id>` carries the success message across the redirect so
+      // /runs can render a role=status banner — agents (and screen
+      // readers) perceive success without polling.
+      const params = new URLSearchParams({
+        p: projectId,
+        deleted: runId,
+      });
+      router.push(`/runs?${params.toString()}`);
       router.refresh();
     });
   }

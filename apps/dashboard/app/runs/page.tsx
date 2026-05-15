@@ -12,7 +12,7 @@ export const metadata: import("next").Metadata = {
 };
 
 interface PageProps {
-  searchParams: Promise<{ p?: string }>;
+  searchParams: Promise<{ p?: string; deleted?: string }>;
 }
 
 interface RunRow {
@@ -66,8 +66,35 @@ export default async function RunsPage({ searchParams }: PageProps) {
     { total: 0, completed: 0, running: 0, failed: 0, goalReached: 0, findings: 0 },
   );
 
+  // One-shot delete confirmation. Set when `RunActions` redirects after a
+  // successful delete; rendered as role=status so screen readers + agent
+  // walkers perceive the success without polling. Goes away on next nav.
+  const deletedShort = typeof sp.deleted === "string" ? sp.deleted.slice(0, 8) : null;
+
   return (
     <div className="space-y-7">
+      {deletedShort ? (
+        <div
+          role="status"
+          aria-live="polite"
+          data-rove-deleted-banner
+          className="rounded-md border px-4 py-3 text-sm flex items-center gap-3"
+          style={{
+            background: "rgba(20, 83, 45, 0.18)",
+            borderColor: "rgba(74, 222, 128, 0.32)",
+            color: "rgb(134 239 172)",
+          }}
+        >
+          <span aria-hidden="true">✓</span>
+          <span>
+            Run{" "}
+            <code className="font-mono text-[12px] text-[var(--color-text)]">
+              {deletedShort}
+            </code>{" "}
+            deleted along with its steps, findings, and screenshots.
+          </span>
+        </div>
+      ) : null}
       <Hero projectId={projectId} counts={counts} />
 
       {runs.length === 0 ? (
