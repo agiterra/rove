@@ -9,6 +9,15 @@ interface UseLiveRunOptions {
   runId: string;
   projectId: string;
   initialView: RunDetailView;
+  /**
+   * Server-minted signed URLs for `run_steps.screenshot_key`. Re-passed
+   * to `buildRunDetailView` on every Realtime refresh so completed runs
+   * don't show "capturing screenshot…" the moment the catch-up read
+   * fires. New keys arriving mid-walk still need a signing roundtrip —
+   * that's Track B2's `/api/runs/:id/sign-shot` route (not in this fix).
+   */
+  initialSignedScreenshotUrls?: Record<string, string>;
+  initialSignedFindingScreenshotUrls?: Record<string, string>;
 }
 
 /**
@@ -32,7 +41,13 @@ interface UseLiveRunOptions {
  *   the signed-URL version. (Track B2 ships a /api/runs/:id/sign-shot
  *   server route that this hook can call as new keys land.)
  */
-export function useLiveRun({ runId, projectId, initialView }: UseLiveRunOptions): RunDetailView | null {
+export function useLiveRun({
+  runId,
+  projectId,
+  initialView,
+  initialSignedScreenshotUrls,
+  initialSignedFindingScreenshotUrls,
+}: UseLiveRunOptions): RunDetailView | null {
   const [view, setView] = useState<RunDetailView | null>(null);
   const seenRows = useRef<{
     run: Record<string, unknown> | null;
@@ -73,7 +88,8 @@ export function useLiveRun({ runId, projectId, initialView }: UseLiveRunOptions)
         steps: (stepsRes.data ?? []) as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         findings: (findingsRes.data ?? []) as any,
-        signedScreenshotUrls: undefined,
+        signedScreenshotUrls: initialSignedScreenshotUrls,
+        signedFindingScreenshotUrls: initialSignedFindingScreenshotUrls,
         currentUserLabel: initialView.topBar.userLabel,
         workerStatus: initialView.topBar.workerStatus,
       });
@@ -131,7 +147,14 @@ export function useLiveRun({ runId, projectId, initialView }: UseLiveRunOptions)
       clearInterval(poll);
       void channel.unsubscribe();
     };
-  }, [runId, projectId, initialView.topBar.userLabel, initialView.topBar.workerStatus]);
+  }, [
+    runId,
+    projectId,
+    initialView.topBar.userLabel,
+    initialView.topBar.workerStatus,
+    initialSignedScreenshotUrls,
+    initialSignedFindingScreenshotUrls,
+  ]);
 
   return view;
 }

@@ -159,6 +159,9 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
         if (c.remedy) console.error(`    fix: ${c.remedy}`);
       }
     }
+    await maybeFailRun(runId, config.projectId, liveStepWrites, {
+      error: "dispatcher preflight failed",
+    });
     return 1;
   }
 
@@ -188,6 +191,10 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   if (result.exitCode !== 0 && !parsed.ok) {
     console.error(`✗ Dispatcher exited with code ${result.exitCode}`);
     if (result.stderr.trim()) console.error(result.stderr.trim());
+    await maybeFailRun(runId, config.projectId, liveStepWrites, {
+      exitCode: result.exitCode,
+      error: `dispatcher exited ${result.exitCode}; no parsable findings`,
+    });
     return result.exitCode;
   }
 
@@ -196,6 +203,10 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
     if (parsed.detail) console.error(`  ${parsed.detail}`);
     console.error("--- agent stdout (tail) ---");
     console.error(result.stdout.slice(-2000));
+    await maybeFailRun(runId, config.projectId, liveStepWrites, {
+      exitCode: result.exitCode,
+      error: `findings parse failed: ${parsed.reason}${parsed.detail ? ` — ${parsed.detail}` : ""}`,
+    });
     return 1;
   }
 
@@ -273,6 +284,35 @@ function git(cwd: string, args: string[]): string | null {
  * The sink's createRun is now idempotent (upsert), so re-stamping the row
  * post-walk doesn't error.
  */
+/**
+ * Flip the pre-created run row to `failed` when run.ts bails before the
+ * supabase sink would have done it. No-op when live writes weren't set up
+ * (no supabase sink / no creds) — there's no run row to update.
+ */
+async function maybeFailRun(
+  runId: string,
+  projectId: string,
+  liveStepWrites: { runId: string } | null | undefined,
+  detail: { exitCode?: number; error?: string },
+): Promise<void> {
+  if (!liveStepWrites) return;
+  try {
+    const { getSupabaseClient } = await import("../supabase/client.js");
+    const { SupabaseStore } = await import("../supabase/store.js");
+    const store = new SupabaseStore(getSupabaseClient(), projectId);
+    await store.failRun({
+      runId,
+      finishedAt: new Date(),
+      exitCode: detail.exitCode,
+      error: detail.error,
+    });
+  } catch (err) {
+    console.error(
+      `⚠ Could not mark run ${runId} failed (${(err as Error)?.message ?? err}). The job row is still terminal; the run row may show as running until the recovery sweep.`,
+    );
+  }
+}
+
 async function maybePrepareLiveStepWrites(input: {
   runId: string;
   projectId: string;

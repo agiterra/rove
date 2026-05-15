@@ -145,6 +145,30 @@ export class SupabaseStore {
   }
 
   /**
+   * Flip a pre-created run row to a terminal `failed` state when the walk
+   * bails out before reaching the sinks (preflight failure, dispatcher
+   * non-zero exit with no parsable findings, or a findings-schema reject).
+   * Keeps the dashboard from showing the row stuck on `running` forever.
+   */
+  async failRun(input: {
+    runId: string;
+    finishedAt: Date;
+    exitCode?: number;
+    error?: string;
+  }): Promise<void> {
+    const { error: dbError } = await this.db
+      .from("runs")
+      .update({
+        status: "failed",
+        finished_at: input.finishedAt.toISOString(),
+        exit_code: input.exitCode ?? null,
+        summary: input.error ? input.error.slice(0, 2000) : null,
+      })
+      .eq("id", input.runId);
+    if (dbError) throw new Error(`failRun(${input.runId}): ${dbError.message}`);
+  }
+
+  /**
    * Dedup oracle (Phase 8).
    *
    * Returns the most-recently-seen prior finding with the same

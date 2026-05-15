@@ -144,6 +144,8 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
       runId={id}
       projectId={projectId}
       initialView={view}
+      initialSignedScreenshotUrls={signedScreenshotUrls}
+      initialSignedFindingScreenshotUrls={signedFindingScreenshotUrls}
       projectSwitcher={<ProjectSwitcher />}
     />
   );

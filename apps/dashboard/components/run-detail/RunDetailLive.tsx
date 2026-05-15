@@ -20,6 +20,13 @@ interface RunDetailLiveProps {
   runId: string;
   projectId: string;
   initialView: RunDetailView;
+  /**
+   * Server-minted signed URL maps. Re-applied on every Realtime refresh so
+   * completed-run screenshots don't drop to "capturing screenshot…" the
+   * moment the client mounts and the catch-up read fires.
+   */
+  initialSignedScreenshotUrls?: Record<string, string>;
+  initialSignedFindingScreenshotUrls?: Record<string, string>;
   /** Server-rendered ProjectSwitcher; forwarded to TopBar. */
   projectSwitcher?: React.ReactNode;
 }
@@ -36,8 +43,21 @@ type TabId = "filmstrip" | "steps" | "findings" | "reflection";
  * RunDetailView from a one-shot read; this component subscribes to
  * Realtime updates and replaces the view as new rows arrive.
  */
-export function RunDetailLive({ runId, projectId, initialView, projectSwitcher }: RunDetailLiveProps) {
-  const liveView = useLiveRun({ runId, projectId, initialView });
+export function RunDetailLive({
+  runId,
+  projectId,
+  initialView,
+  initialSignedScreenshotUrls,
+  initialSignedFindingScreenshotUrls,
+  projectSwitcher,
+}: RunDetailLiveProps) {
+  const liveView = useLiveRun({
+    runId,
+    projectId,
+    initialView,
+    initialSignedScreenshotUrls,
+    initialSignedFindingScreenshotUrls,
+  });
   const baseView = liveView ?? initialView;
   const view = useTickingView(baseView);
 
