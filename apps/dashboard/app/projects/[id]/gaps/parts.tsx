@@ -4,7 +4,7 @@
  */
 import Link from "next/link";
 
-export type Severity = "critical" | "high" | "medium" | "minor";
+export type Severity = "critical" | "major" | "minor" | "nit";
 
 export type GapKind =
   | "create"
@@ -63,16 +63,16 @@ export const KIND_LABEL: Record<GapKind, string> = {
 
 export const SEVERITY_COLOR: Record<Severity, string> = {
   critical: "rgb(239 68 68)",
-  high: "rgb(251 146 60)",
-  medium: "rgb(250 204 21)",
-  minor: "rgb(148 163 184)",
+  major: "rgb(251 146 60)",
+  minor: "rgb(250 204 21)",
+  nit: "rgb(148 163 184)",
 };
 
 export const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
-  high: 1,
-  medium: 2,
-  minor: 3,
+  major: 1,
+  minor: 2,
+  nit: 3,
 };
 
 export const VALID_KINDS = new Set<GapKind>([
@@ -92,9 +92,9 @@ export const VALID_KINDS = new Set<GapKind>([
 
 export const VALID_SEVERITIES = new Set<Severity>([
   "critical",
-  "high",
-  "medium",
+  "major",
   "minor",
+  "nit",
 ]);
 
 export function flattenGaps(rows: RunStepRow[]): FlatGap[] {
@@ -227,7 +227,7 @@ export function GapsFilters({
         <Chip href={href({ severity: null })} active={current.severity == null}>
           all
         </Chip>
-        {(["critical", "high", "medium", "minor"] as Severity[]).map((s) => (
+        {(["critical", "major", "minor", "nit"] as Severity[]).map((s) => (
           <Chip
             key={s}
             href={href({ severity: s })}

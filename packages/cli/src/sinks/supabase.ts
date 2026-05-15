@@ -117,6 +117,7 @@ export class SupabaseSink implements SinkAdapter {
     // Expand affordance_gaps into findings rows with heuristic
     // `agent.affordance_gap.<kind>`. Each gap is a negative-space finding;
     // see docs/plans/affordance-gaps.md §1 finding-emission rules.
+    const gapsByStep = new Map<number, unknown[]>();
     for (const gap of input.payload.affordance_gaps ?? []) {
       try {
         const syntheticFinding: Finding = {
@@ -133,6 +134,26 @@ export class SupabaseSink implements SinkAdapter {
         };
         await this.insertFinding(input, syntheticFinding);
         routed++;
+        if (typeof gap.step_index === "number") {
+          const bucket = gapsByStep.get(gap.step_index) ?? [];
+          bucket.push(gap);
+          gapsByStep.set(gap.step_index, bucket);
+        }
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    // Denormalize gaps onto the run_steps row that anchored them so the
+    // project-wide Negative Space rollup (`/projects/[id]/gaps`) has data
+    // to display — it reads `run_steps.affordance_gaps` directly. Gaps
+    // without a step_index land only in the findings table.
+    if (gapsByStep.size > 0) {
+      try {
+        await this.store.stampAffordanceGapsByStep({
+          runId: input.runId,
+          byStepIndex: gapsByStep,
+        });
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err));
       }

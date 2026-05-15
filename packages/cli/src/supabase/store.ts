@@ -255,6 +255,32 @@ export class SupabaseStore {
    * Persist parsed MCP-proxy trajectory rows + the aggregate metrics roll-up.
    * Inserted as a batch; runs.metrics is patched in the same call.
    */
+  /**
+   * Stamp `run_steps.affordance_gaps` from the walk's end-of-run
+   * `affordance_gaps[]` payload, grouped by `step_index`. The Negative
+   * Space rollup at `/projects/[id]/gaps` reads this column directly; the
+   * sink already expands gaps into findings rows, but the per-step jsonb
+   * is what powers the project-wide enumeration view.
+   */
+  async stampAffordanceGapsByStep(input: {
+    runId: string;
+    byStepIndex: Map<number, unknown[]>;
+  }): Promise<void> {
+    for (const [stepIndex, gaps] of input.byStepIndex) {
+      const { error } = await this.db
+        .from("run_steps")
+        .update({ affordance_gaps: gaps })
+        .eq("project_id", this.projectId)
+        .eq("run_id", input.runId)
+        .eq("step_index", stepIndex);
+      if (error) {
+        throw new Error(
+          `stampAffordanceGapsByStep(run=${input.runId}, step=${stepIndex}): ${error.message}`,
+        );
+      }
+    }
+  }
+
   async writeTrajectory(input: {
     runId: string;
     steps: Array<{
