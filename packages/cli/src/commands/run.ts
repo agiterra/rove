@@ -168,19 +168,33 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   });
   const finishedAt = new Date();
 
-  if (result.exitCode !== 0) {
+  // Even when the subprocess exits non-zero, the agent may have already
+  // emitted a valid findings payload — the work product is the JSON, not
+  // the exit code. We parse first and only fail-hard if both the exit code
+  // is bad AND we can't recover findings from stdout. This unblocks the
+  // dogfood pattern where Claude Code occasionally exits 1 after a
+  // successful emission (post-emission cleanup hiccup, budget-cap nudge,
+  // etc.) and we'd otherwise throw away real findings.
+  const parsed = parseFindings(result.stdout);
+
+  if (result.exitCode !== 0 && !parsed.ok) {
     console.error(`✗ Dispatcher exited with code ${result.exitCode}`);
     if (result.stderr.trim()) console.error(result.stderr.trim());
-    return result.exitCode === 0 ? 1 : result.exitCode;
+    return result.exitCode;
   }
 
-  const parsed = parseFindings(result.stdout);
   if (!parsed.ok) {
     console.error(`✗ Could not parse findings JSON: ${parsed.reason}`);
     if (parsed.detail) console.error(`  ${parsed.detail}`);
     console.error("--- agent stdout (tail) ---");
     console.error(result.stdout.slice(-2000));
     return 1;
+  }
+
+  if (result.exitCode !== 0) {
+    console.warn(
+      `⚠ Dispatcher exited with code ${result.exitCode} but emitted valid findings — proceeding.`,
+    );
   }
 
   const sinks = createSinks(opts.sinks, ws, config.projectId, {
