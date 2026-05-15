@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { relativeTime, severityColor } from "../../lib/format";
+import type { LifecycleFinding } from "../../components/finding-lifecycle/types";
+import { FindingSendToIssueButton } from "../../components/finding-lifecycle";
 
 export interface DrawerFinding {
+  id: string;
   title: string;
   severity: string;
   description: string;
@@ -12,17 +15,37 @@ export interface DrawerFinding {
   first_seen_at: string;
   last_seen_at: string;
   content_hash: string;
+  heuristic: string | null;
 }
 
 export function FindingDrawer({
   finding,
   screenshots,
   closeHref,
+  githubRepo,
 }: {
   finding: DrawerFinding;
   screenshots: { storage_key: string; url: string; caption: string | null }[];
   closeHref: string;
+  githubRepo: { owner: string; name: string } | null;
 }) {
+  const lifecycleFinding: LifecycleFinding = {
+    id: finding.id,
+    severity: normalizeSeverity(finding.severity),
+    title: finding.title,
+    heuristicId: finding.heuristic ?? "uncategorized",
+    url: "",
+    evidence: null,
+    suggestedLocation: null,
+    runId: "",
+    flowId: finding.flow_id,
+    personaId: finding.persona_id,
+    personaLabel: null,
+    silencedAt: null,
+    silenceReason: null,
+    silenceScope: null,
+    githubIssueUrl: finding.github_issue_url,
+  };
   return (
     <>
       <Link href={closeHref} aria-label="Close drawer" className="fixed inset-0 bg-black/60 z-40" />
@@ -51,6 +74,10 @@ export function FindingDrawer({
           >
             ✕
           </Link>
+        </div>
+
+        <div className="px-6 pt-4 flex items-center justify-end gap-2">
+          <FindingSendToIssueButton finding={lifecycleFinding} repo={githubRepo} />
         </div>
 
         <div className="px-6 py-5 space-y-6">
@@ -124,6 +151,11 @@ export function FindingDrawer({
       </aside>
     </>
   );
+}
+
+function normalizeSeverity(s: string): LifecycleFinding["severity"] {
+  if (s === "critical" || s === "major" || s === "minor" || s === "nit") return s;
+  return "minor";
 }
 
 function Meta({ label, value }: { label: string; value: React.ReactNode }) {

@@ -27,6 +27,11 @@ interface RunDetailLiveProps {
    */
   initialSignedScreenshotUrls?: Record<string, string>;
   initialSignedFindingScreenshotUrls?: Record<string, string>;
+  /**
+   * Project's GitHub repo binding for the "Send to GitHub issue" button on
+   * affordance-gap cards. Null disables the button with a tooltip.
+   */
+  githubRepo?: { owner: string; name: string } | null;
   /** Server-rendered ProjectSwitcher; forwarded to TopBar. */
   projectSwitcher?: React.ReactNode;
 }
@@ -49,6 +54,7 @@ export function RunDetailLive({
   initialView,
   initialSignedScreenshotUrls,
   initialSignedFindingScreenshotUrls,
+  githubRepo,
   projectSwitcher,
 }: RunDetailLiveProps) {
   const liveView = useLiveRun({
@@ -113,7 +119,7 @@ export function RunDetailLive({
           findingCount={view.findings.length}
         />
         {tab === "filmstrip" ? (
-          <DetailSplit step={selectedStep} />
+          <DetailSplit step={selectedStep} githubRepo={githubRepo ?? null} />
         ) : null}
         {tab === "steps" ? <StepsList view={view} onPick={onPickStep} selectedIndex={effectiveSelected} /> : null}
         {tab === "findings" ? (

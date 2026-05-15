@@ -17,9 +17,17 @@ interface DetailSplitProps {
   liveVerb?: string;
   /** Caption target string for running steps. */
   liveTarget?: string;
+  /** Project's GitHub repo binding. Null disables the Send-to-issue button. */
+  githubRepo?: { owner: string; name: string } | null;
 }
 
-export function DetailSplit({ step, inlineTankloop = false, liveVerb, liveTarget }: DetailSplitProps) {
+export function DetailSplit({
+  step,
+  inlineTankloop = false,
+  liveVerb,
+  liveTarget,
+  githubRepo = null,
+}: DetailSplitProps) {
   if (!step) {
     return (
       <div
@@ -36,7 +44,7 @@ export function DetailSplit({ step, inlineTankloop = false, liveVerb, liveTarget
         <A11yTree step={step} liveTarget={liveTarget} />
       </div>
       <PlanVsRealityInlineDiff step={step} />
-      <AffordanceInventory step={step} />
+      <AffordanceInventory step={step} githubRepo={githubRepo} />
     </div>
   );
 }

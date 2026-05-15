@@ -318,6 +318,50 @@ export class SupabaseStore {
     if (metricsErr) throw new Error(`writeTrajectory(metrics): ${metricsErr.message}`);
   }
 
+  /**
+   * Sync-only: ensure the `projects` row exists for `this.projectId` and
+   * (idempotently) sync its `github_repo` binding from rove.config.ts.
+   * Powers the dashboard's "Send to GitHub issue" button. Passing null
+   * clears the binding.
+   */
+  async upsertProjectGithubRepo(githubRepo: string | null): Promise<void> {
+    // Two-step rather than upsert-with-onConflict so we don't clobber an
+    // already-curated `display_name` on an existing row. (display_name is
+    // NOT NULL, so a single upsert call would have to supply it.)
+    const { data: existing, error: readErr } = await this.db
+      .from("projects")
+      .select("id")
+      .eq("id", this.projectId)
+      .maybeSingle();
+    if (readErr) {
+      throw new Error(
+        `upsertProjectGithubRepo(${this.projectId}) read: ${readErr.message}`,
+      );
+    }
+    if (!existing) {
+      const { error } = await this.db.from("projects").insert({
+        id: this.projectId,
+        display_name: this.projectId,
+        github_repo: githubRepo,
+      });
+      if (error) {
+        throw new Error(
+          `upsertProjectGithubRepo(${this.projectId}) insert: ${error.message}`,
+        );
+      }
+      return;
+    }
+    const { error } = await this.db
+      .from("projects")
+      .update({ github_repo: githubRepo })
+      .eq("id", this.projectId);
+    if (error) {
+      throw new Error(
+        `upsertProjectGithubRepo(${this.projectId}) update: ${error.message}`,
+      );
+    }
+  }
+
   /** Sync-only: upsert a project persona with its YAML SHA. */
   async upsertPersonaWithYaml(p: Persona, yamlSha256: string): Promise<void> {
     const { error } = await this.db.from("personas").upsert(

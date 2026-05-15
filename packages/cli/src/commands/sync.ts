@@ -35,6 +35,27 @@ export async function runSyncCommand(ws: ResolvedWorkspace, opts: SyncOptions): 
   let written = 0;
   let errors = 0;
 
+  // Project-level binding: mirror `github.repo` from rove.config.ts into
+  // `projects.github_repo` so the dashboard's "Send to GitHub issue"
+  // button knows which repo to file against. Clears the binding when
+  // config omits `github`.
+  const desiredRepo = config.github?.repo ?? null;
+  try {
+    if (opts.dryRun) {
+      console.log(
+        `[dry-run] project ${config.projectId} github_repo=${desiredRepo ?? "(none)"}`,
+      );
+    } else {
+      await store.upsertProjectGithubRepo(desiredRepo);
+      written++;
+    }
+  } catch (err) {
+    errors++;
+    console.error(
+      `✗ project ${config.projectId} github_repo sync: ${err instanceof Error ? err.message : err}`,
+    );
+  }
+
   for (const persona of BUILT_IN_PERSONAS) {
     try {
       const sha = personaSha(persona);

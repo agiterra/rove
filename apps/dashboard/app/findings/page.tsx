@@ -5,6 +5,7 @@ import { createReadClient, createServiceRoleSupabase } from "../../lib/supabase/
 import { relativeTime } from "../../lib/format";
 import { EmptyState, SeverityBadge } from "../../components/page-header";
 import { resolveProjectId } from "../../lib/project-context";
+import { resolveProjectRepo } from "../../lib/findings/project-repo";
 import { FindingDrawer } from "./drawer";
 
 export const dynamic = "force-dynamic";
@@ -117,6 +118,8 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
     }
   }
 
+  const githubRepo = await resolveProjectRepo(projectId);
+
   const sevCounts = findings.reduce(
     (acc, f) => {
       const s = (f.severity || "minor") as keyof typeof acc;
@@ -224,6 +227,7 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
       {drawerFinding ? (
         <FindingDrawer
           finding={{
+            id: drawerFinding.id,
             title: drawerFinding.title,
             severity: drawerFinding.severity,
             description: drawerFinding.description,
@@ -234,9 +238,11 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
             first_seen_at: drawerFinding.first_seen_at,
             last_seen_at: drawerFinding.last_seen_at,
             content_hash: drawerFinding.content_hash,
+            heuristic: drawerFinding.heuristic,
           }}
           screenshots={drawerSignedUrls}
           closeHref={mergeSearch(searchParams, { open: undefined })}
+          githubRepo={githubRepo}
         />
       ) : null}
     </div>

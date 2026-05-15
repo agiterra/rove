@@ -22,6 +22,11 @@ interface AffordanceInventoryProps {
    * substrate consumer self-contained.
    */
   projectId?: string;
+  /**
+   * Project's GitHub repo binding for the per-gap "Send to GitHub issue"
+   * button. Null disables the button with a connect-a-repo tooltip.
+   */
+  githubRepo?: { owner: string; name: string } | null;
   /** Surface-level error from upstream (adapter) — wires to FindingError shell. */
   error?: Error | null;
   /** Loading state — wired in case a future caller fetches gaps asynchronously. */
@@ -55,6 +60,7 @@ const KIND_LABEL: Record<AffordanceGap["kind"], string> = {
 export function AffordanceInventory({
   step,
   projectId = "tankloop",
+  githubRepo = null,
   error,
   loading,
   onRetry,
@@ -109,6 +115,7 @@ export function AffordanceInventory({
               gap={g}
               stepIndex={step.index}
               url={step.url}
+              githubRepo={githubRepo}
             />
           </li>
         ))}
@@ -180,10 +187,12 @@ function GapCard({
   gap,
   stepIndex,
   url,
+  githubRepo,
 }: {
   gap: AffordanceGap;
   stepIndex: number;
   url: string;
+  githubRepo: { owner: string; name: string } | null;
 }) {
   const heuristicId = `agent.affordance_gap.${gap.kind}`;
   const synthetic: LifecycleFinding = {
@@ -241,7 +250,7 @@ function GapCard({
         </div>
         <div className="flex items-center gap-2">
           <FindingSilenceButton finding={synthetic} />
-          <FindingSendToIssueButton finding={synthetic} repo={null} />
+          <FindingSendToIssueButton finding={synthetic} repo={githubRepo} />
         </div>
       </header>
       <p
