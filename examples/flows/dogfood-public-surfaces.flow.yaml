@@ -1,0 +1,33 @@
+# dogfood-public-surfaces
+# Walks Rove's PUBLIC surfaces (no auth) — the landing page and the
+# three /preview/* read-only mirrors. Designed to be walked by an agent
+# persona (claude_browser_agent) so the walker exercises Rove's own
+# agent-readability and the per-page enumeration directive the proxy
+# injects on each substantive page.
+#
+# This is Rove walking Rove. The walker should reach four substantive
+# pages: /, /preview/run-detail, /preview/findings, /preview/flow.
+# Each first arrival triggers the enumeration directive in the proxy,
+# which means we get four sets of affordance-gap rows under the
+# rove-dogfood project — each anchored to its own step_index.
+#
+# Authored 2026-05-15 for the end-to-end dogfood Brian requested.
+
+flow_id: dogfood.public_surfaces
+goal: "Land on Rove's public site, explore the three preview surfaces (run-detail, findings, flow), and verify each is reachable from the landing or from each other without signing in"
+
+entry_route: "/"
+
+budget:
+  max_steps: 30
+  max_seconds: 240
+
+steps: []
+
+success_predicate:
+  - "/ renders a public landing with at least one Explore CTA reachable without auth"
+  - "/preview/run-detail loads and shows a completed-run shape — hero, filmstrip, finding stream"
+  - "/preview/findings loads and shows a table of fixture findings with severity badges"
+  - "/preview/flow loads and shows a flow detail page with a goal section and findings rollup"
+  - "Every preview page shows the PREVIEW · static fixture banner"
+  - "No console errors during navigation"

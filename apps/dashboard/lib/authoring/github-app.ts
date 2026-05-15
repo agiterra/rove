@@ -40,6 +40,12 @@ export interface OpenPrInput {
   commitMessage: string;
   prTitle: string;
   prBody: string;
+  /**
+   * Target repo for the PR. When omitted, falls back to the dashboard's
+   * env defaults (single-tenant config). Multi-tenant callers should
+   * resolve this from `projects.github_repo` and pass it explicitly.
+   */
+  repo?: { owner: string; name: string };
 }
 
 export interface OpenPrResult {
@@ -54,8 +60,15 @@ export interface OpenPrResult {
  * don't want to silently overwrite an existing flow / persona).
  */
 export async function createSingleFilePr(input: OpenPrInput): Promise<OpenPrResult> {
-  const owner = env.githubRepoOwner();
-  const repo = env.githubRepoName();
+  const owner = input.repo?.owner ?? env.githubRepoOwner();
+  const repo = input.repo?.name ?? env.githubRepoName();
+  if (!owner || !repo) {
+    throw new Error(
+      "GitHub repo not configured for this project. " +
+        "Set `github.repo` in the project's rove.config.ts and re-run `rove sync`, " +
+        "or set ROVE_GITHUB_REPO_NAME / ROVE_GITHUB_REPO_OWNER in the dashboard env.",
+    );
+  }
   const baseBranch = input.baseBranch ?? env.githubBaseBranch();
   const octokit = getInstallationOctokit();
 

@@ -10,6 +10,8 @@ import { queueGenerationJob, type QueuedJob } from "../../../lib/authoring/queue
 import { requireTeamMember } from "../../../lib/authoring/require-team-member";
 import { personaDraftSchema, type PersonaDraft } from "../../../lib/authoring/schemas";
 import { personaYamlPath, renderPersonaYaml } from "../../../lib/authoring/yaml";
+import { resolveProjectId } from "../../../lib/project-context";
+import { resolveProjectRepo } from "../../../lib/findings/project-repo";
 
 export interface ActionResult<T> {
   ok: true;
@@ -68,6 +70,16 @@ export async function submitPersonaDraftAction(raw: unknown): Promise<ActionOutc
   const branch = `eval/persona/${draft.persona_id}-${randomBranchSuffix()}`;
   const author = me.displayName ?? me.githubHandle ?? "rove-dashboard";
 
+  const projectId = await resolveProjectId();
+  const repo = await resolveProjectRepo(projectId);
+  if (!repo) {
+    return asError(
+      `No GitHub repo configured for project "${projectId}". Add ` +
+        `\`github: { repo: "owner/name" }\` to its rove.config.ts and ` +
+        `re-run \`rove sync\` before opening a PR from the dashboard.`,
+    );
+  }
+
   try {
     const pr = await createSingleFilePr({
       branch,
@@ -76,6 +88,7 @@ export async function submitPersonaDraftAction(raw: unknown): Promise<ActionOutc
       commitMessage: `feat(eval): add persona ${draft.persona_id}\n\nAuthored via rove dashboard by ${author}.`,
       prTitle: `feat(eval): add persona ${draft.persona_id}`,
       prBody: prBodyFor(draft, author),
+      repo,
     });
     return { ok: true, data: pr };
   } catch (e) {

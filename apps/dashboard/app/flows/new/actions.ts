@@ -10,6 +10,8 @@ import { queueGenerationJob, type QueuedJob } from "../../../lib/authoring/queue
 import { requireTeamMember } from "../../../lib/authoring/require-team-member";
 import { flowDraftSchema, type FlowDraft } from "../../../lib/authoring/schemas";
 import { flowYamlPath, renderFlowYaml } from "../../../lib/authoring/yaml";
+import { resolveProjectId } from "../../../lib/project-context";
+import { resolveProjectRepo } from "../../../lib/findings/project-repo";
 import { createReadClient } from "../../../lib/supabase/server";
 
 const DAEMON_STALE_AFTER_MS = 2 * 60_000;
@@ -161,6 +163,20 @@ export async function submitFlowDraftAction(raw: unknown): Promise<ActionOutcome
   const author = me.displayName ?? me.githubHandle ?? "rove-dashboard";
   const templateNote = draft.template_id ? ` (template: ${draft.template_id})` : "";
 
+  // Resolve the target repo from the project's `github_repo` binding so
+  // the wizard files PRs against the consuming project's repo, not a
+  // dashboard-wide default. Empty / unconfigured → friendly error,
+  // not "Not Found - https://docs.github.com/rest" from raw GitHub.
+  const projectId = await resolveProjectId();
+  const repo = await resolveProjectRepo(projectId);
+  if (!repo) {
+    return asError(
+      `No GitHub repo configured for project "${projectId}". Add ` +
+        `\`github: { repo: "owner/name" }\` to its rove.config.ts and ` +
+        `re-run \`rove sync\` before opening a PR from the dashboard.`,
+    );
+  }
+
   try {
     const pr = await createSingleFilePr({
       branch,
@@ -169,6 +185,7 @@ export async function submitFlowDraftAction(raw: unknown): Promise<ActionOutcome
       commitMessage: `feat(eval): add flow ${draft.flow_id}${templateNote}\n\nAuthored via rove dashboard by ${author}.`,
       prTitle: `feat(eval): add flow ${draft.flow_id}`,
       prBody: prBodyFor(draft, author),
+      repo,
     });
     return { ok: true, data: pr };
   } catch (e) {
