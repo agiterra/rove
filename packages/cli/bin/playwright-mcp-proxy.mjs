@@ -115,6 +115,18 @@ const inFlight = []; // bookkeeping for graceful shutdown
 let proxyIdSeq = 10_000_000;
 const proxyIssuedIds = new Set();
 
+// ── AFFORDANCE_GAPS::injection bookkeeping ─────────────────────────────
+// Per `docs/theses/negative-space.md`: the cognitive operation that
+// converts negative space into positive tokens has to happen AT the page,
+// not from end-of-walk recall. When `detectSubstantivePage` fires + this
+// is the first arrival to that URL this walk, we tag the outbound tool
+// response so `maybeRewriteOutLine` can append a per-page enumeration
+// directive to the snapshot/navigate text the agent reads. The agent
+// records gaps inline in its working memory and emits them — anchored to
+// the current step_index — in the end-of-walk `affordance_gaps[]` array.
+// Keyed by jsonrpc id; cleared after the rewrite.
+const enumerationInjectByMessageId = new Map();
+
 function onJsonRpc(dir, msg) {
   if (!msg || typeof msg !== "object") return;
   if (dir === "in") {
@@ -177,6 +189,12 @@ function onJsonRpc(dir, msg) {
           })
         : null;
     const shouldEnumerate = substantive ? markUrlForEnumeration(substantive.url) : false;
+    if (shouldEnumerate) {
+      enumerationInjectByMessageId.set(id, {
+        stepIndex: match.stepIndex,
+        url: substantive.url,
+      });
+    }
     // ── END AFFORDANCE-GAPS::detection ─────────────────────────────────────
 
     const update = {
@@ -569,21 +587,67 @@ child.stdout.on("data", (chunk) => {
 });
 
 function maybeRewriteOutLine(parsed, fallbackLine) {
-  if (livePersonaPolicy === "perceive_and_act") return fallbackLine;
   if (!parsed || typeof parsed !== "object") return fallbackLine;
   const result = parsed.result;
   if (!result || typeof result !== "object" || !Array.isArray(result.content)) {
     return fallbackLine;
   }
+
+  const stripModal = livePersonaPolicy !== "perceive_and_act";
+  const enumDirective = enumerationInjectByMessageId.get(parsed.id);
+  if (!stripModal && !enumDirective) return fallbackLine;
+
   let mutated = false;
+  let directiveApplied = false;
   const newContent = result.content.map((c) => {
     if (!c || c.type !== "text" || typeof c.text !== "string") return c;
-    if (!c.text.includes("### Modal state")) return c;
-    mutated = true;
-    return { ...c, text: stripModalStateSection(c.text) };
+    let text = c.text;
+    if (stripModal && text.includes("### Modal state")) {
+      text = stripModalStateSection(text);
+      mutated = true;
+    }
+    if (enumDirective && !directiveApplied) {
+      text = appendEnumerationDirective(text, enumDirective);
+      mutated = true;
+      directiveApplied = true;
+    }
+    return text === c.text ? c : { ...c, text };
   });
+
+  if (enumDirective) enumerationInjectByMessageId.delete(parsed.id);
   if (!mutated) return fallbackLine;
   return JSON.stringify({ ...parsed, result: { ...result, content: newContent } });
+}
+
+/**
+ * Per `docs/theses/negative-space.md`: convert negative space into positive
+ * tokens AT the page. Appended to the playwright tool-result text the agent
+ * receives on first arrival to a substantive page. The directive instructs
+ * the walker to perform the enumeration here-and-now and to record absences
+ * in the end-of-walk findings JSON with `step_index` anchored to this step.
+ */
+function appendEnumerationDirective(text, { stepIndex, url }) {
+  const directive = [
+    "",
+    "─────────────────────────────────────────────────────────────",
+    "[Rove · negative-space enumeration]",
+    `First arrival this walk to a substantive page (${url}). Before your`,
+    "next browser_* call, perform a per-page negative-space enumeration:",
+    "",
+    "As your persona pursuing the walk's goal, enumerate the affordances",
+    "a user would expect to be able to do HERE. Consider each kind only",
+    "to the extent it applies: create, read, update, delete, undo, recover,",
+    "navigate, status, confirm, save_state, empty, error.",
+    "",
+    "For every kind that is ABSENT from this page, add one entry to the",
+    `final \`affordance_gaps[]\` array in your end-of-walk findings JSON,`,
+    `with \`step_index: ${stepIndex}\` so it anchors to this exact arrival.`,
+    "Matches are silent — only record the gaps you find.",
+    "",
+    "Then resume your task.",
+    "─────────────────────────────────────────────────────────────",
+  ].join("\n");
+  return text + directive;
 }
 
 // child stderr → parent stderr, log lines for debugging

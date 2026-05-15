@@ -378,7 +378,7 @@ const MOCK_AFFORDANCE_GAPS_BY_STEP: Record<number, AffordanceGap[]> = {
     {
       kind: "navigate",
       expected_for: "Power User wanting to jump from this run to the parent flow",
-      severity: "medium",
+      severity: "minor",
       evidence:
         "Breadcrumb shows '← all runs' but no link to the originating flow's detail page; the flow_id is rendered as plain text in the hero.",
       suggested_location: "Make the flow_id chip in the hero a link to /flows/<id>",
@@ -388,7 +388,7 @@ const MOCK_AFFORDANCE_GAPS_BY_STEP: Record<number, AffordanceGap[]> = {
     {
       kind: "save_state",
       expected_for: "Power User editing workspace settings",
-      severity: "high",
+      severity: "major",
       evidence:
         "Workspace name + slug form has 8 inputs and a single 'Save' button at the bottom; no auto-save indicator, no dirty-state warning, no unsaved-changes prompt on navigation.",
       suggested_location:

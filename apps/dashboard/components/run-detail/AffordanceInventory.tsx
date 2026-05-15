@@ -32,9 +32,9 @@ interface AffordanceInventoryProps {
 
 const SEVERITY_COLOR: Record<AffordanceGapSeverity, string> = {
   critical: "rgb(239 68 68)",
-  high: "rgb(251 146 60)",
-  medium: "rgb(250 204 21)",
-  minor: "rgb(148 163 184)",
+  major: "rgb(251 146 60)",
+  minor: "rgb(250 204 21)",
+  nit: "rgb(148 163 184)",
 };
 
 const KIND_LABEL: Record<AffordanceGap["kind"], string> = {
@@ -287,8 +287,6 @@ function SeverityDot({ severity }: { severity: AffordanceGapSeverity }) {
 function mapSeverityToFindingSeverity(
   s: AffordanceGapSeverity,
 ): LifecycleFinding["severity"] {
-  if (s === "high") return "major";
-  if (s === "medium") return "minor";
   return s;
 }
 

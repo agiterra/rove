@@ -40,6 +40,8 @@ interface SearchParams {
   persona?: string;
   /** 'agent' | 'human' — splits the list by heuristic prefix `agent.*`. */
   lens?: string;
+  /** 'affordance_gap' — sub-filter under lens=agent. Scopes to `agent.affordance_gap.*`. */
+  kind?: string;
   open?: string;
   p?: string;
 }
@@ -68,9 +70,15 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
   if (searchParams.status) q = q.eq("status", searchParams.status);
   if (searchParams.run) q = q.eq("run_id", searchParams.run);
   if (searchParams.lens === "agent") {
-    q = q.like("heuristic", "agent.%");
+    if (searchParams.kind === "affordance_gap") {
+      q = q.like("heuristic", "agent.affordance_gap.%");
+    } else {
+      q = q.like("heuristic", "agent.%");
+    }
   } else if (searchParams.lens === "human") {
     q = q.or("heuristic.is.null,heuristic.not.like.agent.%");
+  } else if (searchParams.kind === "affordance_gap") {
+    q = q.like("heuristic", "agent.affordance_gap.%");
   }
 
   const { data, error } = await q;
@@ -272,6 +280,19 @@ function Filters({ current }: { current: SearchParams }) {
           both
         </FilterChip>
       </FilterGroup>
+      {current.lens === "agent" ? (
+        <FilterGroup label="kind" value={current.kind}>
+          <FilterChip
+            href={link("kind", "affordance_gap")}
+            active={current.kind === "affordance_gap"}
+          >
+            affordance_gap
+          </FilterChip>
+          <FilterChip href={link("kind", undefined)} active={!current.kind}>
+            all
+          </FilterChip>
+        </FilterGroup>
+      ) : null}
       {current.run ? (
         <FilterChip href={link("run", undefined)} active>
           run:{current.run.slice(0, 8)}… ✕

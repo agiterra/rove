@@ -17,9 +17,9 @@ interface NegativeSpaceSectionProps {
 
 const SEVERITY_ORDER: Record<AffordanceGapSeverity, number> = {
   critical: 0,
-  high: 1,
-  medium: 2,
-  minor: 3,
+  major: 1,
+  minor: 2,
+  nit: 3,
 };
 
 const KIND_COPY: Record<AffordanceGapKind, string> = {
@@ -39,9 +39,9 @@ const KIND_COPY: Record<AffordanceGapKind, string> = {
 
 const SEVERITY_COLOR: Record<AffordanceGapSeverity, string> = {
   critical: "rgb(239 68 68)",
-  high: "rgb(251 146 60)",
-  medium: "rgb(250 204 21)",
-  minor: "rgb(148 163 184)",
+  major: "rgb(251 146 60)",
+  minor: "rgb(250 204 21)",
+  nit: "rgb(148 163 184)",
 };
 
 interface GapWithContext {
@@ -133,7 +133,7 @@ function KindBlock({ kind, items }: { kind: AffordanceGapKind; items: GapWithCon
       acc[it.gap.severity] += 1;
       return acc;
     },
-    { critical: 0, high: 0, medium: 0, minor: 0 } as Record<AffordanceGapSeverity, number>,
+    { critical: 0, major: 0, minor: 0, nit: 0 } as Record<AffordanceGapSeverity, number>,
   );
   return (
     <div
@@ -162,9 +162,9 @@ function KindBlock({ kind, items }: { kind: AffordanceGapKind; items: GapWithCon
         </div>
         <div className="flex items-center gap-1.5">
           <CountChip n={counts.critical} severity="critical" />
-          <CountChip n={counts.high} severity="high" />
-          <CountChip n={counts.medium} severity="medium" />
+          <CountChip n={counts.major} severity="major" />
           <CountChip n={counts.minor} severity="minor" />
+          <CountChip n={counts.nit} severity="nit" />
         </div>
       </header>
       <ul className="grid gap-2 m-0 p-0 list-none">

@@ -639,9 +639,9 @@ const AFFORDANCE_GAP_KINDS: ReadonlySet<AffordanceGapKind> = new Set([
 ]);
 const AFFORDANCE_GAP_SEVERITIES: ReadonlySet<AffordanceGapSeverity> = new Set([
   "critical",
-  "high",
-  "medium",
+  "major",
   "minor",
+  "nit",
 ]);
 
 function normalizeAffordanceGaps(raw: unknown): AffordanceGap[] | undefined {

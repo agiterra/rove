@@ -102,7 +102,7 @@ export type AffordanceGapKind =
   | "empty"
   | "error";
 
-export type AffordanceGapSeverity = "critical" | "high" | "medium" | "minor";
+export type AffordanceGapSeverity = "critical" | "major" | "minor" | "nit";
 
 export interface AffordanceGap {
   kind: AffordanceGapKind;
