@@ -21,7 +21,7 @@ export type AgentRuntime =
 
 /**
  * Archetype assumption the walker uses to build its prior plan. See
- * `docs/proposals/expectation-match.md`. `"auto"` (default) means the
+ * `docs/plans/expectation-match.md`. `"auto"` (default) means the
  * walker infers archetype from the goal + first landing page.
  */
 export type ArchetypeId =
@@ -60,7 +60,7 @@ export interface PersonaConstraints {
    * the walker infer the archetype from the goal + landing page. Setting a
    * fixed archetype forces the comparison against a known prior — useful
    * for testing "does my site match standard saas-dashboard conventions"
-   * specifically. See `docs/proposals/expectation-match.md`.
+   * specifically. See `docs/plans/expectation-match.md`.
    */
   prior_archetype?: ArchetypeId;
 }

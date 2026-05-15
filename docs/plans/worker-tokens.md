@@ -1,6 +1,6 @@
 # Plan — Per-Worker JWT Auth
 
-**Status**: Proposed, not started. v2 — incorporates first Codex review.
+**Status**: ✅ **Shipped 2026-05-14**. Evidence: `apps/dashboard/lib/auth/mint-worker-token.ts`, migration `20260513000400_worker_tokens_install_codes.sql`, `worker_tokens` table, `is_worker_jwt()` + `jwt_*()` helpers, `claim_next_job` + `recover_stale_claims` with revocation check, `ROVE_WORKER_TOKEN_FILE` env var. **Caveat**: alpha.15 install flow currently *also* ships the service-role key to workers as a transitional concession (see [`wire-sink-relay.md`](wire-sink-relay.md) for the retire path) — the worker-token machinery is in place but full hardening blocks on Wire-sink-relay landing. v2 — incorporates first Codex review.
 **Owner**: Brian.
 **Why now**: Today every daemon authenticates to Supabase with the project's service-role key — full DB admin. That's tolerable while team = trusted Agiterra org but cannot survive the install-flow Brian wants. The install one-liner has to deliver *some* credential to the user's `~/.rove/`; service-role is too powerful, leaks via view-source on `/setup`, and forecloses any non-team deployment. Path B from the install-flow conversation: solve credentials first, then build the install on top.
 

@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         // ALPHA CONCESSION: ships the service-role key to the worker so the
         // existing sink path (getSupabaseClient) just works. The proper
         // architecture is a trusted relay (see
-        // docs/proposals/wire-sink-relay.md) that keeps service-role
+        // docs/plans/wire-sink-relay.md) that keeps service-role
         // server-side. Until that lands, the install code becomes the
         // capture window for service-role too — same 5-min one-shot
         // exposure, much larger blast radius. Don't ship this to external

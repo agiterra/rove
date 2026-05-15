@@ -58,7 +58,7 @@ export interface StepView {
    * Per-step verdict against the walker's frozen prior plan. Drives the
    * filmstrip VerdictChip and the inline expected-vs-observed diff in
    * the step detail pane. Null on walks that pre-date expectation-match.
-   * See `docs/proposals/expectation-match.md`.
+   * See `docs/plans/expectation-match.md`.
    */
   planDelta?: PlanDelta | null;
 }
@@ -235,7 +235,7 @@ export interface RunDetailView {
   footer: FooterView;
   /**
    * The walker's frozen prior plan (expectation-match). Null on walks
-   * that pre-date the feature. See `docs/proposals/expectation-match.md`.
+   * that pre-date the feature. See `docs/plans/expectation-match.md`.
    */
   priorPlan?: PriorPlan | null;
   /** ISO timestamp the plan was captured. Used to render the "captured at" stat. */

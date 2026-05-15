@@ -3,7 +3,7 @@
 **Auditor**: subagent acting as a walker-persona
 **Date**: 2026-05-14
 **Initiated by**: Brian — "Spin up a subagent and have them act like a walker would on our plan"
-**Artifact under audit**: `docs/theses/negative-space.md`, `docs/proposals/expectation-match.md`, `docs/proposals/affordance-gaps.md`, `docs/BACKLOG.md` (Next sprint section)
+**Artifact under audit**: `docs/theses/negative-space.md`, `docs/plans/expectation-match.md`, `docs/plans/affordance-gaps.md`, `docs/BACKLOG.md` (Next sprint section)
 
 ## Goal-shape inhabited
 
@@ -15,17 +15,17 @@
 
 - **heuristic_id**: `agent.affordance_gap.navigate`
 - **severity**: critical
-- **surface**: `docs/BACKLOG.md` § "Next sprint"; absence of `docs/proposals/_sprint.md` or equivalent
+- **surface**: `docs/BACKLOG.md` § "Next sprint"; absence of `docs/plans/_sprint.md` or equivalent
 - **evidence**: BACKLOG lists six bullets in reverse-chronological "newest at top" order (per the file's own "Add to the top" rule). The bullets are: thesis, finding-lifecycle substrate, affordance-gaps, expectation-match, press_key, native dialogs. There is no document that says "for this sprint, start here, then this, then this." The two proposals each declare themselves "Next sprint" but neither references the other as predecessor or successor. An engineer reading BACKLOG top-down would conclude `press_key` and `native dialogs` are in-sprint too — both bullets sit under the "Next sprint" heading with no demarcation. Six items, no ordering at the index level.
-- **suggested_location**: `docs/proposals/_sprint.md` (new) — a one-page "Monday morning" index that names the six items, orders them, and links each. Alternative: collapse BACKLOG's "Next sprint" bullets into a numbered list with explicit "Day N" headers.
+- **suggested_location**: `docs/plans/_sprint.md` (new) — a one-page "Monday morning" index that names the six items, orders them, and links each. Alternative: collapse BACKLOG's "Next sprint" bullets into a numbered list with explicit "Day N" headers.
 
 ### F2 — Substrate has no proposal doc; only a BACKLOG bullet.
 
 - **heuristic_id**: `agent.expectation_match.affordance`
 - **severity**: critical
-- **surface**: BACKLOG line 19 vs. `docs/proposals/`
+- **surface**: BACKLOG line 19 vs. `docs/plans/`
 - **evidence**: The two proposals both say "build the shared finding-lifecycle substrate first." `expectation-match.md` § "Shared primitives" enumerates four substrate items. `affordance-gaps.md` § "Reuse contract" enumerates the same four. BACKLOG line 19 is the only place the substrate is described as a sprint item — and it is a single bullet, no schema, no API, no acceptance criteria. The two proposals reference it as if it were specified somewhere. It is not. Both downstream proposals depend on a contract that does not exist as a document.
-- **suggested_location**: `docs/proposals/finding-lifecycle-substrate.md` — must include: schema migration for `findings.silenced_at`/`silence_reason`, RPC signature, `<FindingTrendChart>` props, `<FindingEmptyState>` / `<FindingLoading>` / `<FindingError>` component contracts, GitHub-issue export action signature.
+- **suggested_location**: `docs/plans/finding-lifecycle-substrate.md` — must include: schema migration for `findings.silenced_at`/`silence_reason`, RPC signature, `<FindingTrendChart>` props, `<FindingEmptyState>` / `<FindingLoading>` / `<FindingError>` component contracts, GitHub-issue export action signature.
 
 ### F3 — Migration ordering and timestamps unspecified.
 

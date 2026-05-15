@@ -163,7 +163,7 @@ function onJsonRpc(dir, msg) {
       : null;
 
     // ── AFFORDANCE-GAPS::detection (additive, 2026-05-14) ──────────────────
-    // Substantive-page detection per docs/proposals/affordance-gaps.md §1.
+    // Substantive-page detection per docs/plans/affordance-gaps.md §1.
     // Only consult when no native dialog is pending — modal states gate the
     // page from the persona and would skew the node-count signal. Marker:
     // AFFORDANCE_GAPS_DETECTION_BLOCK_v1.
@@ -270,7 +270,7 @@ function unescapeJsonish(s) {
 }
 
 // ── AFFORDANCE_GAPS_DETECTION_BLOCK_v1 (additive, 2026-05-14) ──────────────
-// Substantive-page detection per docs/proposals/affordance-gaps.md §1.
+// Substantive-page detection per docs/plans/affordance-gaps.md §1.
 //
 // A page qualifies for affordance enumeration when ALL of these hold:
 //   1. The triggering tool is a navigate or snapshot (those carry the

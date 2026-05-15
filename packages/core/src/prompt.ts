@@ -566,7 +566,7 @@ function describePersonaLens(persona: Persona): string {
 // `### Prior plan` is the anchor downstream tests / adapters look for;
 // keep it stable. Surfaces the agent's pre-flight expectations as a
 // first-class artifact rendered against observed reality. See
-// `docs/proposals/expectation-match.md`.
+// `docs/plans/expectation-match.md`.
 function buildPriorPlanCaptureSection(persona: Persona, toolPrefix: string): string {
   const navigate = `${toolPrefix}navigate`;
   const archetypeLine =
@@ -611,7 +611,7 @@ function buildPriorPlanCaptureSection(persona: Persona, toolPrefix: string): str
 // New section. Edit here, not inside buildWalkPrompt. The header literal
 // `### Plan verdict` is the anchor downstream tests / adapters look for;
 // keep it stable. Drives per-step `run_steps.plan_delta` jsonb. See
-// `docs/proposals/expectation-match.md`.
+// `docs/plans/expectation-match.md`.
 function buildPlanVerdictSection(persona: Persona, _toolPrefix: string): string {
   return [
     `### Plan verdict`,

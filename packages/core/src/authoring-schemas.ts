@@ -93,7 +93,7 @@ export type FlowDraftWithExpectations = z.infer<typeof flowDraftWithExpectations
 // Note in the run that the gap was silenced-by-flow so a future reviewer
 // can re-evaluate.
 //
-// Per docs/proposals/affordance-gaps.md §5.
+// Per docs/plans/affordance-gaps.md §5.
 export const affordanceGapKindSchema = z.enum([
   "create",
   "read",
@@ -130,7 +130,7 @@ export type FlowDraftWithAffordanceExclusions = z.infer<
 // Flow YAML may override the persona/project archetype prior. Lets the
 // consumer correct over-eager priors when their site intentionally diverges
 // from the archetype, without silencing all expectation findings. See
-// `docs/proposals/expectation-match.md`.
+// `docs/plans/expectation-match.md`.
 export const ARCHETYPE_IDS = [
   "shopify-style-commerce",
   "doordash-style-aggregator",

@@ -1,6 +1,6 @@
 # Plan — Web-Driven Local Worker Install
 
-**Status**: Proposed, not started. v3 — incorporates two rounds of Codex review. Sits above [`worker-tokens.md`](worker-tokens.md) (v2).
+**Status**: ✅ **Shipped 2026-05-14** (alpha.15 + alpha.16). The `/setup` mint flow + `POST /api/install/exchange` + bash installer + `~/.rove/` LaunchAgent + `rove://` AppleScript handler are all live. Evidence: `apps/dashboard/app/setup/`, `apps/dashboard/app/install/route.ts`, `apps/dashboard/app/api/install/`. Dogfooded end-to-end. v3 — incorporates two rounds of Codex review. Sat above [`worker-tokens.md`](worker-tokens.md) (also shipped).
 **Owner**: Brian.
 **Why now**: The dashboard cannot, by browser security model, launch a process on the user's machine. The realistic "user never leaves the interface" experience is therefore *one* terminal moment (the install paste) followed by an always-on local daemon plus a `rove://` protocol handler the dashboard can poke when the daemon is stopped or crashed.
 

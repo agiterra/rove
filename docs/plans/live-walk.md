@@ -1,6 +1,6 @@
 # Plan — Live Walk (and the UI Rove deserves)
 
-**Status**: v1.1 — visual design + dashboard wiring shipped on branch `live-walk-preview`; daemon-side work still owed. See "Wired vs owed" below.
+**Status**: ✅ **Shipped 2026-05-14** (alpha.11 Track B2 + alpha.12 MCP-proxy race fix). Dashboard wiring AND daemon-side both shipped. Evidence: `liveStepWrites` plumbed through `claude-code-cli.ts → playwright-mcp-proxy.mjs`; per-step row inserts/PATCHes; screenshot streaming to the `walks` bucket; dashboard filmstrip auto-updates via Supabase Realtime on `agent_jobs` + `run_steps` channels. Original "Wired vs owed" section below now reads as historical.
 **Owner**: Brian.
 **Why now**: Today a walk goes silent for 2–5 minutes and then dumps 51 findings at once. Step events, screenshots, and aria snapshots all exist in the daemon — they just don't reach the dashboard until the walk completes. Surfacing them live turns the run page from a post-mortem into a live trace and gives Rove its first credible "marketing artifact." Equally important, it forces us to fix the dashboard's UX before we ask anyone outside Agiterra to look at it.
 

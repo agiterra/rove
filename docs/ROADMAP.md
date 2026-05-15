@@ -1,6 +1,8 @@
 # Rove Roadmap
 
-Single source of truth for what's done, what's in flight, what's next. Updated as we ship.
+**Phase-level horizon view.** For day-to-day "what's in flight / what shipped" tracking, read [`BACKLOG.md`](BACKLOG.md) — that is the master plan. This roadmap covers the Phase A→E arc and stays at horizon altitude.
+
+Snapshot in this file last refreshed 2026-05-12. The phase narrative below is still accurate; the per-item checkmarks may lag BACKLOG. Trust BACKLOG when they disagree.
 
 ## Where we are (2026-05-12)
 

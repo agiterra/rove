@@ -1,12 +1,12 @@
-# Next sprint — the negative-space wedge
+# Negative-space wedge sprint (historical)
 
 **Sprint goal**: ship the operationalization of [`docs/theses/negative-space.md`](../theses/negative-space.md) so that a Rove walker can perceive negative space in any app, and so that consumers can triage / silence / ship the resulting findings.
 
-**Status**: Ready to start Day 1.
+**Status**: ✅ **Shipped 2026-05-14** (alpha.17). Validated end-to-end by run `849bc08b` — `prior_plan_captured_at` populated AND `agent.affordance_gap.navigate` finding filed.
 **Owner**: Brian + Alex.
-**Read first**: [`docs/theses/negative-space.md`](../theses/negative-space.md). The rest of this doc assumes you've read it.
+**Read first** (still relevant): [`docs/theses/negative-space.md`](../theses/negative-space.md). The pre-ship check at [`.claude/rules/pre-ship-check.md`](../../.claude/rules/pre-ship-check.md) codifies the closing instruction of the thesis.
 
-This is the kickoff entry point. When you sit down to start the sprint, this is the file you open. It is intentionally short and indexes the proposal docs, not duplicates them. The proposal docs are authoritative.
+This was the kickoff entry point for the sprint. All six items below shipped. Document retained as a historical record + per-item link tree.
 
 ---
 
@@ -126,8 +126,8 @@ Companion files that must update in the same sprint to keep the schema honest:
 **New files this sprint** (in order of creation):
 
 ```
-docs/proposals/_sprint.md                                                       ✅ (this file)
-docs/proposals/finding-lifecycle-substrate.md                                   ✅
+docs/plans/_sprint.md                                                       ✅ (this file)
+docs/plans/finding-lifecycle-substrate.md                                   ✅
 .claude/rules/pre-ship-check.md                                                 (Day 1)
 infra/supabase/supabase/migrations/20260514100000_finding_lifecycle.sql         (Day 1)
 infra/supabase/supabase/migrations/20260514110000_affordance_gaps.sql           (Day 2)
@@ -199,7 +199,7 @@ Per-doc open-question status:
 $EDITOR docs/theses/negative-space.md
 
 # 2. Read the substrate doc end-to-end
-$EDITOR docs/proposals/finding-lifecycle-substrate.md
+$EDITOR docs/plans/finding-lifecycle-substrate.md
 
 # 3. Start the substrate migration
 $EDITOR infra/supabase/supabase/migrations/20260514100000_finding_lifecycle.sql

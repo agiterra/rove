@@ -116,7 +116,7 @@ export class SupabaseSink implements SinkAdapter {
 
     // Expand affordance_gaps into findings rows with heuristic
     // `agent.affordance_gap.<kind>`. Each gap is a negative-space finding;
-    // see docs/proposals/affordance-gaps.md §1 finding-emission rules.
+    // see docs/plans/affordance-gaps.md §1 finding-emission rules.
     for (const gap of input.payload.affordance_gaps ?? []) {
       try {
         const syntheticFinding: Finding = {

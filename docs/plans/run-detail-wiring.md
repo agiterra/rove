@@ -1,6 +1,6 @@
 # Plan — Run-detail UI wiring (1-to-1 commitment)
 
-**Status**: Proposed.
+**Status**: ✅ **Shipped 2026-05-14**. All §1–§9 rows wired or explicitly deferred. Evidence: `apps/dashboard/components/run-detail/` (20+ components — RunDetailLive, Filmstrip, DetailSplit, Hero, Reflection, FindingsStream, NowDoingPill, TabBar, StepArtifact, AffordanceInventory, NegativeSpaceSection, PlanVsRealityInlineDiff, PlanVsRealitySection, VerdictChip, …), `apps/dashboard/app/runs/[id]/page.tsx`. Three rows explicitly deferred (per closing summary at bottom of this file): coordinates tag, click-tree-node interactivity, secondary WCAG chip.
 **Owner**: Brian.
 **Scope**: `/runs/[id]` (canonical) + `/preview/live-walk` (the static reference).
 **Why now**: The new UI shipped on branch `live-walk-preview` reads some Supabase data but leaves several fields the old `/runs/[id]` surfaced — `run.plan`, `run.surprises`, `run.metrics`, `run.largest_expectation_gap`, `run.persona_success_confidence`, `run_steps.aria_snapshot` — unrendered. Real-time live-walk behavior (per-step writes, screenshot captures) is also still owed. This plan commits **every** pixel and interaction in the new UI to a data source and a wiring task. No "TBD".

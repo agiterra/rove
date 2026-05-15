@@ -89,6 +89,6 @@ The thesis predicts these are exactly the moments the negative space goes unperc
 ## See also
 
 - `docs/theses/negative-space.md` — the why
-- `docs/proposals/expectation-match.md` § "UX plan — applying the thesis to ourselves" — this rule applied to a feature
-- `docs/proposals/affordance-gaps.md` § "UX plan — applying the thesis to ourselves" — same
+- `docs/plans/expectation-match.md` § "UX plan — applying the thesis to ourselves" — this rule applied to a feature
+- `docs/plans/affordance-gaps.md` § "UX plan — applying the thesis to ourselves" — same
 - `docs/audits/2026-05-14-sprint-plan-walker-audit.md` — this rule applied recursively to a sprint plan
