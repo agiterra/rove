@@ -63,9 +63,15 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const devBypass = process.env.DEV_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";
 
   if (!user && !isPublic && !devBypass) {
+    // Preserve the full pathname + querystring in `next=` so the user
+    // ends up at the exact URL after signin (e.g. a GitHub issue link
+    // that bakes in `?p=tankloop`). Hashes are client-side and survive
+    // the redirect chain on their own.
+    const original = `${path}${request.nextUrl.search}`;
     const url = request.nextUrl.clone();
     url.pathname = "/signin";
-    url.searchParams.set("next", path);
+    url.search = "";
+    url.searchParams.set("next", original);
     return NextResponse.redirect(url);
   }
 

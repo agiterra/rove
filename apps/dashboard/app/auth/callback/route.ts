@@ -22,5 +22,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  // Refuse off-origin `next` values so the OAuth flow can't be turned
+  // into an open redirect by a maliciously-crafted signin link.
+  const target = new URL(next, url.origin);
+  if (target.origin !== url.origin) {
+    return NextResponse.redirect(new URL("/runs", url.origin));
+  }
+  return NextResponse.redirect(target);
 }

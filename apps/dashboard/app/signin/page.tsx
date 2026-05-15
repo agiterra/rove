@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createBrowserSupabase } from "../../lib/supabase/client";
 
-export default function SignInPage({
-  searchParams,
-}: {
-  searchParams: { next?: string };
-}) {
+export default function SignInPage() {
+  const searchParams = useSearchParams();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -16,7 +14,10 @@ export default function SignInPage({
     setErr(null);
     const supabase = createBrowserSupabase();
     const redirectTo = new URL("/auth/callback", window.location.origin);
-    if (searchParams.next) redirectTo.searchParams.set("next", searchParams.next);
+    // Read `next` via the hook — `searchParams` as a prop is a Promise
+    // in Next 16, so reading `.next` directly silently yields undefined.
+    const nextParam = searchParams.get("next");
+    if (nextParam) redirectTo.searchParams.set("next", nextParam);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "github",
       options: { redirectTo: redirectTo.toString() },

@@ -85,6 +85,7 @@ export async function sendFindingToIssue(
     flowId: runData?.flow_id ?? null,
     personaId: runData?.persona_id ?? null,
     observedUrl,
+    projectId: findingData.project_id,
   });
 
   const labels = [
@@ -120,10 +121,18 @@ function buildIssueBody(args: {
   flowId: string | null;
   personaId: string | null;
   observedUrl: string;
+  projectId: string;
 }): string {
-  const { finding, flowId, personaId, observedUrl } = args;
+  const { finding, flowId, personaId, observedUrl, projectId } = args;
   const sevBadge = SEVERITY_BADGE[finding.severity];
-  const dashboardUrl = `${dashboardOrigin()}/runs/${finding.run_id}${finding.step_index != null ? `#step-${finding.step_index}` : ""}`;
+  // Include `?p=<project>` so the middleware doesn't have to redirect to
+  // resolve project context, and so a fresh browser (no project cookie)
+  // lands on the right tenant. The hash anchor survives same-origin
+  // redirects in modern browsers, so the auth flow ends up at the right
+  // step even when the visitor wasn't signed in.
+  const qs = `?p=${encodeURIComponent(projectId)}`;
+  const hash = finding.step_index != null ? `#step-${finding.step_index}` : "";
+  const dashboardUrl = `${dashboardOrigin()}/runs/${finding.run_id}${qs}${hash}`;
 
   return [
     `## Finding · ${sevBadge}`,
