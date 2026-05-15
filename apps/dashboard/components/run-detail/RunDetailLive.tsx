@@ -11,6 +11,7 @@ import { FindingsStream } from "./FindingsStream";
 import { Reflection } from "./Reflection";
 import { NegativeSpaceSection } from "./NegativeSpaceSection";
 import { PlanVsRealitySection } from "./PlanVsRealitySection";
+import { RunActions } from "./RunActions";
 import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
 import { formatElapsed } from "./adapters";
@@ -107,6 +108,11 @@ export function RunDetailLive({
       >
         <BreadcrumbRow project={view.topBar.project} />
         <Hero view={view.hero} />
+        <RunActions
+          runId={runId}
+          projectId={projectId}
+          status={view.hero.status}
+        />
         <Filmstrip
           steps={view.steps}
           selectedIndex={effectiveSelected}
