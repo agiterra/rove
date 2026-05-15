@@ -3,7 +3,7 @@
 # the walk surfaces deviations + affordance gaps when reality diverges from the
 # saas-dashboard archetype prior.
 #
-# See: docs/proposals/expectation-match.md (DoD § Dogfood spec)
+# See: docs/plans/expectation-match.md (DoD § Dogfood spec)
 
 flow_id: rove.setup_new_project
 goal: "Sign in to Rove and set up a brand-new project called 'demo-project', then verify the project is selectable in the project switcher."

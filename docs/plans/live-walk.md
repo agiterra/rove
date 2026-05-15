@@ -1,8 +1,8 @@
 # Plan — Live Walk (and the UI Rove deserves)
 
-**Status**: ✅ **Shipped 2026-05-14** (alpha.11 Track B2 + alpha.12 MCP-proxy race fix). Dashboard wiring AND daemon-side both shipped. Evidence: `liveStepWrites` plumbed through `claude-code-cli.ts → playwright-mcp-proxy.mjs`; per-step row inserts/PATCHes; screenshot streaming to the `walks` bucket; dashboard filmstrip auto-updates via Supabase Realtime on `agent_jobs` + `run_steps` channels. Original "Wired vs owed" section below now reads as historical.
+**Status**: ✅ **Live steps/screenshots shipped 2026-05-14** (alpha.11 Track B2 + alpha.12 MCP-proxy race fix). Evidence: `liveStepWrites` plumbed through `claude-code-cli.ts → playwright-mcp-proxy.mjs`; per-step row inserts/PATCHes; screenshot streaming to the `walks` bucket; dashboard filmstrip auto-updates via Supabase Realtime on `agent_jobs` + `run_steps` channels. Incremental finding insertion is **not** shipped; findings still arrive after the dispatcher exits and the final payload is parsed.
 **Owner**: Brian.
-**Why now**: Today a walk goes silent for 2–5 minutes and then dumps 51 findings at once. Step events, screenshots, and aria snapshots all exist in the daemon — they just don't reach the dashboard until the walk completes. Surfacing them live turns the run page from a post-mortem into a live trace and gives Rove its first credible "marketing artifact." Equally important, it forces us to fix the dashboard's UX before we ask anyone outside Agiterra to look at it.
+**Why now**: At plan start, a walk went silent for 2–5 minutes and then dumped findings at once. Step events, screenshots, and aria snapshots existed in the daemon but did not reach the dashboard until completion. Surfacing steps live turned the run page from a post-mortem into a live trace and gave Rove its first credible "marketing artifact." Equally important, it forced us to fix the dashboard's UX before asking anyone outside Agiterra to look at it.
 
 ## The meta-principle this plan exists to enforce
 
@@ -18,7 +18,7 @@ When a user clicks **Run walk** from a flow detail page, the run detail page (`/
 - Each tile shows step number, tool name, status (running / done / errored), elapsed time, and the URL after the step.
 - Clicking a tile zooms the screenshot into a lightbox with the aria-snapshot, tool args, and result on the side.
 - A live "currently doing" indicator at the top describes what the agent is reading / clicking / submitting *right now*.
-- Findings stream in as the agent files them — not in a final dump.
+- Steps and screenshots stream while the agent walks. Findings currently appear after the final payload is parsed; incremental finding streaming remains B3.
 - The page is visually distinctive: brand-aware, motion-aware, dense without being noisy. It's something you'd take a screen recording of and share.
 
 When the walk finishes the same page becomes the post-mortem, with no jarring layout shift — same filmstrip, same lightbox, just frozen.
@@ -32,11 +32,11 @@ When the walk finishes the same page becomes the post-mortem, with no jarring la
 
 ## Dependencies
 
-- None blocking. Worker-tokens, install-flow, and the install-code sweep all shipped. The only infra we need is a column add on `run_steps` (for the per-step screenshot path) and Supabase Storage uploads inside the daemon, both of which extend existing patterns.
+- None blocking. Worker-tokens, install-flow, and the install-code sweep all shipped. The B2 infra and daemon live-write path also shipped; B3 incremental finding insertion remains independent follow-up work.
 
-## Wired vs owed (as of branch `live-walk-preview`)
+## Wired vs owed (historical, corrected against shipped code)
 
-A single PR (`live-walk-preview`) carries every visual + dashboard-side piece needed to call `/runs/[id]` "live-walk-shaped". The remaining work is **daemon-side** — code in `packages/cli/src/daemon/runner.ts` and the MCP proxy — and is intentionally not part of this branch since it changes the actual walk runtime and warrants targeted review.
+A single PR (`live-walk-preview`) carried every visual + dashboard-side piece needed to call `/runs/[id]` "live-walk-shaped". The daemon-side B2 work later shipped. B3 incremental finding insertion did not; today `packages/cli/src/commands/run.ts` parses findings once after the dispatcher exits.
 
 **Shipped on `live-walk-preview`:**
 
@@ -49,14 +49,15 @@ A single PR (`live-walk-preview`) carries every visual + dashboard-side piece ne
 - `/preview/live-walk` — same components, fed by `buildMockRunDetailView()`. Stays as the visual reference target.
 - `globals.css` — hero glow layers, indent-rail aria-tree connectors, `.tk-*` Tankloop preview styles, four new keyframes, reduced-motion fallbacks.
 
-**Still owed (separate PRs):**
+**Still owed / corrected status:**
 
-- **Track B2** — daemon-side per-step writes. The MCP proxy needs an explicit live-write mode: pass `run_id` / `project_id` / auth config into the proxy, insert a `run_steps` row at each `tools/call` request (`direction='call'`), maintain `jsonrpc id → row id`, and update that row on response. Today the dashboard only sees rows after the daemon's post-walk batch sync, so an in-progress walk on `/runs/[id]` will look mostly empty until the daemon settles.
-- **Track B2 (continued)** — screenshot uploads at capture time. Playwright MCP writes screenshots into its `--output-dir`; the proxy should read the local file after a `browser_take_screenshot` response, upload it, and populate `run_steps.screenshot_key`. Do not assume the response contains PNG bytes.
-- **aria-snapshot parser.** `run_steps.aria_snapshot` is captured but unparsed. The `DetailSplit` a11y tree panel currently shows "No aria-snapshot captured for this step yet" for every real-data step.
-- **Worker-status pill in `TopBar`** — hard-coded to `unknown` for real `/runs/[id]`. This needs a run↔job/worker identity link first (`agent_jobs.claimed_by_worker_id → workers.id` is valid, but there is no run→job link today); after that the dashboard can show online/offline.
+- **Track B2** — shipped. The MCP proxy has live-write mode and writes `run_steps` during the walk.
+- **Track B2 screenshots** — shipped. Screenshots upload during capture and populate `run_steps.screenshot_key`.
+- **aria-snapshot parser.** Shipped enough for the run-detail accessibility tree panel; keep regressions covered in UI review.
+- **Worker-status pill in `TopBar`** — shipped for current run detail data.
 - **Completed-walk hero variant tweaks** — outcome glow (cyan for goal reached, rose for not reached) is wired; needs visual review on real completed runs.
 - **`change_review` adoption.** This branch leaves `kind === "change_review"` on the old layout intact. A later PR ports it to the new components.
+- **B3 incremental finding stream.** Still owed. The UI subscribes to `findings`, but the CLI inserts findings at walk end, not as each finding is emitted.
 
 ## How this is structured
 
@@ -66,11 +67,11 @@ Five tracks. **Track A lands first** because it pays off across the whole plan a
 | --- | --- | --- |
 | A — Design foundation | First, gating the rest | Reusable primitives + typography scale + focus / motion / a11y baseline |
 | B — Live data plumbing | Parallel to C / D | DB column + daemon-side live writes + screenshot streaming |
-| C — Live-walk components | Parallel to B / D | Filmstrip, step row, lightbox, "currently doing" pill, finding stream |
+| C — Live-walk components | Parallel to B / D | Filmstrip, step row, lightbox, "currently doing" pill, finding stream UI |
 | D — Run-detail rewrite | After A; needs B + C | The new `/runs/[id]` page that integrates everything |
 | E — Closeout / a11y / motion | Last | Focus rings, keyboard nav, reduced-motion, screen-reader pass |
 
-The plan totals ~14 PRs. The minimum to call "live walk shipped" is **A1, A2, B1, B2, B3, C1, C2, C3, D1, E1** — ten PRs. The rest (A3, C4, D2, E2) are visual quality improvements that the meta-principle says we are not allowed to defer to "phase 2."
+The original plan treated **B3** as part of "live walk shipped." The actual alpha shipped live steps/screenshots plus final-payload findings; B3 remains a product gap, not a blocker to the current run-detail live trace.
 
 ---
 
@@ -127,7 +128,9 @@ This track adds a small storage helper that uploads a single screenshot from the
 
 ### B2 — daemon-side per-step writes (replace the post-walk batch)
 
-Today the MCP proxy at `packages/cli/bin/playwright-mcp-proxy.mjs` tees JSON-RPC traffic to a local `trajectory.jsonl`, and the sink at `packages/cli/src/sinks/supabase.ts` parses + inserts after the walk finishes. We flip the order:
+Status: shipped for live step rows and screenshot uploads. The original implementation notes below are kept as historical design context.
+
+At design time, the MCP proxy at `packages/cli/bin/playwright-mcp-proxy.mjs` only teed JSON-RPC traffic to a local `trajectory.jsonl`, and the sink at `packages/cli/src/sinks/supabase.ts` parsed + inserted after the walk finished. B2 flipped the order:
 
 - The proxy gets a Supabase write hook. On each `tools/call` request / response pair:
   - Insert a new `run_steps` row with `direction = 'call'` at request time.
@@ -138,9 +141,11 @@ Today the MCP proxy at `packages/cli/bin/playwright-mcp-proxy.mjs` tees JSON-RPC
 - The local `trajectory.jsonl` write stays as a debugging fallback and as the source of truth if the daemon ever runs offline.
 - The post-walk parse-and-batch path becomes a reconciliation pass: on walk completion, the sink reads `trajectory.jsonl` and `upsert`s any steps the live pipeline missed (network blip safety net).
 
-### B3 — finding stream
+### B3 — incremental finding stream (not shipped)
 
 Findings already land in the `findings` table at walk-end. Move the insert to happen *as the agent emits each finding* (the `<<<FINDINGS_JSON>>>` markers can be incrementally parsed by streaming `claude --print` stdout). One row per finding, inserted immediately. The dashboard's existing findings subscription picks them up.
+
+Current code path: findings are parsed once after dispatcher completion and inserted by the sink at the end of the run. The dashboard can animate new rows when they arrive, but they still arrive as the final batch.
 
 ---
 
@@ -212,7 +217,7 @@ This is the meta-principle made concrete. The plan does not merge its last PR un
 - [ ] All new motion respects `prefers-reduced-motion: reduce`.
 - [ ] No hardcoded hex / rgb in any new component (must use CSS vars from A1).
 - [ ] No `text-[Npx]` arbitrary literals in any new component (must use scale tokens).
-- [ ] Filmstrip + lightbox + step list + finding stream pass axe-core's automated a11y pass with zero violations.
+- [ ] Filmstrip + lightbox + step list + finding stream UI pass axe-core's automated a11y pass with zero violations.
 - [ ] Each PR description includes a screenshot or short screen recording of the changed UI on `rove-agiterra.vercel.app` preview.
 
 ### E2 — Polish before declaring done

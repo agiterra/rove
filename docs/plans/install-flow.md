@@ -1,8 +1,12 @@
 # Plan — Web-Driven Local Worker Install
 
-**Status**: ✅ **Shipped 2026-05-14** (alpha.15 + alpha.16). The `/setup` mint flow + `POST /api/install/exchange` + bash installer + `~/.rove/` LaunchAgent + `rove://` AppleScript handler are all live. Evidence: `apps/dashboard/app/setup/`, `apps/dashboard/app/install/route.ts`, `apps/dashboard/app/api/install/`. Dogfooded end-to-end. v3 — incorporates two rounds of Codex review. Sat above [`worker-tokens.md`](worker-tokens.md) (also shipped).
+**Status**: ✅ **Shipped 2026-05-14** (alpha.15 + alpha.16), with the alpha service-role concession still present. The `/setup` mint flow + `POST /api/install/exchange` + bash installer + `~/.rove/` LaunchAgent + `rove://` AppleScript handler are all live. Evidence: `apps/dashboard/app/setup/`, `apps/dashboard/app/install/route.ts`, `apps/dashboard/app/api/install/`. Dogfooded end-to-end. v3 — incorporates two rounds of Codex review. Sat above [`worker-tokens.md`](worker-tokens.md) (also shipped).
 **Owner**: Brian.
 **Why now**: The dashboard cannot, by browser security model, launch a process on the user's machine. The realistic "user never leaves the interface" experience is therefore *one* terminal moment (the install paste) followed by an always-on local daemon plus a `rove://` protocol handler the dashboard can poke when the daemon is stopped or crashed.
+
+## Current alpha security caveat
+
+The final design is worker-token-only, but the current alpha install exchange also returns `supabase_service_role_key` so the daemon's existing sink path can keep writing until Wire-sink-relay replaces it. Treat that as the tracked alpha.15 concession, not as the desired security model. Do not add any new service-role distribution path; retire this one via the BACKLOG Wire-sink-relay item before external operators run workers.
 
 ## v3.1 changes (Open question #2 resolved in step 2)
 
@@ -38,15 +42,15 @@ A team member opens the dashboard, clicks a single button, pastes a single comma
 ## Non-goals
 
 - **No silent install from the browser.** OS security models forbid it; we won't pretend otherwise. The first install is a one-time terminal paste.
-- **No service-role key in install scripts.** Worker tokens are the only credential the install flow ships. Service-role stays server-only.
+- **Target final model: no service-role key in install scripts.** Worker tokens are the intended daemon credential. The current alpha still ships the service-role key through `POST /api/install/exchange`; see the caveat above.
 - **No hosted walker / Vercel Sandbox.** Workers run on team-operated hardware.
 - **No Linux or Windows support in this plan.** macOS-only for alpha. Linux + Windows follow the same shape (`systemd --user` and Task Scheduler + registry handler) but ship later.
 - **No code-signing pipeline.** The `rove://` handler `.app` is ad-hoc signed (`codesign -s -`) for alpha. Gatekeeper will warn once; user clicks through. Real signing is a future ops task.
 
 ## Dependencies
 
-- **[`docs/plans/worker-tokens.md`](worker-tokens.md) must ship first.** The install script writes a worker token to `~/.rove/auth.token`. Without that plan, the only credential we could hand out is the service-role key, which we explicitly refuse to do.
-- Worker tokens can be prototyped *locally* against service-role to feel the UX, but the install flow does not ship until JWT lands.
+- **[`docs/plans/worker-tokens.md`](worker-tokens.md) must ship first.** The install script writes a worker token to `~/.rove/auth.token`. Without that plan, the daemon has no recoverable per-worker credential.
+- Worker tokens landed, but sink writes still depend on the alpha service-role concession until Wire-sink-relay removes it.
 
 ## User flow
 
@@ -63,7 +67,7 @@ A team member opens the dashboard, clicks a single button, pastes a single comma
    - Validates: not consumed, not expired, the originally-issuing user is still a team member (`is_team_member()` against `install_codes.user_id`).
    - Marks the row consumed (`consumed_at = now()`, `consumed_ip = request IP`) within the same transaction.
    - Mints a worker JWT (via the worker-tokens plan's mint logic) using the row's stored `worker_name` + `project_id`.
-   - Returns `{ token, supabase_url, supabase_publishable_key, project_id, worker_name, github_handle, expires_at }` as JSON over HTTPS.
+   - Returns `{ token, supabase_url, supabase_publishable_key, supabase_service_role_key, project_id, worker_name, github_handle, expires_at }` as JSON over HTTPS. `supabase_service_role_key` is the current alpha concession; Wire-sink-relay is the planned removal path.
 
 To harden against an attacker who briefly sees the install code in someone's shell history: the `/setup` page suggests users run `export HISTCONTROL=ignorespace` (or use `setopt hist_ignore_space` in zsh) before pasting, and prefix the curl command with a leading space — which most shells then exclude from history. Optional; the 5-minute one-shot window already bounds the exposure.
 6. The installer writes the returned token to `~/.rove/auth.token` (chmod 600), writes the rest to `~/.rove/env` (chmod 600), and proceeds with the package + LaunchAgent + URL handler install (~30s total).
@@ -101,7 +105,7 @@ A nightly cron (or just a query inside the exchange endpoint) prunes consumed/ex
 
 ## Runtime model
 
-Two cooperating local pieces. One credential.
+Two cooperating local pieces. One intended credential, plus the current alpha service-role concession.
 
 | Piece | Purpose | Lives at |
 | --- | --- | --- |
@@ -109,7 +113,8 @@ Two cooperating local pieces. One credential.
 | **The daemon** (`rove daemon …`) | Long-running worker that claims jobs and dispatches walks | Invoked via absolute path `~/.rove/lib/node_modules/@agiterra/rove-cli/bin/rove.js` |
 | **`launchd` LaunchAgent** | Auto-starts the daemon at user login; respawns on crash | `~/Library/LaunchAgents/com.agiterra.rove.daemon.plist` |
 | **`rove://` handler `.app`** (AppleScript applet) | URL handler the dashboard invokes to start/stop/restart the daemon. Wraps a shell action script. | `~/Applications/Rove Launcher.app/` |
-| **Worker token** | Per-worker JWT, single credential for all DB writes | `~/.rove/auth.token` (chmod 600) |
+| **Worker token** | Per-worker JWT for claim/heartbeat/authenticated daemon identity | `~/.rove/auth.token` (chmod 600) |
+| **Service-role key** | Alpha concession for sink writes until Wire-sink-relay replaces direct daemon DB writes | `~/.rove/env` (chmod 600) |
 | **Local config** | `worker_name`, `project_id`, supabase URL — the trusted-local source the URL handler reads | `~/.rove/env` (chmod 600) |
 
 The daemon is the engine. The LaunchAgent is the spine — it handles the "user logs in, daemon starts" path with zero clicks. The `rove://` handler is the recovery/control surface — it handles every case where the LaunchAgent didn't carry the user (crashed, disabled, never installed correctly, manually paused, etc.). Both rely on the same token file.
@@ -376,7 +381,7 @@ A `rove://uninstall` action is intentionally NOT in the URL handler — uninstal
 
 ## Security
 
-- **Worker token only.** No service-role key on the user's machine. A leaked token is recoverable (revoke + re-mint); a leaked service-role key is catastrophic.
+- **Target: worker token only.** The current alpha writes the service-role key to `~/.rove/env` so sink writes work. A leaked token is recoverable (revoke + re-mint); a leaked service-role key is catastrophic, which is why Wire-sink-relay is the tracked hardening gap.
 - **chmod 600** on `~/.rove/env` and `~/.rove/auth.token`.
 - **No SUID, no admin privilege escalation.** Everything runs as the user.
 - **`launchctl bootstrap gui/$UID` and `lsregister`** are user-scope only. No `sudo` anywhere. Legacy `load -w` is not used.
@@ -405,7 +410,7 @@ Total: ~2 days on top of worker-tokens' ~2 days. Combined: ~4 days for the full 
 - The dashboard's "Resume walker" button (after a `launchctl unload`) restarts the daemon via `rove://start` in <5 seconds.
 - The dashboard's "Pause walker" button stops it; status flips to `stopped` in the registry; the daemon does not respawn.
 - Re-running the install command on a machine where Rove is already installed updates everything in place without manual cleanup. Token rotates; old daemon dies via revocation; new daemon starts.
-- View-source on `/setup` exposes a worker token (single-worker scope). View-source on `/setup` does **not** expose the Supabase service-role key.
+- View-source on `/setup` exposes neither the worker token nor the Supabase service-role key. The install exchange returns both only after single-use code redemption over HTTPS; the service-role return is the alpha concession tracked for removal.
 - Removing the .app and the LaunchAgent plist + `rm -rf ~/.rove` fully uninstalls — no daemon left running, no scheduled task.
 
 ## Open questions
@@ -422,7 +427,7 @@ Total: ~2 days on top of worker-tokens' ~2 days. Combined: ~4 days for the full 
 
 Flag if you see:
 
-1. Any place this design uses the service-role key in the install script or in the user's `~/.rove/`. Worker tokens are the only credential allowed.
+1. Any new or untracked service-role use beyond the documented `/api/install/exchange` alpha concession. The final model allows only worker tokens on the user's machine.
 2. **Any secret in argv.** v2 fix: install code is the only thing in the curl command. Tokens flow over HTTPS via the `/api/install/exchange` POST. If you see `--token`, `--jwt`, or any other credential as a command-line argument, regress.
 3. Any place the dashboard tries to start the daemon directly via JavaScript without going through `rove://`. Browser sandboxing forbids this; if the prototype seems to work via WebExtensions or hacks, that's a category mistake.
 4. Auto-start being skipped in favor of `rove://`-only. Auto-start is the default UX; `rove://` is the recovery/control surface. Both ship together.

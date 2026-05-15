@@ -1,4 +1,4 @@
--- Finding-lifecycle substrate (proposal: docs/proposals/finding-lifecycle-substrate.md).
+-- Finding-lifecycle substrate (proposal: docs/plans/finding-lifecycle-substrate.md).
 --
 -- Adds silence-state columns to public.findings + a SECURITY DEFINER RPC
 -- `toggle_finding_silence` so dashboard team members can silence / un-silence

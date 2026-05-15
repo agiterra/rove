@@ -1,5 +1,5 @@
 -- Affordance gaps — page-level negative-space wedge.
--- Proposal: docs/proposals/affordance-gaps.md
+-- Proposal: docs/plans/affordance-gaps.md
 --
 -- Each run_steps row may carry an `affordance_gaps` jsonb array. Each
 -- element is one missing affordance the persona enumerated at that
@@ -34,6 +34,6 @@ create index if not exists run_steps_affordance_gaps_idx
   using gin (affordance_gaps jsonb_path_ops);
 
 comment on column public.run_steps.affordance_gaps is
-  'Array of {kind, expected_for, severity, evidence, suggested_location} objects, per docs/proposals/affordance-gaps.md §1.';
+  'Array of {kind, expected_for, severity, evidence, suggested_location} objects, per docs/plans/affordance-gaps.md §1.';
 comment on column public.run_steps.affordance_enum_phase is
   'True when the per-page affordance enumeration phase ran on this step (substantive page).';

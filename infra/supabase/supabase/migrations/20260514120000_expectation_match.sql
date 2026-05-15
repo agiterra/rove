@@ -17,7 +17,7 @@
 --                                            walker uses when no flow-level
 --                                            override applies. NULL → "auto".
 --
--- See: docs/proposals/expectation-match.md
+-- See: docs/plans/expectation-match.md
 --
 -- Idempotent: add-if-missing.
 -- ─────────────────────────────────────────────────────────────────────────
