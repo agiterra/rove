@@ -15,7 +15,8 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { roleForPersonaCategory, userDataDir } from "../auth-state.js";
+import { isAuthProfileStale, roleForPersonaCategory, userDataDir } from "../auth-state.js";
+import { ensureFreshAuthProfile } from "../auth-mint.js";
 import { loadRoveConfig } from "../config.js";
 import { createDispatcher, createSinks, type DispatcherId, type SinkId } from "../factories.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
@@ -71,6 +72,10 @@ export async function runChangeReviewCommand(
     const candidate = userDataDir(role);
     if (existsSync(candidate)) {
       authProfilePath = candidate;
+      // Auto-re-mint if the cookies are older than the Supabase session
+      // lifetime — keeps dogfood walks from silently bouncing to /signin
+      // after the first hour.
+      await ensureFreshAuthProfile(role, isAuthProfileStale);
     } else {
       const setupCommand = isAgent
         ? "rove dashboard-auth-setup --role dispatcher"

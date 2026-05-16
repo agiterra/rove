@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -27,6 +27,31 @@ export async function ensureUserDataDir(role: AuthRole): Promise<string> {
   const dir = userDataDir(role);
   await mkdir(dir, { recursive: true });
   return dir;
+}
+
+/**
+ * Returns true when the role's persistent context cookies are older than
+ * `maxAgeMs`, or when the cookies file doesn't exist yet. Supabase sessions
+ * expire after ~1h; we default the threshold below that with a 10-min
+ * safety buffer.
+ *
+ * Chromium's persistent context stores cookies at
+ * `<userDataDir>/Default/Cookies`. mtime reflects the last cookie write —
+ * for our flow that's when the session was minted. We use mtime rather
+ * than parsing the SQLite DB because the precise expires_at requires a
+ * SQL read.
+ */
+export async function isAuthProfileStale(
+  role: AuthRole,
+  maxAgeMs: number = 50 * 60_000,
+): Promise<boolean> {
+  const cookiesPath = join(userDataDir(role), "Default", "Cookies");
+  try {
+    const s = await stat(cookiesPath);
+    return Date.now() - s.mtimeMs > maxAgeMs;
+  } catch {
+    return true;
+  }
 }
 
 export function roleForPersonaCategory(
