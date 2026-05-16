@@ -109,11 +109,21 @@ export class SupabaseSink implements SinkAdapter {
     // status=failed lie. Collect those separately and surface them as
     // stderr warnings + an error_message suffix without flipping status.
     const warnings: string[] = [];
+    // basename → uploaded storage_key. Multiple findings can reference
+    // the same screenshot; the first finding uploads + deletes the local
+    // file, so subsequent findings would ENOENT. Cache the storage_key
+    // and link directly to it.
+    const uploadedByBasename = new Map<string, string>();
     for (const finding of input.payload.findings) {
       try {
         const findingId = await this.insertFinding(input, finding);
         try {
-          const uploaded = await this.uploadScreenshots(input, findingId, finding.screenshots ?? []);
+          const uploaded = await this.uploadScreenshots(
+            input,
+            findingId,
+            finding.screenshots ?? [],
+            uploadedByBasename,
+          );
           artifacts.push(...uploaded);
         } catch (shotErr) {
           warnings.push(shotErr instanceof Error ? shotErr.message : String(shotErr));
@@ -275,11 +285,38 @@ export class SupabaseSink implements SinkAdapter {
     input: SinkInput,
     findingId: string,
     screenshots: FindingScreenshot[],
+    uploadedByBasename: Map<string, string>,
   ): Promise<string[]> {
     if (screenshots.length === 0) return [];
     const out: string[] = [];
     for (let i = 0; i < screenshots.length; i++) {
       const shot = screenshots[i];
+      const filename = sanitizeFilename(shot.path);
+
+      // If another finding in this same route() call already uploaded
+      // this basename, link the new finding to the existing storage_key
+      // instead of trying to re-read the local file (which we may have
+      // unlinked already).
+      const cachedKey = uploadedByBasename.get(filename);
+      if (cachedKey) {
+        const { error: rowErr } = await this.db.from("finding_screenshots").insert({
+          finding_id: findingId,
+          project_id: this.projectId,
+          storage_bucket: WALKS_BUCKET,
+          storage_key: cachedKey,
+          caption: shot.caption ?? null,
+          ordinal: i,
+          byte_size: null,
+        });
+        if (rowErr) {
+          throw new Error(
+            `Insert finding_screenshot row (reuse) for ${cachedKey}: ${rowErr.message}`,
+          );
+        }
+        out.push(cachedKey);
+        continue;
+      }
+
       const absolute = resolve(input.screenshotsDir, shot.path);
       let buf: Buffer;
       let byteSize: number;
@@ -293,7 +330,6 @@ export class SupabaseSink implements SinkAdapter {
         );
       }
 
-      const filename = sanitizeFilename(shot.path);
       const storageKey = `runs/${input.runId}/${filename}`;
       const { error: upErr } = await this.db.storage.from(WALKS_BUCKET).upload(storageKey, buf, {
         contentType: contentTypeFor(filename),
@@ -315,6 +351,8 @@ export class SupabaseSink implements SinkAdapter {
       if (rowErr) {
         throw new Error(`Insert finding_screenshot row for ${storageKey}: ${rowErr.message}`);
       }
+
+      uploadedByBasename.set(filename, storageKey);
 
       if (this.deleteLocalAfterUpload) {
         await unlink(absolute).catch(() => {
