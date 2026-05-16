@@ -59,8 +59,8 @@ export default async function FlowDetailPage({ params, searchParams }: PageProps
       .eq("project_id", projectId)
       .maybeSingle(),
     supabase
-      .from("runs")
-      .select("id, started_at, status, goal_reached, findings(severity)")
+      .from("runs_with_status")
+      .select("id, started_at, status:effective_status, goal_reached, findings(severity)")
       .eq("flow_id", decoded)
       .eq("project_id", projectId)
       .order("started_at", { ascending: true })

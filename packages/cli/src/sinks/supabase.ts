@@ -166,6 +166,7 @@ export class SupabaseSink implements SinkAdapter {
         finishedAt: input.finishedAt,
         walkedUrl: input.payload.walked_url,
         summary: input.payload.summary,
+        errorMessage: errors.length > 0 ? errors.join("; ") : undefined,
         status: errors.length === 0 ? "completed" : "failed",
         exitCode: 0,
         goalReached: reflection?.goal_reached,

@@ -115,6 +115,12 @@ export class SupabaseStore {
     // Expectation-match prior plan, when the persona captured one.
     priorPlan?: unknown;
     priorPlanCapturedAt?: Date;
+    /**
+     * System-generated reason this run failed (sink upload errors,
+     * dispatcher non-zero exit, etc). Distinct from `summary`, which is
+     * the agent's own prose. Null/undefined on successful walks.
+     */
+    errorMessage?: string;
   }): Promise<void> {
     const { error } = await this.db
       .from("runs")
@@ -122,6 +128,7 @@ export class SupabaseStore {
         finished_at: input.finishedAt.toISOString(),
         walked_url: input.walkedUrl ?? null,
         summary: input.summary ?? null,
+        error_message: input.errorMessage ? input.errorMessage.slice(0, 2000) : null,
         status: input.status,
         exit_code: input.exitCode ?? null,
         goal_reached: input.goalReached ?? null,
@@ -156,13 +163,15 @@ export class SupabaseStore {
     exitCode?: number;
     error?: string;
   }): Promise<void> {
+    const truncated = input.error ? input.error.slice(0, 2000) : null;
     const { error: dbError } = await this.db
       .from("runs")
       .update({
         status: "failed",
         finished_at: input.finishedAt.toISOString(),
         exit_code: input.exitCode ?? null,
-        summary: input.error ? input.error.slice(0, 2000) : null,
+        error_message: truncated,
+        summary: truncated,
       })
       .eq("id", input.runId);
     if (dbError) throw new Error(`failRun(${input.runId}): ${dbError.message}`);

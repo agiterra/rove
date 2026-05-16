@@ -64,8 +64,18 @@ export function useLiveRun({
     let cancelled = false;
 
     async function refreshFromDb() {
+      // Read from runs_with_status so a zombie (status=running on disk,
+      // stale heartbeat) renders as failed in the live view immediately.
+      // The Realtime subscription below still listens on the `runs` base
+      // table — Postgres only fires events on tables, not views — but
+      // the refresh that follows each event reads truth.
       const [runRes, stepsRes, findingsRes] = await Promise.all([
-        supabase.from("runs").select("*").eq("id", runId).eq("project_id", projectId).maybeSingle(),
+        supabase
+          .from("runs_with_status")
+          .select("*")
+          .eq("id", runId)
+          .eq("project_id", projectId)
+          .maybeSingle(),
         supabase
           .from("run_steps")
           .select("*")
@@ -81,9 +91,15 @@ export function useLiveRun({
       ]);
       if (cancelled) return;
       if (runRes.error || !runRes.data) return;
+      // The view exposes both raw `status` and derived `effective_status`.
+      // The adapter only knows about `status`, so substitute the derived
+      // value before handing the row off.
+      const runRow = runRes.data as Record<string, unknown>;
+      const effective = runRow.effective_status;
+      if (typeof effective === "string") runRow.status = effective;
       const fresh = buildRunDetailView({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        run: runRes.data as any,
+        run: runRow as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         steps: (stepsRes.data ?? []) as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

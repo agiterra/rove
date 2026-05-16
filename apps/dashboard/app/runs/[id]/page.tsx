@@ -28,8 +28,12 @@ interface PageProps {
   searchParams: Promise<{ p?: string }>;
 }
 
+// Reads from runs_with_status so a zombie (status=running on disk,
+// heartbeat older than 5min) renders as failed without waiting for
+// sweep_stuck_runs_all. `status` here is the view's effective_status,
+// aliased so the rest of the page is unchanged.
 const RUN_COLUMNS =
-  "id, project_id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, walked_url, summary, goal_reached, plan, surprises, predicted_step_count, actual_step_count, largest_expectation_gap, persona_success_confidence, metrics, kind, changed_routes, reference_routes, design_contract, deltas, prior_plan, prior_plan_captured_at";
+  "id, project_id, flow_id, persona_id, dispatcher, status:effective_status, branch, commit_sha, started_at, finished_at, initiator_label, walked_url, summary, error_message, goal_reached, plan, surprises, predicted_step_count, actual_step_count, largest_expectation_gap, persona_success_confidence, metrics, kind, changed_routes, reference_routes, design_contract, deltas, prior_plan, prior_plan_captured_at";
 
 const RUN_STEP_COLUMNS =
   "step_index, direction, tool_name, args, result_summary, aria_snapshot, url_after, duration_ms, screenshot_key, dialog_payload, affordance_gaps, affordance_enum_phase, plan_delta";
@@ -46,7 +50,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
 
   const [runRes, findingsRes, stepsRes, userRes] = await Promise.all([
     supabase
-      .from("runs")
+      .from("runs_with_status")
       .select(RUN_COLUMNS)
       .eq("id", id)
       .eq("project_id", projectId)
