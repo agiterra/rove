@@ -34,10 +34,18 @@ export default async function RunsPage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const projectId = await resolveProjectId(sp);
   const supabase = await createReadClient();
+  // Fire-and-forget reap so the on-disk runs.status catches up with the
+  // heartbeat-derived effective_status. The view returns truth either
+  // way; this just keeps the underlying table from accreting lies for
+  // any direct reader (CSV export, future webhook, billing job).
+  await supabase.rpc("sweep_stuck_runs_all", { p_idle_minutes: 5 });
+  // Read from the heartbeat-derived view so a zombie (status=running on
+  // disk, but heartbeat older than the sweep threshold) is rendered as
+  // failed without waiting for sweep_stuck_runs_all to write it back.
   const { data, error } = await supabase
-    .from("runs")
+    .from("runs_with_status")
     .select(
-      "id, flow_id, persona_id, dispatcher, status, branch, commit_sha, started_at, finished_at, initiator_label, goal_reached, findings(count)",
+      "id, flow_id, persona_id, dispatcher, status:effective_status, branch, commit_sha, started_at, finished_at, initiator_label, goal_reached, findings(count)",
     )
     .eq("project_id", projectId)
     .order("started_at", { ascending: false })
