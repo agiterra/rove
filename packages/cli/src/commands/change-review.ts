@@ -11,9 +11,11 @@ import {
   type Persona,
 } from "@agiterra/rove-core";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { roleForPersonaCategory, userDataDir } from "../auth-state.js";
 import { loadRoveConfig } from "../config.js";
 import { createDispatcher, createSinks, type DispatcherId, type SinkId } from "../factories.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
@@ -31,6 +33,15 @@ export interface ChangeReviewOptions {
   timeoutSeconds: number;
   dispatcher: DispatcherId;
   sinks: SinkId[];
+  /**
+   * When true (default), look up the persona's role-keyed user-data-dir
+   * and pass it to the dispatcher so the walk runs authed. Match `run`'s
+   * semantics: agent personas stay anonymous unless authenticateAgent is
+   * also set.
+   */
+  authenticated: boolean;
+  /** Opt agent personas into the saved auth profile. */
+  authenticateAgent: boolean;
 }
 
 export async function runChangeReviewCommand(
@@ -48,6 +59,29 @@ export async function runChangeReviewCommand(
   // Reviewer always runs clean-room — no source-context, fresh session.
   // This is a stricter requirement than agent-persona walks (§16.5 #1).
   const isolation = "clean-room" as const;
+
+  // Mirror `run`'s auth semantics. Agent personas stay anon unless the
+  // caller explicitly opts in; everyone else uses the role-keyed
+  // user-data-dir when --no-auth wasn't passed.
+  let authProfilePath: string | undefined;
+  const isAgent = persona.category === "agent";
+  const effectivelyAuthenticated = opts.authenticated && (!isAgent || opts.authenticateAgent);
+  if (effectivelyAuthenticated) {
+    const role = roleForPersonaCategory(persona.category);
+    const candidate = userDataDir(role);
+    if (existsSync(candidate)) {
+      authProfilePath = candidate;
+    } else {
+      const setupCommand = isAgent
+        ? "rove dashboard-auth-setup --role dispatcher"
+        : `rove auth-setup --role ${role}`;
+      console.error(
+        `✗ No auth profile for role=${role} at ${candidate}. Run \`${setupCommand}\` first, ` +
+          `or pass --no-auth to walk anonymously.`,
+      );
+      return 1;
+    }
+  }
 
   const { config } = await loadRoveConfig(ws.rootDir);
   const baseTargetUrl =
@@ -91,7 +125,10 @@ export async function runChangeReviewCommand(
 
   const { commitSha, branch } = readGitContext(ws.rootDir);
 
-  const dispatcher = createDispatcher(opts.dispatcher, { isolation });
+  const dispatcher = createDispatcher(opts.dispatcher, {
+    isolation,
+    userDataDirPath: authProfilePath,
+  });
   const preflight = await dispatcher.preflight();
   if (!preflight.ok) {
     console.error("Dispatcher preflight failed:");

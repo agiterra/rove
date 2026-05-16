@@ -93,10 +93,15 @@ export function buildChangeReviewPrompt(input: BuildChangeReviewPromptInput): st
     `  1. ${toolPrefix}navigate to ${targetUrl}<changed route>.`,
     `  2. Walk it as the persona, attempting the stated goal.`,
     `  3. Apply the same persona constraints as a flow walk.`,
-    `  4. Take screenshots${screenshotsDir ? ` into ${screenshotsDir}` : ""} when a`,
-    `     contract divergence is visually load-bearing. Reference the`,
-    `     filename(s) in the matching finding's \`screenshots\` array so`,
-    `     the dashboard can render them next to the delta.`,
+    `  4. Take screenshots when a contract divergence is visually load-bearing.`,
+    screenshotsDir
+      ? `     Pass \`filename\` as a BARE basename — no slashes, no path segments.\n` +
+        `     Examples: \`auth-wall.png\`, \`primary-action.png\`. Playwright MCP\n` +
+        `     is already configured to save into the per-run screenshots dir;\n` +
+        `     passing an absolute path mangles it and the file lands somewhere\n` +
+        `     the CLI cannot find. Reference the same basename in the matching\n` +
+        `     finding's \`screenshots\` array so the dashboard can render it.`
+      : `     No screenshots dir was provided; reference image paths in \`evidence\` only.`,
     `Budget: ~${maxWalkMinutes} min, ≤ ${maxBrowserCalls} browser tool calls TOTAL`,
     `(reference scan + walk combined).`,
     ``,

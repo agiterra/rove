@@ -208,6 +208,12 @@ program
     parseSinkIds,
     DEFAULT_SINKS,
   )
+  .option("--no-auth", "Walk anonymously (skip storage-state injection)")
+  .option(
+    "--auth-agent",
+    "Allow agent personas to use the saved auth profile. Default is anonymous for agent-readiness walks.",
+    false,
+  )
   .action(async (rawOpts: Record<string, unknown>) => {
     const ws = await resolveWorkspace();
     process.exit(
@@ -223,6 +229,8 @@ program
         timeoutSeconds: rawOpts.timeoutSeconds as number,
         dispatcher: rawOpts.dispatcher as ReturnType<typeof parseDispatcherId>,
         sinks: rawOpts.sinks as ReturnType<typeof parseSinkIds>,
+        authenticated: (rawOpts.auth as boolean | undefined) ?? true,
+        authenticateAgent: rawOpts.authAgent as boolean,
       }),
     );
   });

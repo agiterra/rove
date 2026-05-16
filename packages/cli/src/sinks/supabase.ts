@@ -103,15 +103,28 @@ export class SupabaseSink implements SinkAdapter {
 
     let routed = 0;
     const errors: string[] = [];
+    // Screenshot upload misses are not run-fatal. The finding is already
+    // persisted at this point; failing the whole run because a referenced
+    // PNG didn't land on disk turns every dropped screenshot into a
+    // status=failed lie. Collect those separately and surface them as
+    // stderr warnings + an error_message suffix without flipping status.
+    const warnings: string[] = [];
     for (const finding of input.payload.findings) {
       try {
         const findingId = await this.insertFinding(input, finding);
-        const uploaded = await this.uploadScreenshots(input, findingId, finding.screenshots ?? []);
-        artifacts.push(...uploaded);
+        try {
+          const uploaded = await this.uploadScreenshots(input, findingId, finding.screenshots ?? []);
+          artifacts.push(...uploaded);
+        } catch (shotErr) {
+          warnings.push(shotErr instanceof Error ? shotErr.message : String(shotErr));
+        }
         routed++;
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err));
       }
+    }
+    for (const w of warnings) {
+      process.stderr.write(`⚠ supabase sink: ${w}\n`);
     }
 
     // Expand affordance_gaps into findings rows with heuristic

@@ -151,11 +151,13 @@ export function buildWalkPrompt(input: BuildWalkPromptInput): string {
     `4. Whenever reality diverged from your plan, log a SURPRISE — see Phase D.`,
     `5. When something is worth capturing visually, call ${toolPrefix}take_screenshot.`,
     screenshotsDir
-      ? `   Save screenshots into this directory (it already exists):\n` +
-        `     ${screenshotsDir}\n` +
-        `   Name them like \`step<N>-<short-slug>.png\` (e.g. \`step3-empty-state.png\`).\n` +
-        `   Reference them in the matching finding using just the filename in the\n` +
-        `   \`screenshots\` array — the CLI resolves the path relative to that dir.`
+      ? `   Pass the \`filename\` argument as a BARE basename ONLY — no slashes,\n` +
+        `   no leading/trailing path segments. Examples: \`step3-empty-state.png\`,\n` +
+        `   \`auth-wall.png\`. Playwright MCP is already configured to save into\n` +
+        `   the per-run screenshots directory; passing an absolute path mangles\n` +
+        `   it and the file lands somewhere the CLI cannot find.\n` +
+        `   Reference the same basename in the matching finding's \`screenshots\`\n` +
+        `   array — the CLI resolves it against the per-run dir.`
       : `   No screenshots dir was provided; reference image paths in \`evidence\` only.`,
     `6. Time-box: ~${maxWalkMinutes} minutes of browser interaction, no more than`,
     `   ${maxBrowserCalls} browser tool calls total. Stop early if you run out of`,
