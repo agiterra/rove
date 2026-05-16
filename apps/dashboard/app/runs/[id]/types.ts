@@ -110,6 +110,8 @@ export interface RunDetail {
   initiator_label: string | null;
   walked_url: string | null;
   summary: string | null;
+  /** System-generated failure reason — distinct from the agent's prose summary. */
+  error_message: string | null;
   goal_reached: boolean | null;
   plan: WalkPlan | null;
   surprises: Surprise[] | null;

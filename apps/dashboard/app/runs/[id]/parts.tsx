@@ -41,6 +41,26 @@ export function Hero({ run, findingCount }: { run: RunDetail; findingCount: numb
         ]}
       />
 
+      {run.error_message ? (
+        <div
+          role="status"
+          className="mt-7 rounded-md border px-4 py-3 text-sm flex items-start gap-3 max-w-3xl"
+          style={{
+            background: "rgba(127, 29, 29, 0.18)",
+            borderColor: "rgba(239, 68, 68, 0.32)",
+            color: "rgb(252 165 165)",
+          }}
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>
+            <span className="font-mono uppercase tracking-wider text-[10px] block mb-1 opacity-80">
+              failure reason
+            </span>
+            {run.error_message}
+          </span>
+        </div>
+      ) : null}
+
       {run.summary ? (
         <p className="mt-7 text-sm text-[var(--color-text)] leading-relaxed max-w-3xl">
           {run.summary}

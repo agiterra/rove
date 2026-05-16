@@ -171,7 +171,6 @@ export class SupabaseStore {
         finished_at: input.finishedAt.toISOString(),
         exit_code: input.exitCode ?? null,
         error_message: truncated,
-        summary: truncated,
       })
       .eq("id", input.runId);
     if (dbError) throw new Error(`failRun(${input.runId}): ${dbError.message}`);
