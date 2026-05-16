@@ -19,13 +19,13 @@ Verification discipline: when claiming something is shipped, name the evidence p
 
 ---
 
-## 📍 Where we are right now (2026-05-15)
+## 📍 Where we are right now (2026-05-16)
 
-- **Current published version**: `0.0.0-alpha.18` (verify with `git tag -l 'v*' | tail`).
+- **Current published version**: `0.0.0-alpha.36+` (verify with `git tag -l 'v*' | tail`).
 - **Dashboard**: auto-deploys from `main` → `https://rove-agiterra.vercel.app`.
-- **Public landing live** at `/`; deeper surfaces still auth-walled via Supabase + GitHub OAuth.
-- **Authenticated dogfood walks**: live. Walker session minted via `POST /api/agent-session` → consumed by `POST /api/agent-session/consume` → cookies persist in `~/.rove/user-data-dispatcher`.
-- **Active wedges**: affordance-gaps + expectation-match + native-dialogs + browser_press_key all wired through walker → MCP proxy → sink → dashboard. Validated end-to-end by run `849bc08b` (filed `agent.affordance_gap.navigate` + captured `prior_plan`).
+- **Public landing live** at `/`; `/preview/{findings,flow,run-detail,live-walk}` public; deeper surfaces auth-walled.
+- **Authenticated dogfood walks**: live. Two mint paths — `POST /api/agent-session` (production trust boundary) and `scripts/dogfood/mint-walker-session.mjs` (local-developer bypass).
+- **Active wedges**: affordance-gaps + expectation-match + native-dialogs + browser_press_key + change-review all wired through walker → MCP proxy → sink → dashboard. Validated end-to-end by dogfood run `e2da4a7e` (4 deltas, 4 findings, 4 screenshot attachments from 2 unique uploads via cross-finding dedup).
 
 ---
 
@@ -43,11 +43,7 @@ Verification discipline: when claiming something is shipped, name the evidence p
 
 - **Agent-API over Wire (input plane)** — Today there's no path for an external agent (e.g. Tim's Fondant) to author a flow and dispatch a walk without sitting at the dashboard. Sketched plan at [`plans/agent-api-over-wire.md`](plans/agent-api-over-wire.md): extend the sink-relay's Wire deployment with `rove.author.*` + `rove.walks.queue` topics, peer-pubkey-bound agent grants, an `@agiterra/rove-mcp` server that fronts the Wire publisher with normal MCP tools (`rove.create_flow`, `rove.run_flow`, `rove.get_findings`). Same auth substrate as sink-relay; service-role stays in the relay-integration only. Draft v1 needs Fondant sign-off before any code lands. Blocks on sink-relay v3 landing first. ~10 hours after that.
 
-- **Stuck-walk timeout in the daemon recovery sweep** — No watchdog marks a run failed when `run_steps` stop arriving. Manual `PATCH /runs/<id>` cleanup was required repeatedly during 2026-05-14 dogfood (runs `869e5c94`, `fa69057b`, `19e55a15`, `1bd4df73`). The existing `recoverStaleClaims` sweep handles job-side recovery only, not run-side. A 5-minute "no new step → mark failed" check in the daemon's 30s sweep closes this. ~30 min.
-
-- **Public read-only "preview" pages for findings / flows / run-detail** — The public `/` landing is in place. Going deeper without auth (so agent walkers can validate dashboard *surfaces* beyond the landing) needs `/preview/findings`, `/preview/flow`, `/preview/run-detail` backed by static fixtures. Right long-term architecture (Phase D-2 framing); not blocking dogfood since authenticated-walker path now exists. ~half-day.
-
-- **Push-to-GitHub-issue flow exercised end-to-end** — Substrate ships `<FindingSendToIssueButton>` + the `apps/dashboard/lib/findings/send-to-issue.ts` server action, but the path hasn't actually been clicked through against a real consumer-repo issue. Half day to walk through + add a per-project repo-binding setting.
+- **Run a flow walk with a human persona on an authed dashboard surface** — Recent dogfood data shows zero Nielsen/WCAG/ISO findings in rove-dogfood because every `first_time_user` run has been a change-review (only emits `change.*`). Empirical test: `rove run --flow dashboard.find_and_delete_run --persona first_time_user --target-url https://rove-agiterra.vercel.app` after minting a walker session. No code needed; just data we don't have yet.
 
 ### Ideas / maybe-someday
 
@@ -58,6 +54,17 @@ Verification discipline: when claiming something is shipped, name the evidence p
 ## ✅ Shipped
 
 Each entry names verifying evidence (commit, file path, migration filename) so anyone re-reading this file can confirm.
+
+### 2026-05-16
+
+- ✅ **Walker pipeline hardening — seven bugs in one session** (alpha.29–alpha.35) — Re-dogfooding the "find and delete a run" change-review walk after the prior session's prompt fix surfaced a cascade of pre-existing failures. Each one fixed, each one reproducer-verified by dogfood run `e2da4a7e`.
+  - **alpha.29** (`46597c7`) — change-review prompt now instructs agents to attach screenshots (parity with the standard walk prompt's `screenshots[]` schema).
+  - **alpha.30** (`1117b34`, migrations `20260516000000`, `20260516000100`) — heartbeat-driven `runs` liveness: new `runs.heartbeat_at` column, trigger on `run_steps` insert, `effective_run_status()` SQL function, `runs_with_status` view (security_invoker = true), `sweep_stuck_runs_all()` writeback. Dashboard reads switch to the view.
+  - **alpha.31** (`ff98c0d`, migration `20260516000200,300,400`) — `runs.error_message` column distinct from `summary`; surfaced in the `/runs/[id]` hero as a dedicated failure banner; both `failRun` and the sweep write to it.
+  - **alpha.32** (`5c69e8f`) — three bugs in one commit: (a) sink soft-warning bucket so screenshot ENOENT no longer flips the whole run to `failed`; (b) prompt instructs basename-only filenames for `browser_take_screenshot`; (c) `change-review` threads `--auth-agent` / persistent-context through the dispatcher (was always anon, hit OAuth wall).
+  - **alpha.33** (`e25c2c2`) — MCP proxy rewrites `browser_take_screenshot` filenames around `@playwright/mcp 0.0.75`'s path-mangling: strips `arguments.filename` on the way in (MCP auto-names into `--output-dir`), renames the auto-named file to the agent's intended basename on the way out, and rewrites the response text so the agent sees the name it asked for.
+  - **alpha.34** (`826ea6f`) — supabase sink dedups screenshot uploads when multiple findings reference the same basename. The sink unlinks-after-upload, so the second finding referencing the same file would ENOENT. New per-route `Map<basename, storage_key>` reuses the upload.
+  - **alpha.35** (`e5f673c`) — `parseFindings` coerces common severity synonyms (`blocker→critical`, `moderate→major`, `low→minor`, etc) before zod validation, so a single wording slip from Sonnet doesn't drop the whole ~5min walk.
 
 ### 2026-05-15
 

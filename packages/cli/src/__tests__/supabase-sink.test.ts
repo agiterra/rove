@@ -174,12 +174,11 @@ describe("SupabaseSink", () => {
     expect(result.routedCount).toBe(2);
     expect(result.error).toBeUndefined();
 
-    // Upserts: persona + flow
-    expect(calls.upserts.map((u) => u.table)).toEqual(["personas", "flows"]);
+    // Upserts: persona + flow + run (createRun uses upsert with onConflict).
+    expect(calls.upserts.map((u) => u.table)).toEqual(["personas", "flows", "runs"]);
 
-    // Inserts: 1 run, 2 findings, 1 finding_screenshot
+    // Inserts: 2 findings, 1 finding_screenshot
     const insertedTables = calls.inserts.map((i) => i.table);
-    expect(insertedTables.filter((t) => t === "runs")).toHaveLength(1);
     expect(insertedTables.filter((t) => t === "findings")).toHaveLength(2);
     expect(insertedTables.filter((t) => t === "finding_screenshots")).toHaveLength(1);
 
@@ -242,8 +241,11 @@ describe("SupabaseSink", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("returns a failed result when a referenced screenshot is missing on disk", async () => {
-    const { fakeClient } = makeFakeClient();
+  it("treats a missing referenced screenshot as a soft warning, NOT a run-fatal error", async () => {
+    // alpha.32: screenshot ENOENT became a warning so a single dropped
+    // file doesn't flip the entire run to status=failed. The finding
+    // still persists; only the screenshot link is skipped.
+    const { fakeClient, calls } = makeFakeClient();
     const sink = new SupabaseSink({ client: fakeClient as never, deleteLocalAfterUpload: false });
     const result = await sink.route({
       payload: {
@@ -266,8 +268,14 @@ describe("SupabaseSink", () => {
       rawStdout: "",
       screenshotsDir,
     });
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/Screenshot file not found/);
+    expect(result.ok).toBe(true);
+    expect(result.routedCount).toBe(1);
+    // The finding still got inserted even though its screenshot didn't upload.
+    expect(calls.inserts.filter((i) => i.table === "findings")).toHaveLength(1);
+    expect(calls.inserts.filter((i) => i.table === "finding_screenshots")).toHaveLength(0);
+    // Run is marked completed, not failed.
+    const completeUpdate = calls.updates.find((u) => u.table === "runs");
+    expect((completeUpdate?.values as { status: string }).status).toBe("completed");
   });
 
   // Sanity-check what we actually wrote to disk in the happy-path setup.
