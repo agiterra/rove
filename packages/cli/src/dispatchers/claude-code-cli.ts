@@ -220,14 +220,19 @@ async function writeMcpConfig(opts: {
   let proxyEnv: Record<string, string> | undefined;
   if (opts.trajectoryLogPath) {
     const proxyArgs = [proxyScriptPath(), "--log", opts.trajectoryLogPath];
+    // Always tell the proxy where screenshots are supposed to land. The
+    // proxy uses this for take_screenshot filename rewriting (so Playwright
+    // MCP's path-mangling can't drop the file outside the per-run dir),
+    // separate from live-step write semantics.
+    if (opts.screenshotsDir) {
+      proxyArgs.push("--screenshots-dir", opts.screenshotsDir);
+    }
     if (opts.liveStepWrites) {
       proxyArgs.push(
         "--live-run-id",
         opts.liveStepWrites.runId,
         "--live-project-id",
         opts.liveStepWrites.projectId,
-        "--live-screenshots-dir",
-        opts.screenshotsDir ?? "",
       );
       if (opts.liveStepWrites.personaId) {
         proxyArgs.push("--live-persona-id", opts.liveStepWrites.personaId);

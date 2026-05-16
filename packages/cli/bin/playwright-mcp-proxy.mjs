@@ -40,7 +40,8 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, mkdirSync, readFile, stat } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { rename } from "node:fs/promises";
 import { promisify } from "node:util";
 
 const readFileP = promisify(readFile);
@@ -68,7 +69,16 @@ if (!logPath) {
 
 const liveRunId = pickOpt("--live-run-id");
 const liveProjectId = pickOpt("--live-project-id");
-const liveScreenshotsDir = pickOpt("--live-screenshots-dir");
+// `--screenshots-dir` is the canonical per-walk screenshots directory.
+// `--live-screenshots-dir` is kept as a legacy alias for older callers.
+// The proxy uses this dir for two distinct jobs:
+//   (a) Polling the newest png to upload as the run_step's screenshot_key
+//       (live-step writes — only when supabase creds are also wired).
+//   (b) Rewriting `browser_take_screenshot` filename args to absolute paths
+//       under this dir so Playwright MCP's path-mangling can't drop the
+//       file outside where the sink will look (any walk, any sink).
+const screenshotsDir = pickOpt("--screenshots-dir") ?? pickOpt("--live-screenshots-dir");
+const liveScreenshotsDir = screenshotsDir;
 const livePersonaId = pickOpt("--live-persona-id");
 const livePersonaPolicyRaw = pickOpt("--live-persona-policy");
 const VALID_POLICIES = new Set(["perceive_and_act", "perceive_blind", "dismiss_silently"]);
@@ -114,6 +124,20 @@ const inFlight = []; // bookkeeping for graceful shutdown
 // clear of Claude's incrementing ids.
 let proxyIdSeq = 10_000_000;
 const proxyIssuedIds = new Set();
+
+// ── browser_take_screenshot filename remap ─────────────────────────────
+// Playwright MCP (≤0.0.75) does not honor --output-dir as the base for
+// relative filenames passed via `arguments.filename`. With a basename it
+// saves to MCP's cwd; with an absolute path it relativizes to many `../`
+// segments and the file ends up nowhere findable. Both modes fail for us.
+//
+// Workaround: the proxy STRIPS arguments.filename on the way in (so MCP
+// auto-names into --output-dir, which is the screenshotsDir we set). On
+// the way out, we pick the newest png in screenshotsDir and rename it to
+// the basename the agent asked for, and rewrite the response text so the
+// agent sees the name it expects. End result: the file lands where the
+// sink + finding references expect.
+const intendedScreenshotByMessageId = new Map();
 
 // ── AFFORDANCE_GAPS::injection bookkeeping ─────────────────────────────
 // Per `docs/theses/negative-space.md`: the cognitive operation that
@@ -555,9 +579,14 @@ process.stdin.on("data", (chunk) => {
   while ((nl = inBuf.indexOf("\n")) !== -1) {
     const line = inBuf.slice(0, nl);
     inBuf = inBuf.slice(nl + 1);
-    if (line.length > 0) logLine("in", line);
+    if (line.length === 0) {
+      child.stdin.write("\n");
+      continue;
+    }
+    const parsed = logLine("in", line);
+    const rewritten = maybeRewriteInLine(parsed, line);
+    child.stdin.write(rewritten + "\n");
   }
-  child.stdin.write(chunk);
 });
 process.stdin.on("end", () => {
   if (inBuf.length > 0) logLine("in", inBuf);
@@ -581,10 +610,90 @@ child.stdout.on("data", (chunk) => {
       proxyIssuedIds.delete(parsed.id);
       continue;
     }
+    // browser_take_screenshot response: rename the auto-named file to
+    // the basename the agent asked for, and rewrite the result text to
+    // reference that basename so the agent sees the name it expects.
+    const intended =
+      parsed && typeof parsed === "object" ? intendedScreenshotByMessageId.get(parsed.id) : null;
+    if (intended) {
+      intendedScreenshotByMessageId.delete(parsed.id);
+      const isErrorOut = parsed.error !== undefined;
+      if (!isErrorOut) {
+        const renameWork = renameAutoNamedScreenshot(intended, Date.now() - 60_000)
+          .catch((err) => {
+            process.stderr.write(`mcp-proxy: rename screenshot failed: ${err?.message ?? err}\n`);
+            return null;
+          });
+        inFlight.push(renameWork);
+        const rewritten = rewriteTakeScreenshotResultText(parsed, intended);
+        process.stdout.write(JSON.stringify(rewritten) + "\n");
+        continue;
+      }
+    }
     const outLine = maybeRewriteOutLine(parsed, line);
     process.stdout.write(outLine + "\n");
   }
 });
+
+function rewriteTakeScreenshotResultText(parsed, intendedBasename) {
+  const result = parsed.result;
+  if (!result || !Array.isArray(result.content)) return parsed;
+  const dest = intendedBasename.toLowerCase().endsWith(".png")
+    ? intendedBasename
+    : `${intendedBasename}.png`;
+  const newContent = result.content.map((c) => {
+    if (!c || c.type !== "text" || typeof c.text !== "string") return c;
+    // MCP's response text references the auto-named path in a markdown
+    // link + a `path: '...'` comment. Replace any *.png reference with
+    // our intended basename so the agent doesn't get confused.
+    const text = c.text.replace(/[^\s'"`()\[\]]*\.png/gi, `./${dest}`);
+    return text === c.text ? c : { ...c, text };
+  });
+  return { ...parsed, result: { ...result, content: newContent } };
+}
+
+function maybeRewriteInLine(parsed, fallbackLine) {
+  if (!parsed || typeof parsed !== "object") return fallbackLine;
+  if (parsed.method !== "tools/call") return fallbackLine;
+  const params = parsed.params ?? {};
+  if (params.name !== "browser_take_screenshot") return fallbackLine;
+  const args = params.arguments ?? null;
+  if (!args || typeof args !== "object") return fallbackLine;
+  const raw = typeof args.filename === "string" ? args.filename : null;
+  if (!raw) return fallbackLine;
+  if (!screenshotsDir) return fallbackLine;
+  // Record what the agent INTENDED to name this; strip the arg so MCP
+  // auto-names into --output-dir (= screenshotsDir). The OUT handler
+  // will rename the auto-named file to the intended basename and rewrite
+  // the response text so the agent sees the name it asked for.
+  const intended = basename(raw);
+  intendedScreenshotByMessageId.set(parsed.id, intended);
+  const newArgs = { ...args };
+  delete newArgs.filename;
+  const rewritten = {
+    ...parsed,
+    params: { ...params, arguments: newArgs },
+  };
+  return JSON.stringify(rewritten);
+}
+
+async function renameAutoNamedScreenshot(intended, sinceMs) {
+  if (!screenshotsDir) return null;
+  const file = await pickFreshScreenshot(screenshotsDir, sinceMs);
+  if (!file) return null;
+  const destBasename = intended.toLowerCase().endsWith(".png") ? intended : `${intended}.png`;
+  const dest = join(screenshotsDir, destBasename);
+  if (file === dest) return destBasename;
+  try {
+    await rename(file, dest);
+    return destBasename;
+  } catch (err) {
+    process.stderr.write(
+      `mcp-proxy: rename screenshot ${file} → ${dest} failed: ${err?.message ?? err}\n`,
+    );
+    return null;
+  }
+}
 
 function maybeRewriteOutLine(parsed, fallbackLine) {
   if (!parsed || typeof parsed !== "object") return fallbackLine;
