@@ -44,6 +44,8 @@ export function parseFindings(stdout: string): ParseFindingsResult {
     };
   }
 
+  coerceCommonAgentSlips(parsed);
+
   const validation = findingsPayloadSchema.safeParse(parsed);
   if (!validation.success) {
     return {
@@ -55,4 +57,63 @@ export function parseFindings(stdout: string): ParseFindingsResult {
   }
 
   return { ok: true, data: validation.data };
+}
+
+/**
+ * Sonnet occasionally emits severity values outside the enum
+ * (`moderate`, `low`, `info`, `high`, etc.) even when the prompt and
+ * schema both list the four canonical values. Losing a 5-minute, ~$1
+ * walk to a single bad string is not worth it. Map the common
+ * approximations to the closest valid value before validation. Walks
+ * that emit something we DON'T recognize still fail with the same
+ * schema_mismatch as before.
+ */
+const SEVERITY_SYNONYMS: Record<string, "critical" | "major" | "minor" | "nit"> = {
+  blocker: "critical",
+  high: "critical",
+  severe: "critical",
+  serious: "major",
+  moderate: "major",
+  medium: "major",
+  med: "major",
+  low: "minor",
+  trivial: "nit",
+  info: "nit",
+  cosmetic: "nit",
+  warning: "minor",
+  note: "nit",
+};
+
+function coerceCommonAgentSlips(parsed: unknown): void {
+  if (!parsed || typeof parsed !== "object") return;
+  const root = parsed as Record<string, unknown>;
+  const findings = root.findings;
+  if (Array.isArray(findings)) {
+    for (const f of findings) coerceSeverity(f);
+  }
+  const cr = root.change_review;
+  if (cr && typeof cr === "object") {
+    const deltas = (cr as Record<string, unknown>).deltas;
+    if (Array.isArray(deltas)) {
+      for (const d of deltas) coerceSeverity(d);
+    }
+  }
+  const gaps = root.affordance_gaps;
+  if (Array.isArray(gaps)) {
+    for (const g of gaps) coerceSeverity(g);
+  }
+}
+
+function coerceSeverity(obj: unknown): void {
+  if (!obj || typeof obj !== "object") return;
+  const rec = obj as Record<string, unknown>;
+  const sev = rec.severity;
+  if (typeof sev !== "string") return;
+  const lower = sev.toLowerCase().trim();
+  if (lower === "critical" || lower === "major" || lower === "minor" || lower === "nit") {
+    rec.severity = lower;
+    return;
+  }
+  const mapped = SEVERITY_SYNONYMS[lower];
+  if (mapped) rec.severity = mapped;
 }

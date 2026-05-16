@@ -72,10 +72,30 @@ describe("parseFindings", () => {
     expect(result.detail).toBeTruthy();
   });
 
-  it("returns schema_mismatch when severity is not a known value", () => {
-    const bad = {
+  it("coerces common severity synonyms (blocker → critical, moderate → major)", () => {
+    const blocker = {
       ...VALID_PAYLOAD,
       findings: [{ ...VALID_PAYLOAD.findings[0], severity: "blocker" }],
+    };
+    const r1 = parseFindings(wrap(blocker));
+    expect(r1.ok).toBe(true);
+    if (!r1.ok) return;
+    expect(r1.data.findings[0].severity).toBe("critical");
+
+    const moderate = {
+      ...VALID_PAYLOAD,
+      findings: [{ ...VALID_PAYLOAD.findings[0], severity: "MODERATE" }],
+    };
+    const r2 = parseFindings(wrap(moderate));
+    expect(r2.ok).toBe(true);
+    if (!r2.ok) return;
+    expect(r2.data.findings[0].severity).toBe("major");
+  });
+
+  it("returns schema_mismatch when severity is truly unrecognized", () => {
+    const bad = {
+      ...VALID_PAYLOAD,
+      findings: [{ ...VALID_PAYLOAD.findings[0], severity: "extremely-bad" }],
     };
     const result = parseFindings(wrap(bad));
     expect(result.ok).toBe(false);
