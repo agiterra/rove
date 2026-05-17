@@ -267,6 +267,11 @@ function buildProjectItemUrl(dest: ProjectV2Destination): string {
 function rewritePermissionError(err: unknown, pick: Partial<ConnectProjectV2Pick>): Error {
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
+  // Always include the raw GitHub message + a deploy marker so we never
+  // get stuck staring at a friendly-but-opaque error in production. The
+  // friendly prefix routes by error shape; the suffix is the unvarnished
+  // truth from GitHub.
+  const tag = "[adapter:38c.1]";
   const looksLikeAuthIssue =
     lower.includes("resource not accessible") ||
     lower.includes("not authorized") ||
@@ -274,17 +279,17 @@ function rewritePermissionError(err: unknown, pick: Partial<ConnectProjectV2Pick
     lower.includes("must have admin");
   if (looksLikeAuthIssue) {
     return new Error(
-      `The Rove GitHub App doesn't have permission to read Project v2 boards on this ${pick.ownerType ?? "owner"}. ` +
-        `Grant the App "Projects: read & write" at github.com/settings/apps and reauthorize the installation, then retry. ` +
-        `(GitHub said: ${msg})`,
+      `${tag} The Rove GitHub App can't read Project v2 boards on this ${pick.ownerType ?? "owner"}. ` +
+        `Grant the App "Projects: read & write" at github.com/settings/apps and reauthorize the installation. ` +
+        `GitHub said: ${msg}`,
     );
   }
   const looksLikeMissing = lower.includes("could not resolve") || lower.includes("not found");
   if (looksLikeMissing) {
     return new Error(
-      `Couldn't find Project v2 #${pick.number ?? "?"} on ${pick.owner ?? "owner"}. ` +
-        `Confirm the URL points at an existing Project board the Rove App can see.`,
+      `${tag} GitHub couldn't resolve Project v2 #${pick.number ?? "?"} on ${pick.owner ?? "owner"}. ` +
+        `Raw response: ${msg}`,
     );
   }
-  return new Error(`GitHub Project v2 lookup failed: ${msg}`);
+  return new Error(`${tag} GitHub Project v2 lookup failed: ${msg}`);
 }
