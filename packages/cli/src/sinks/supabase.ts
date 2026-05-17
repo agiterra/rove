@@ -128,6 +128,9 @@ export class SupabaseSink implements SinkAdapter {
         } catch (shotErr) {
           warnings.push(shotErr instanceof Error ? shotErr.message : String(shotErr));
         }
+        // Fire-and-forget auto-push. Failures log to stderr but never
+        // break the sink — the finding's in Supabase regardless.
+        void tryAutoPush(findingId);
         routed++;
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err));
@@ -155,7 +158,8 @@ export class SupabaseSink implements SinkAdapter {
           evidence: gap.evidence,
           screenshots: [],
         };
-        await this.insertFinding(input, syntheticFinding);
+        const gapFindingId = await this.insertFinding(input, syntheticFinding);
+        void tryAutoPush(gapFindingId);
         routed++;
         if (typeof gap.step_index === "number") {
           const bucket = gapsByStep.get(gap.step_index) ?? [];
@@ -396,4 +400,39 @@ function failure(sinkId: string, err: unknown): SinkResult {
     ok: false,
     error: err instanceof Error ? err.message : String(err),
   };
+}
+
+/**
+ * Fire-and-forget POST to the dashboard's auto-push endpoint so the
+ * backlog adapter can dispatch new findings into the connected board.
+ *
+ * No-op when ROVE_DASHBOARD_ORIGIN or ROVE_AUTO_PUSH_SECRET are unset
+ * — consumers without backlog wired up aren't paying any cost here.
+ * Failures log to stderr but never throw; the finding is already in
+ * Supabase, so the manual "Send to backlog" button still works as a
+ * fallback regardless of what the dashboard endpoint says.
+ */
+async function tryAutoPush(findingId: string): Promise<void> {
+  const origin = process.env["ROVE_DASHBOARD_ORIGIN"];
+  const secret = process.env["ROVE_AUTO_PUSH_SECRET"];
+  if (!origin || !secret) return;
+  try {
+    const res = await fetch(`${origin.replace(/\/$/, "")}/api/backlog/auto-push`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${secret}`,
+      },
+      body: JSON.stringify({ findingId }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      process.stderr.write(
+        `⚠ supabase sink: auto-push for ${findingId} returned ${res.status} ${body}\n`,
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`⚠ supabase sink: auto-push for ${findingId} failed: ${msg}\n`);
+  }
 }

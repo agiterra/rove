@@ -67,18 +67,37 @@ interface ExistingBacklogItem {
   external_kind: "draft_item" | "issue" | "linear_issue";
 }
 
+/**
+ * Team-gated entry point used by the dashboard's "Send to backlog"
+ * button. Auto-push from the CLI sink hits pushFindingCore() directly
+ * with its own bearer-secret auth in the route handler.
+ */
 export async function sendFindingToBacklog(
   input: SendFindingToBacklogInput,
 ): Promise<SendFindingToBacklogResult> {
   await requireTeamMember();
+  return pushFindingCore(input.findingId);
+}
 
+/**
+ * Core push pipeline shared by the manual button and the auto-push
+ * route. Does NOT enforce auth — the caller is responsible. Resolves
+ * the connection, idempotency-checks backlog_items, builds the payload,
+ * dispatches via the adapter, records the link, flips findings.status.
+ *
+ * Throws "no backlog connected" when the project is dashboard-only.
+ * Returns the existing item's URL when already pushed (idempotent).
+ */
+export async function pushFindingCore(
+  findingId: string,
+): Promise<SendFindingToBacklogResult> {
   const supabase = await createServerSupabase();
   const { data: finding, error: findingErr } = await supabase
     .from("findings")
     .select(
       "id, run_id, project_id, severity, title, description, heuristic, evidence, step_index, content_hash",
     )
-    .eq("id", input.findingId)
+    .eq("id", findingId)
     .maybeSingle<FindingRow>();
   if (findingErr) throw new Error(`Finding lookup failed: ${findingErr.message}`);
   if (!finding) throw new Error("Finding not found.");

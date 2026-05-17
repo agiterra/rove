@@ -60,6 +60,7 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
         installedVia: connection.installedVia,
         installedAt: connection.installedAt,
         destination: connection.destination,
+        syncPolicy: connection.syncPolicy,
       }
     : null;
 

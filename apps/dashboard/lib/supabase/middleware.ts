@@ -61,6 +61,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     // Backlog provider webhooks authenticate via their own HMAC headers
     // (GitHub's x-hub-signature-256, etc) and never carry a user session.
     path === "/api/backlog/github/webhook" ||
+    // CLI sink calls into auto-push with its own bearer secret.
+    path === "/api/backlog/auto-push" ||
     path.startsWith("/preview/");
 
   const devBypass = process.env.DEV_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";

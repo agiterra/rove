@@ -22,6 +22,8 @@ import {
   getActiveConnection,
 } from "@/lib/backlog/connections";
 import { getBacklogAdapter } from "@/lib/backlog/registry";
+import { createServiceRoleSupabase } from "@/lib/supabase/server";
+import type { SyncPolicy } from "@/lib/backlog/types";
 
 export type BacklogActionResult =
   | { ok: true }
@@ -105,6 +107,56 @@ export async function installConnectExistingGitHubAction(
       installedVia: "connect_existing",
       secretRef: "github_app_installation",
     });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  revalidatePath(`/projects/${parsedId.data}`);
+  return { ok: true };
+}
+
+const SyncPolicySchema = z.object({
+  critical: z.enum(["auto", "manual"]),
+  major: z.enum(["auto", "auto-canonical", "manual"]),
+  minor: z.enum(["auto", "auto-canonical", "manual"]),
+  nit: z.enum(["auto", "auto-canonical", "manual"]),
+  agent_readiness_boost: z.boolean(),
+  recurrence_comment: z.boolean(),
+});
+
+/**
+ * Replace the active connection's sync_policy. Per-severity dropdowns
+ * + two toggles map straight onto the SyncPolicy shape. No partial
+ * updates — the editor always submits the full policy.
+ */
+export async function updateSyncPolicyAction(
+  projectId: string,
+  rawPolicy: unknown,
+): Promise<BacklogActionResult> {
+  const parsedId = ProjectIdSchema.safeParse(projectId);
+  if (!parsedId.success) return { ok: false, error: "invalid project id" };
+  try {
+    await requireTeamMember();
+  } catch {
+    return { ok: false, error: "Not signed in." };
+  }
+
+  const parsed = SyncPolicySchema.safeParse(rawPolicy);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.message };
+  }
+  const policy: SyncPolicy = parsed.data;
+
+  try {
+    const conn = await getActiveConnection(parsedId.data);
+    if (!conn) {
+      return { ok: false, error: "No active backlog connection to update." };
+    }
+    const writer = createServiceRoleSupabase();
+    const { error } = await writer
+      .from("backlog_connections")
+      .update({ sync_policy: policy })
+      .eq("id", conn.id);
+    if (error) return { ok: false, error: error.message };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }

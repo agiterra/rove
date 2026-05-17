@@ -81,6 +81,13 @@ export const env = {
    */
   githubAppWebhookSecret: () =>
     readEither("ROVE_GITHUB_APP_WEBHOOK_SECRET", "EVAL_GITHUB_APP_WEBHOOK_SECRET"),
+  /**
+   * Bearer secret the CLI's sink uses to call the auto-push endpoint
+   * post-finding-write. Set ROVE_AUTO_PUSH_SECRET on both Vercel
+   * (Production) and the daemon's local env; the daemon reads the
+   * same value and sends it in the Authorization header.
+   */
+  autoPushSecret: () => readEither("ROVE_AUTO_PUSH_SECRET", "EVAL_AUTO_PUSH_SECRET"),
 
   // ── Project scoping (Phase C-lite) ───────────────────────────────────────
   /**

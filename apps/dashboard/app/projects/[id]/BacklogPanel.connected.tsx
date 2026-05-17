@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { disconnectBacklogAction } from "./actions";
+import { SyncPolicyEditor } from "./SyncPolicyEditor";
+import type { SyncPolicy } from "@/lib/backlog/types";
 
 export type ActiveConnection = {
   provider: "dashboard-only" | "github" | "linear";
   installedVia: "dashboard_only" | "connect_existing" | "managed_board";
   installedAt: string | null;
   destination: Record<string, unknown>;
+  syncPolicy: SyncPolicy;
 };
 
 export function ConnectedShowpiece({
@@ -63,6 +66,10 @@ export function ConnectedShowpiece({
 
         <CapabilityFootnote connection={connection} />
       </section>
+
+      {connection.provider !== "dashboard-only" ? (
+        <SyncPolicyEditor projectId={projectId} initialPolicy={connection.syncPolicy} />
+      ) : null}
 
       {error ? (
         <p
