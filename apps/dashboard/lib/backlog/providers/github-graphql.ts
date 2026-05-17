@@ -23,58 +23,27 @@ export interface ProjectV2Lookup {
   fields: ProjectV2Field[];
 }
 
-const FETCH_PROJECT_QUERY = /* GraphQL */ `
-  query GetProjectV2($login: String!, $number: Int!) {
-    organization(login: $login) {
-      projectV2(number: $number) {
-        id
-        number
-        title
-        url
-        fields(first: 50) {
-          nodes {
-            __typename
-            ... on ProjectV2FieldCommon {
-              id
-              name
-              dataType
-            }
-            ... on ProjectV2SingleSelectField {
-              id
-              name
-              dataType
-              options {
-                id
-                name
-              }
-            }
-          }
+const PROJECT_FIELDS_FRAGMENT = /* GraphQL */ `
+  fragment ProjectFields on ProjectV2 {
+    id
+    number
+    title
+    url
+    fields(first: 50) {
+      nodes {
+        __typename
+        ... on ProjectV2FieldCommon {
+          id
+          name
+          dataType
         }
-      }
-    }
-    user(login: $login) {
-      projectV2(number: $number) {
-        id
-        number
-        title
-        url
-        fields(first: 50) {
-          nodes {
-            __typename
-            ... on ProjectV2FieldCommon {
-              id
-              name
-              dataType
-            }
-            ... on ProjectV2SingleSelectField {
-              id
-              name
-              dataType
-              options {
-                id
-                name
-              }
-            }
+        ... on ProjectV2SingleSelectField {
+          id
+          name
+          dataType
+          options {
+            id
+            name
           }
         }
       }
@@ -82,8 +51,28 @@ const FETCH_PROJECT_QUERY = /* GraphQL */ `
   }
 `;
 
-interface FetchProjectResponse {
+const ORG_PROJECT_QUERY = /* GraphQL */ `
+  query GetOrgProjectV2($login: String!, $number: Int!) {
+    organization(login: $login) {
+      projectV2(number: $number) { ...ProjectFields }
+    }
+  }
+  ${PROJECT_FIELDS_FRAGMENT}
+`;
+
+const USER_PROJECT_QUERY = /* GraphQL */ `
+  query GetUserProjectV2($login: String!, $number: Int!) {
+    user(login: $login) {
+      projectV2(number: $number) { ...ProjectFields }
+    }
+  }
+  ${PROJECT_FIELDS_FRAGMENT}
+`;
+
+interface OrgFetchResponse {
   organization?: { projectV2?: RawProject | null } | null;
+}
+interface UserFetchResponse {
   user?: { projectV2?: RawProject | null } | null;
 }
 
@@ -107,38 +96,55 @@ export async function fetchProjectV2(
   octokit: Octokit,
   input: { ownerType: "organization" | "user"; owner: string; number: number },
 ): Promise<ProjectV2Lookup> {
-  const data = await octokit.graphql<FetchProjectResponse>(FETCH_PROJECT_QUERY, {
-    login: input.owner,
-    number: input.number,
-  });
-  const project =
-    input.ownerType === "organization"
-      ? data.organization?.projectV2
-      : data.user?.projectV2;
-  if (!project) {
-    // Cross-check the other owner type — the user-pasted URL might have
-    // disagreed with the actual GitHub entity (org vs user account).
-    const fallback =
-      input.ownerType === "organization" ? data.user?.projectV2 : data.organization?.projectV2;
-    if (!fallback) {
-      // Both sides null. Two distinguishable cases:
-      //   - The owner itself came back null on BOTH branches → either the
-      //     owner doesn't exist OR the App lacks any visibility on it
-      //     (installation isn't on this account).
-      //   - The owner came back non-null but its projectV2 field is null
-      //     → owner is visible but the project number is invalid OR the
-      //     App lacks Projects scope.
-      const orgVisible = data.organization !== null && data.organization !== undefined;
-      const userVisible = data.user !== null && data.user !== undefined;
-      const visibility = orgVisible || userVisible ? "owner-visible" : "owner-invisible";
-      throw new Error(
-        `GraphQL resolved no Project v2 #${input.number} on ${input.owner} ` +
-          `(visibility: ${visibility}; ownerType requested: ${input.ownerType}).`,
-      );
+  // Two sequential queries instead of one combined one. The combined
+  // form (organization { ... } user { ... } in the same query) throws
+  // when GitHub can't resolve the wrong-type branch — e.g. user(login:
+  // "agiterra") errors because agiterra is an org. Octokit treats any
+  // GraphQL error as a thrown exception, swallowing the successful
+  // branch's data. Splitting lets us try the requested side, fall
+  // back to the other, and report cleanly if neither matches.
+  const primary = await tryFetchProject(octokit, input.ownerType, input);
+  if (primary) return normalizeProject(primary);
+
+  const otherType: "organization" | "user" =
+    input.ownerType === "organization" ? "user" : "organization";
+  const fallback = await tryFetchProject(octokit, otherType, input);
+  if (fallback) return normalizeProject(fallback);
+
+  throw new Error(
+    `GraphQL resolved no Project v2 #${input.number} on ${input.owner} ` +
+      `(checked both organization and user account types).`,
+  );
+}
+
+async function tryFetchProject(
+  octokit: Octokit,
+  ownerType: "organization" | "user",
+  input: { owner: string; number: number },
+): Promise<RawProject | null> {
+  try {
+    if (ownerType === "organization") {
+      const data = await octokit.graphql<OrgFetchResponse>(ORG_PROJECT_QUERY, {
+        login: input.owner,
+        number: input.number,
+      });
+      return data.organization?.projectV2 ?? null;
     }
-    return normalizeProject(fallback);
+    const data = await octokit.graphql<UserFetchResponse>(USER_PROJECT_QUERY, {
+      login: input.owner,
+      number: input.number,
+    });
+    return data.user?.projectV2 ?? null;
+  } catch (err) {
+    // "Could not resolve to a User/Organization" means the owner exists
+    // but not at this type. Treat as null so the caller can try the
+    // other type. Anything else propagates (permission errors, network).
+    const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (msg.includes("could not resolve to a user") || msg.includes("could not resolve to an organization")) {
+      return null;
+    }
+    throw err;
   }
-  return normalizeProject(project);
 }
 
 function normalizeProject(raw: RawProject): ProjectV2Lookup {
