@@ -2,10 +2,8 @@
  * /projects/[id] — project overview + backlog connection settings.
  *
  * Server component. Reads the canonical project row + the active backlog
- * connection (if any), then renders the 3-path install picker or the
- * connected-state card. All wiring through to alpha.38c (real outbound
- * push) goes through the same `backlog_connections` substrate this page
- * persists into.
+ * connection (if any), then renders the marquee install picker or the
+ * connected-state showpiece via BacklogPanel.
  *
  * Per .claude/rules/dashboard.md: awaited params + searchParams,
  * generateMetadata for the route-specific title, project_id filtering
@@ -42,9 +40,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProjectOverviewPage({ params, searchParams }: PageProps) {
   const [{ id: projectIdFromUrl }, sp] = await Promise.all([params, searchParams]);
-  // Honor ?p=<slug> override when present so the page stays consistent
-  // with the dashboard's project-context resolution. Redirect throws,
-  // so anything below is reached only when the URL segment is authoritative.
   if (sp.p && sp.p !== projectIdFromUrl) {
     redirect(`/projects/${encodeURIComponent(sp.p)}`);
   }
@@ -68,15 +63,19 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
       }
     : null;
 
+  const hasConnection = connectionForClient !== null;
+
   return (
-    <div className="max-w-5xl flex flex-col gap-8">
-      <Hero
+    <div className="max-w-5xl flex flex-col gap-10">
+      <ProjectHero
         projectId={projectId}
         displayName={project?.display_name ?? projectId}
         targetUrl={project?.default_target_url ?? null}
+        githubRepo={project?.github_repo ?? null}
+        hasConnection={hasConnection}
       />
 
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
+      <section>
         <BacklogPanel projectId={projectId} connection={connectionForClient} />
       </section>
 
@@ -85,78 +84,186 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
   );
 }
 
-function Hero({
+/* ────────────────────────────────────────────────────────────────────
+ *  Hero — atmospheric lw-hero treatment scaled up, with a status pill
+ *  on the right when a backlog is connected.
+ * ──────────────────────────────────────────────────────────────────── */
+
+function ProjectHero({
   projectId,
   displayName,
   targetUrl,
+  githubRepo,
+  hasConnection,
 }: {
   projectId: string;
   displayName: string;
   targetUrl: string | null;
+  githubRepo: string | null;
+  hasConnection: boolean;
 }) {
   return (
-    <section className="lw-hero">
+    <section className="lw-hero" style={{ padding: "36px 36px 32px" }}>
       <div className="lw-hero-aurora" />
+      <div className="lw-hero-streak" />
       <div className="lw-hero-edge" />
-      <div className="relative z-[1]">
-        <p
-          className="font-mono uppercase text-[var(--color-text-faint)] mb-3"
-          style={{ fontSize: 11, letterSpacing: "0.18em" }}
-        >
-          PROJECT <span className="opacity-60">·</span>{" "}
-          <span className="font-mono">{projectId}</span>
-        </p>
-        <h1 className="font-semibold tracking-tight" style={{ fontSize: 32, lineHeight: 1.1 }}>
-          {displayName}
-        </h1>
-        {targetUrl ? (
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            Default target ·{" "}
-            <a
-              href={targetUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="font-mono underline decoration-dotted underline-offset-2"
+      <div className="relative z-[1] flex flex-col gap-6">
+        <div className="flex items-start justify-between gap-6 flex-wrap">
+          <div className="flex flex-col gap-3">
+            <p
+              className="font-mono uppercase text-[var(--color-text-faint)] flex items-center gap-3"
+              style={{ fontSize: 10.5, letterSpacing: "0.2em" }}
             >
-              {targetUrl}
-            </a>
-          </p>
-        ) : null}
+              <span>PROJECT</span>
+              <span aria-hidden className="opacity-40">
+                /
+              </span>
+              <span className="text-[var(--color-text-muted)]">{projectId}</span>
+            </p>
+            <h1
+              className="font-semibold tracking-tight text-balance"
+              style={{ fontSize: 44, lineHeight: 1.02, letterSpacing: "-0.018em" }}
+            >
+              {displayName}
+            </h1>
+          </div>
+          <StatusPill hasConnection={hasConnection} />
+        </div>
+
+        <div className="flex flex-wrap gap-x-8 gap-y-3 pt-1">
+          <MetaField label="Target">
+            {targetUrl ? (
+              <a
+                href={targetUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="font-mono text-[13px] text-[var(--color-text)] underline decoration-dotted underline-offset-4 decoration-[var(--color-border-strong)] hover:decoration-[var(--color-accent)] transition-colors"
+              >
+                {prettyHost(targetUrl)}
+              </a>
+            ) : (
+              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">
+                —
+              </span>
+            )}
+          </MetaField>
+          <MetaField label="Repo">
+            {githubRepo ? (
+              <a
+                href={`https://github.com/${githubRepo}`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="font-mono text-[13px] text-[var(--color-text)] underline decoration-dotted underline-offset-4 decoration-[var(--color-border-strong)] hover:decoration-[var(--color-accent)] transition-colors"
+              >
+                {githubRepo}
+              </a>
+            ) : (
+              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">
+                —
+              </span>
+            )}
+          </MetaField>
+          <MetaField label="Slug">
+            <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
+              {projectId}
+            </span>
+          </MetaField>
+        </div>
       </div>
     </section>
   );
 }
+
+function StatusPill({ hasConnection }: { hasConnection: boolean }) {
+  return (
+    <span
+      className={
+        hasConnection
+          ? "inline-flex items-center gap-2 rounded-full border border-[rgba(63,201,203,0.35)] bg-[rgba(63,201,203,0.08)] px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-[var(--color-accent)]"
+          : "inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-panel-2)]/40 px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]"
+      }
+    >
+      <span
+        className={
+          hasConnection
+            ? "path-pulse"
+            : "block w-1.5 h-1.5 rounded-full bg-[var(--color-text-faint)]"
+        }
+        aria-hidden
+      />
+      {hasConnection ? "Backlog connected" : "Backlog pending"}
+    </span>
+  );
+}
+
+function MetaField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span
+        className="font-mono uppercase text-[var(--color-text-faint)]"
+        style={{ fontSize: 9.5, letterSpacing: "0.18em" }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function prettyHost(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname + (u.pathname === "/" ? "" : u.pathname);
+  } catch {
+    return url;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Cross-links — hairline-separated row, hover-reveal arrows.
+ * ──────────────────────────────────────────────────────────────────── */
 
 function CrossLinks({ projectId }: { projectId: string }) {
   const items: { href: string; label: string; hint: string }[] = [
     {
       href: `/projects/${encodeURIComponent(projectId)}/gaps`,
       label: "Affordance gaps",
-      hint: "Negative-space rollup — what walkers expected to find but didn't.",
+      hint: "Negative-space rollup",
     },
     {
       href: `/runs?p=${encodeURIComponent(projectId)}`,
       label: "Runs",
-      hint: "Every walk that's executed against this project.",
+      hint: "Every walk against this project",
     },
     {
       href: `/flows?p=${encodeURIComponent(projectId)}`,
       label: "Flows",
-      hint: "User journeys this project walks personas through.",
+      hint: "User journeys to walk",
     },
   ];
   return (
-    <section className="grid gap-3 md:grid-cols-3">
+    <nav aria-label="Project surfaces" className="path-crosslinks">
       {items.map((it) => (
-        <Link
-          key={it.href}
-          href={it.href}
-          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4 hover:bg-[var(--color-panel-2)] transition-colors focus-rove"
-        >
-          <p className="text-sm font-medium">{it.label}</p>
-          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{it.hint}</p>
+        <Link key={it.href} href={it.href} className="path-crosslink focus-rove">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-[var(--color-text)]">
+              {it.label}
+            </span>
+            <span className="text-[11px] text-[var(--color-text-faint)]">
+              {it.hint}
+            </span>
+          </span>
+          <span className="path-crosslink-arrow" aria-hidden>
+            →
+          </span>
         </Link>
       ))}
-    </section>
+    </nav>
   );
 }
