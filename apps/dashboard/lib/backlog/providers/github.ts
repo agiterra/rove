@@ -1,12 +1,15 @@
 /**
- * GitHub backlog adapter — STUB for alpha.38a.
+ * GitHub backlog adapter.
  *
- * Real implementation lands in alpha.38c (outbound push) + alpha.39
- * (webhook inbound) + alpha.40 (managed-board install). This stub is
- * here so the registry compiles and the install UX can list "github"
- * as a connectable provider; calling any method throws.
+ * Status: alpha.38b ships `installConnectExisting` (validates the
+ * destination repo via the shared App installation and records the
+ * connection). `pushFinding` / `updateStatus` still throw; outbound
+ * sync lands in alpha.38c, webhook inbound in alpha.39, managed-board
+ * install in alpha.40.
  */
 
+import "server-only";
+import { getInstallationOctokit } from "../../authoring/github-app";
 import type {
   BacklogAdapter,
   BacklogConnection,
@@ -19,13 +22,49 @@ import type {
   RoveLifecycle,
 } from "../types";
 
+/**
+ * Shape we expect in `ConnectExistingInput.pick` for the GitHub
+ * connect-existing path. The page form posts these fields; the action
+ * normalizes them before calling the adapter.
+ */
+interface GitHubConnectExistingPick {
+  kind: "repo_issues";
+  owner: string;
+  repo: string;
+}
+
 export class GitHubBacklogAdapter implements BacklogAdapter {
   readonly id = "github" as const;
 
   async installConnectExisting(
-    _input: ConnectExistingInput,
+    input: ConnectExistingInput,
   ): Promise<{ destination: Record<string, unknown> }> {
-    throw new Error("GitHubBacklogAdapter.installConnectExisting: pending alpha.38c");
+    const pick = input.pick as Partial<GitHubConnectExistingPick>;
+    if (pick.kind !== "repo_issues" || !pick.owner || !pick.repo) {
+      throw new Error(
+        "GitHubBacklogAdapter.installConnectExisting: pick must be { kind: 'repo_issues', owner, repo }",
+      );
+    }
+    const octokit = getInstallationOctokit();
+    try {
+      const { data } = await octokit.rest.repos.get({ owner: pick.owner, repo: pick.repo });
+      return {
+        destination: {
+          kind: "repo_issues",
+          owner: data.owner.login,
+          repo: data.name,
+          repoNodeId: data.node_id,
+          htmlUrl: data.html_url,
+          defaultBranch: data.default_branch,
+        },
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Couldn't reach ${pick.owner}/${pick.repo} via the Rove GitHub App. ` +
+          `Install the App on that repo (or check the spelling), then retry. (${msg})`,
+      );
+    }
   }
 
   async installManagedBoard(

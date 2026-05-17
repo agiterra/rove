@@ -8,10 +8,11 @@ const ITEMS = [
   { href: "/runs", label: "Runs" },
   { href: "/findings", label: "Findings" },
   /**
-   * Project-scoped negative-space rollup. Lives under /projects/[id]/gaps —
-   * the project slug substitutes into the href via `useProjectAwareHref`
-   * below (the `[p]` placeholder is replaced with the resolved project).
+   * Project-scoped overview / backlog-connection settings + the
+   * negative-space rollup that lives one segment deeper. Both substitute
+   * the `[p]` placeholder via `useProjectAwareHref` below.
    */
+  { href: "/projects/[p]", label: "Project" },
   { href: "/projects/[p]/gaps", label: "Gaps" },
   { href: "/flows", label: "Flows" },
   { href: "/workers", label: "Workers" },
@@ -22,6 +23,27 @@ const NEW_ITEMS = [
   { href: "/flows/new", label: "Flow" },
   { href: "/personas/new", label: "Persona" },
 ] as const;
+
+/**
+ * Per-item active-state matcher. Encodes two project-scoped quirks:
+ *
+ * 1. `/projects/[p]` (Project overview) must NOT light up on
+ *    `/projects/<slug>/gaps` — otherwise both Project and Gaps would be
+ *    marked active on the gaps page. Exact-segment match only.
+ * 2. `/projects/[p]/gaps` should light up for any slug, not just the
+ *    currently-resolved one (matches the original behavior — we light up
+ *    by route shape, not by which slug the user clicked in from).
+ */
+function isItemActive(itemHref: string, matchBase: string, pathname: string): boolean {
+  if (itemHref === "/projects/[p]") {
+    return /^\/projects\/[^/]+\/?$/.test(pathname);
+  }
+  if (itemHref === "/projects/[p]/gaps") {
+    return /^\/projects\/[^/]+\/gaps(?:\/|$)/.test(pathname);
+  }
+  if (pathname === matchBase) return true;
+  return pathname.startsWith(matchBase + "/");
+}
 
 /**
  * Append the current `?p=<project>` query param to internal hrefs so the
@@ -52,14 +74,7 @@ export function HeaderNav() {
       {ITEMS.map((it) => {
         const resolved = withProject(it.href);
         const matchBase = resolved.split("?")[0];
-        const active =
-          pathname === matchBase ||
-          pathname.startsWith(matchBase + "/") ||
-          // For the project-scoped Gaps link, also light up when the user
-          // is anywhere under /projects/<slug>/gaps regardless of which
-          // slug is currently selected.
-          (it.href.includes("[p]") &&
-            /^\/projects\/[^/]+\/gaps(?:\/|$)/.test(pathname));
+        const active = isItemActive(it.href, matchBase, pathname);
         return (
           <Link
             key={it.href}
