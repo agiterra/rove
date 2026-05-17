@@ -1,5 +1,5 @@
 /**
- * GitHub backlog adapter — alpha.38c.
+ * GitHub backlog adapter — alpha.38c + alpha.39a.
  *
  * Connect-existing flow:
  *   - User pastes a Project v2 URL (org or user; any of the supported shapes).
@@ -13,12 +13,18 @@
  *     discovered at install time and its options map onto the Rove
  *     lifecycle; otherwise no-op (the user owns the destination's columns).
  *
- * Webhook (alpha.39), managed-board install (alpha.40), Linear (41) are
- * separate ships.
+ * Inbound (alpha.39a):
+ *   - parseStatusWebhook → HMAC-verifies a `projects_v2_item` webhook,
+ *     reads the Status field change, maps the new option name back to a
+ *     RoveLifecycle. Returns null when the payload isn't ours.
+ *
+ * Managed-board install (alpha.40), Linear (41) are separate ships.
  */
 
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getInstallationOctokit } from "../../authoring/github-app";
+import { env } from "../../env";
 import { buildFindingBody } from "./github-body";
 import {
   fetchProjectV2,
@@ -160,6 +166,46 @@ export class GitHubBacklogAdapter implements BacklogAdapter {
     });
   }
 
+  async parseStatusWebhook(
+    payload: unknown,
+    rawBody: string,
+    signature: string | null,
+    conn: BacklogConnection,
+  ): Promise<{ externalId: string; rove: RoveLifecycle } | null> {
+    const secret = env.githubAppWebhookSecret();
+    if (!secret) {
+      throw new Error(
+        "GitHubBacklogAdapter.parseStatusWebhook: ROVE_GITHUB_APP_WEBHOOK_SECRET not configured.",
+      );
+    }
+    if (!verifyGitHubSignature(rawBody, signature, secret)) {
+      throw new Error("GitHubBacklogAdapter.parseStatusWebhook: signature mismatch.");
+    }
+
+    const event = payload as Partial<ProjectsV2ItemEvent>;
+    if (!event || typeof event.action !== "string") return null;
+    if (event.action !== "edited") return null; // status changes arrive as "edited"
+    const itemNodeId = event.projects_v2_item?.node_id;
+    if (!itemNodeId) return null;
+
+    // Verify the project id matches the one we connected to. Webhooks
+    // arrive for every Project in the org once the App is subscribed;
+    // we only react to our own destination.
+    const dest = readDestination(conn);
+    if (event.projects_v2_item?.project_node_id !== dest.projectNodeId) return null;
+
+    const change = event.changes?.field_value;
+    if (!change || change.field_node_id !== dest.statusField?.fieldId) return null;
+    if (change.field_type !== "single_select") return null;
+
+    const toName = change.to?.name;
+    if (!toName) return null;
+    const rove = matchRoveLifecycle(toName);
+    if (!rove) return null;
+
+    return { externalId: itemNodeId, rove };
+  }
+
   describeRequiredPermissions(installVia: BacklogInstallVia): PermissionDescription[] {
     if (installVia === "connect_existing") {
       return [
@@ -234,19 +280,84 @@ function matchStatusOption(
   options: { id: string; name: string }[],
   rove: RoveLifecycle,
 ): string | null {
-  const synonyms: Record<RoveLifecycle, string[]> = {
-    new: ["todo", "backlog", "new"],
-    triaged: ["todo", "backlog", "ready"],
-    filed: ["in progress", "in-progress", "doing", "active"],
-    fixed: ["done", "complete", "completed", "fixed"],
-    dismissed: ["cancelled", "canceled", "won't do", "wontfix", "wont fix"],
-  };
-  const targets = synonyms[rove];
+  const targets = ROVE_TO_NAMES[rove];
   for (const opt of options) {
     const norm = opt.name.trim().toLowerCase();
     if (targets.includes(norm)) return opt.id;
   }
   return null;
+}
+
+/**
+ * Reverse direction — map a GitHub Status option name back to a Rove
+ * lifecycle. Webhook events arrive with the new option's name, not the
+ * connection's stored id-to-lifecycle map (we'd need a fresh GraphQL
+ * lookup), so we match by canonical name family instead. Same synonyms
+ * as `matchStatusOption` but inverted.
+ */
+function matchRoveLifecycle(externalName: string): RoveLifecycle | null {
+  const norm = externalName.trim().toLowerCase();
+  // Check in priority order so ambiguous names (e.g. "todo" exists in
+  // both `new` and `triaged`) resolve to the more specific state.
+  // "filed" before "new" means an "In Progress" column maps to filed
+  // (engineer is acting on it) before defaulting anything else.
+  const order: RoveLifecycle[] = ["fixed", "dismissed", "filed", "triaged", "new"];
+  for (const rove of order) {
+    if (ROVE_TO_NAMES[rove].includes(norm)) return rove;
+  }
+  return null;
+}
+
+const ROVE_TO_NAMES: Record<RoveLifecycle, string[]> = {
+  new: ["new"],
+  triaged: ["todo", "backlog", "ready", "next"],
+  filed: ["in progress", "in-progress", "doing", "active"],
+  fixed: ["done", "complete", "completed", "fixed"],
+  dismissed: ["cancelled", "canceled", "won't do", "wontfix", "wont fix"],
+};
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Webhook helpers (alpha.39a)
+ * ──────────────────────────────────────────────────────────────────── */
+
+/**
+ * GitHub's `projects_v2_item` webhook payload — only the fields we
+ * actually read. The `changes.field_value` block is present on the
+ * "edited" action when a single-select column moves.
+ */
+interface ProjectsV2ItemEvent {
+  action: string;
+  projects_v2_item?: {
+    node_id?: string;
+    project_node_id?: string;
+    content_type?: string;
+  };
+  changes?: {
+    field_value?: {
+      field_node_id?: string;
+      field_type?: string;
+      from?: { id?: string; name?: string };
+      to?: { id?: string; name?: string };
+    };
+  };
+}
+
+/**
+ * Verifies GitHub's `x-hub-signature-256` header against the raw body
+ * using HMAC-SHA256. Returns false (rather than throwing) on any
+ * mismatch so the caller can log a uniform 401.
+ */
+function verifyGitHubSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  secret: string,
+): boolean {
+  if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
+  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(signatureHeader);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 function buildFindingTitle(finding: BacklogFinding): string {

@@ -71,6 +71,16 @@ export const env = {
   githubRepoName: () => readEither("ROVE_GITHUB_REPO_NAME", "EVAL_GITHUB_REPO_NAME") ?? "",
   githubBaseBranch: () =>
     readEither("ROVE_GITHUB_BASE_BRANCH", "EVAL_GITHUB_BASE_BRANCH") ?? "main",
+  /**
+   * HMAC secret configured on the GitHub App's Webhook settings page
+   * (github.com/settings/apps/<app>/webhook). The backlog adapter's
+   * webhook receiver verifies every `projects_v2_item` payload against
+   * this before trusting its content. Optional at boot — the route
+   * returns 503 with a clear "webhook not configured" message when
+   * absent rather than crashing.
+   */
+  githubAppWebhookSecret: () =>
+    readEither("ROVE_GITHUB_APP_WEBHOOK_SECRET", "EVAL_GITHUB_APP_WEBHOOK_SECRET"),
 
   // ── Project scoping (Phase C-lite) ───────────────────────────────────────
   /**

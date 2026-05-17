@@ -62,6 +62,25 @@ export async function getActiveConnection(projectId: string): Promise<BacklogCon
   return rowToConnection(data as RawConnectionRow);
 }
 
+/**
+ * Returns a connection by its id, active or disabled. Used by the
+ * webhook receiver which knows the id via the backlog_items row but
+ * doesn't have project context.
+ */
+export async function getConnectionById(id: string): Promise<BacklogConnection | null> {
+  const supabase = createServiceRoleSupabase();
+  const { data, error } = await supabase
+    .from("backlog_connections")
+    .select(
+      "id, project_id, provider, destination, sync_policy, status_map, secret_ref, installed_via, installed_at, disabled_at",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`getConnectionById(${id}): ${error.message}`);
+  if (!data) return null;
+  return rowToConnection(data as RawConnectionRow);
+}
+
 export interface CreateConnectionInput {
   projectId: string;
   provider: BacklogProvider;

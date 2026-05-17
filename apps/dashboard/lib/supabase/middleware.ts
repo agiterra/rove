@@ -58,6 +58,9 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     path === "/api/agent-session/consume" ||
     path === "/api/install/exchange" ||
     path === "/api/install/codes/prune" ||
+    // Backlog provider webhooks authenticate via their own HMAC headers
+    // (GitHub's x-hub-signature-256, etc) and never carry a user session.
+    path === "/api/backlog/github/webhook" ||
     path.startsWith("/preview/");
 
   const devBypass = process.env.DEV_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";
