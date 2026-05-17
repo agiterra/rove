@@ -138,7 +138,7 @@ export async function sendFindingToBacklog(
     screenshotUrls,
     ownerHandle: flow?.owner_handle ?? null,
     teamLabel: flow?.team_label ?? null,
-    dashboardRunUrl: dashboardRunUrl(finding),
+    dashboardRunUrl: dashboardFindingUrl(finding),
   };
 
   const adapter = await getBacklogAdapter(conn.provider);
@@ -198,11 +198,20 @@ async function resolveScreenshotUrls(
   return resolved;
 }
 
-function dashboardRunUrl(finding: FindingRow): string {
+/**
+ * Returns the deep-link the GitHub card body points back at — the
+ * dashboard's findings drawer for this specific finding. The /findings
+ * page reads `?open=<finding_id>` and renders the drawer overlay; far
+ * more useful than landing on the run's step filmstrip (which doesn't
+ * auto-open anything from a #step-N fragment alone).
+ */
+function dashboardFindingUrl(finding: FindingRow): string {
   const origin = env.isProduction()
     ? "https://rove-agiterra.vercel.app"
     : process.env["NEXT_PUBLIC_DASHBOARD_ORIGIN"] ?? "http://localhost:3030";
-  const qs = `?p=${encodeURIComponent(finding.project_id)}`;
-  const hash = finding.step_index != null ? `#step-${finding.step_index}` : "";
-  return `${origin}/runs/${finding.run_id}${qs}${hash}`;
+  const params = new URLSearchParams({
+    p: finding.project_id,
+    open: finding.id,
+  });
+  return `${origin}/findings?${params.toString()}`;
 }
