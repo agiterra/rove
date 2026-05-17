@@ -6,6 +6,7 @@ import {
   installDashboardOnlyAction,
   installManagedBoardGitHubAction,
 } from "./actions";
+import { ProjectV2Picker } from "./ProjectV2Picker";
 
 type PickedPath = "dashboard" | "existing" | "managed" | null;
 
@@ -59,6 +60,7 @@ export function InstallPicker({
         <ConnectExistingCard
           expanded={picked === "existing"}
           pending={pending}
+          defaultOwner={defaultOwner}
           onToggle={() => setPicked(picked === "existing" ? null : "existing")}
           onSubmit={submitConnectExisting}
         />
@@ -159,11 +161,13 @@ function DashboardOnlyCard({
 function ConnectExistingCard({
   expanded,
   pending,
+  defaultOwner,
   onToggle,
   onSubmit,
 }: {
   expanded: boolean;
   pending: boolean;
+  defaultOwner: string;
   onToggle: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }) {
@@ -199,22 +203,10 @@ function ConnectExistingCard({
         >
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
-              Project v2 URL
+              Pick a Project on {defaultOwner}
             </span>
-            <input
-              name="projectUrl"
-              required
-              placeholder="https://github.com/orgs/agiterra/projects/3"
-              autoComplete="off"
-              spellCheck={false}
-              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2 font-mono"
-              style={{ fontSize: 12 }}
-            />
+            <ProjectV2Picker name="projectUrl" owner={defaultOwner} required />
           </label>
-          <p className="text-[11px] text-[var(--color-text-faint)] leading-snug">
-            Accepts <code className="font-mono">orgs/&lt;org&gt;/projects/&lt;n&gt;</code> or{" "}
-            <code className="font-mono">users/&lt;user&gt;/projects/&lt;n&gt;</code> URLs.
-          </p>
           <div className="flex items-center justify-between gap-2 pt-0.5">
             <button
               type="button"
@@ -327,22 +319,19 @@ function ManagedBoardCard({
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
-              Template URL <span className="opacity-60">(optional)</span>
+              Template <span className="opacity-60">(optional)</span>
             </span>
-            <input
+            <ProjectV2Picker
               name="templateProjectUrl"
+              owner={defaultOwner}
               defaultValue={defaultTemplateUrl}
-              placeholder="https://github.com/orgs/agiterra/projects/N"
-              autoComplete="off"
-              spellCheck={false}
-              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2 font-mono"
-              style={{ fontSize: 12 }}
+              allowNone
+              noneLabel="No template — fields only"
             />
           </label>
           <p className="text-[11px] text-[var(--color-text-faint)] leading-snug">
             GitHub's API can't create custom views programmatically.
             Cloning a template board is the only way to inherit views.
-            Leave blank for fields-only.
           </p>
           <div className="flex items-center justify-between gap-2 pt-0.5">
             <button

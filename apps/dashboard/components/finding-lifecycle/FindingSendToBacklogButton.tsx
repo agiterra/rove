@@ -69,7 +69,7 @@ export function FindingSendToBacklogButton({
   if (!connection) {
     return (
       <Link
-        href={`/projects/${encodeURIComponent(projectId)}`}
+        href={`/projects/${encodeURIComponent(projectId)}/settings`}
         className="focus-rove inline-flex items-center gap-1.5"
         data-rove-send-to-backlog="no-connection"
         style={{ ...buttonStyle, opacity: 0.7 }}

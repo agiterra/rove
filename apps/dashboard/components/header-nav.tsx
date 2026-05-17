@@ -36,7 +36,11 @@ const NEW_ITEMS = [
  */
 function isItemActive(itemHref: string, matchBase: string, pathname: string): boolean {
   if (itemHref === "/projects/[p]") {
-    return /^\/projects\/[^/]+\/?$/.test(pathname);
+    // Project tab lights up on the overview AND on /settings (so the
+    // user knows they're inside the project context). Gaps owns its
+    // own sub-route, so /projects/<slug>/gaps doesn't trigger here.
+    if (/^\/projects\/[^/]+\/gaps(?:\/|$)/.test(pathname)) return false;
+    return /^\/projects\/[^/]+(?:\/settings(?:\/.*)?|\/?)$/.test(pathname);
   }
   if (itemHref === "/projects/[p]/gaps") {
     return /^\/projects\/[^/]+\/gaps(?:\/|$)/.test(pathname);

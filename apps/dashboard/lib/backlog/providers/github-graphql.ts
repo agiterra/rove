@@ -234,6 +234,107 @@ export async function updateProjectV2SingleSelectField(
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  Listing projects accessible to the App on a given owner
+ * ──────────────────────────────────────────────────────────────────── */
+
+export interface ProjectV2ListItem {
+  nodeId: string;
+  number: number;
+  title: string;
+  url: string;
+  closed: boolean;
+}
+
+const ORG_PROJECTS_LIST_QUERY = /* GraphQL */ `
+  query ListOrgProjectsV2($login: String!) {
+    organization(login: $login) {
+      projectsV2(first: 50, orderBy: { field: NUMBER, direction: DESC }) {
+        nodes { id number title url closed }
+      }
+    }
+  }
+`;
+
+const USER_PROJECTS_LIST_QUERY = /* GraphQL */ `
+  query ListUserProjectsV2($login: String!) {
+    user(login: $login) {
+      projectsV2(first: 50, orderBy: { field: NUMBER, direction: DESC }) {
+        nodes { id number title url closed }
+      }
+    }
+  }
+`;
+
+/**
+ * Returns the open Project v2 boards on the given owner that the App
+ * installation can see. Tries the requested owner type first, falls
+ * back to the other type if that branch errors with "could not
+ * resolve" (same wrong-owner-type trick as fetchProjectV2). Returns an
+ * empty array when neither type matches.
+ */
+export async function listAccessibleProjectsV2(
+  octokit: Octokit,
+  owner: string,
+  ownerType: "organization" | "user",
+): Promise<ProjectV2ListItem[]> {
+  const primary = await tryListProjects(octokit, owner, ownerType);
+  if (primary) return primary;
+  const otherType: "organization" | "user" =
+    ownerType === "organization" ? "user" : "organization";
+  const fallback = await tryListProjects(octokit, owner, otherType);
+  return fallback ?? [];
+}
+
+async function tryListProjects(
+  octokit: Octokit,
+  login: string,
+  ownerType: "organization" | "user",
+): Promise<ProjectV2ListItem[] | null> {
+  const query = ownerType === "organization" ? ORG_PROJECTS_LIST_QUERY : USER_PROJECTS_LIST_QUERY;
+  try {
+    const data = await octokit.graphql<{
+      organization?: { projectsV2?: { nodes: RawListNode[] } } | null;
+      user?: { projectsV2?: { nodes: RawListNode[] } } | null;
+    }>(query, { login });
+    const nodes =
+      ownerType === "organization"
+        ? data.organization?.projectsV2?.nodes
+        : data.user?.projectsV2?.nodes;
+    if (!nodes) return null;
+    return nodes
+      .filter(
+        (n): n is Required<RawListNode> =>
+          typeof n.id === "string" &&
+          typeof n.number === "number" &&
+          typeof n.title === "string" &&
+          typeof n.url === "string",
+      )
+      .filter((n) => n.closed !== true)
+      .map((n) => ({
+        nodeId: n.id,
+        number: n.number,
+        title: n.title,
+        url: n.url,
+        closed: n.closed,
+      }));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (msg.includes("could not resolve to a user") || msg.includes("could not resolve to an organization")) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+interface RawListNode {
+  id?: string;
+  number?: number;
+  title?: string;
+  url?: string;
+  closed?: boolean;
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Owner resolution (managed-board install)
  * ──────────────────────────────────────────────────────────────────── */
 

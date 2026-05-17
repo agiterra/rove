@@ -1,9 +1,8 @@
 /**
- * /projects/[id] — project overview + backlog connection settings.
- *
- * Server component. Reads the canonical project row + the active backlog
- * connection (if any), then renders the marquee install picker or the
- * connected-state showpiece via BacklogPanel.
+ * /projects/[id] — project overview. Slim landing page: hero + a
+ * "Backlog" status card linking to /settings + cross-links to gaps /
+ * runs / flows / settings. Actual configuration (install picker,
+ * sync policy editor) lives at /projects/[id]/settings.
  *
  * Per .claude/rules/dashboard.md: awaited params + searchParams,
  * generateMetadata for the route-specific title, project_id filtering
@@ -14,8 +13,6 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createReadClient } from "@/lib/supabase/server";
 import { getActiveConnection } from "@/lib/backlog/connections";
-import { env } from "@/lib/env";
-import { BacklogPanel } from "./BacklogPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   return {
     title: `${id} · Overview`,
-    description: `Backlog, gaps, and connection settings for the ${id} project.`,
+    description: `Overview, recent activity, and links into the ${id} project surfaces.`,
   };
 }
 
@@ -54,46 +51,64 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
     .maybeSingle<ProjectRow>();
 
   const connection = await getActiveConnection(projectId);
-
-  const connectionForClient = connection
-    ? {
-        provider: connection.provider,
-        installedVia: connection.installedVia,
-        installedAt: connection.installedAt,
-        destination: connection.destination,
-        syncPolicy: connection.syncPolicy,
-      }
-    : null;
-
-  const hasConnection = connectionForClient !== null;
+  const connectionSummary = summarizeConnection(connection);
 
   return (
-    <div className="max-w-5xl flex flex-col gap-10">
+    <div className="max-w-5xl flex flex-col gap-8">
       <ProjectHero
         projectId={projectId}
         displayName={project?.display_name ?? projectId}
         targetUrl={project?.default_target_url ?? null}
         githubRepo={project?.github_repo ?? null}
-        hasConnection={hasConnection}
+        hasConnection={connectionSummary !== null}
       />
 
-      <section>
-        <BacklogPanel
-          projectId={projectId}
-          connection={connectionForClient}
-          defaultOwner={deriveDefaultOwner(project?.github_repo ?? null)}
-          defaultTemplateUrl={env.defaultBacklogTemplateUrl() ?? ""}
-        />
-      </section>
+      <BacklogStatusCard projectId={projectId} summary={connectionSummary} />
 
       <CrossLinks projectId={projectId} />
     </div>
   );
 }
 
+interface ConnectionSummary {
+  provider: "dashboard-only" | "github" | "linear";
+  destinationLabel: string;
+  destinationUrl: string | null;
+}
+
+function summarizeConnection(
+  conn: Awaited<ReturnType<typeof getActiveConnection>>,
+): ConnectionSummary | null {
+  if (!conn) return null;
+  if (conn.provider === "dashboard-only") {
+    return { provider: "dashboard-only", destinationLabel: "Rove dashboard only", destinationUrl: null };
+  }
+  const d = conn.destination as {
+    projectTitle?: unknown;
+    projectUrl?: unknown;
+    owner?: unknown;
+    repo?: unknown;
+    htmlUrl?: unknown;
+  };
+  if (conn.provider === "github" && typeof d.projectTitle === "string") {
+    return {
+      provider: "github",
+      destinationLabel: typeof d.owner === "string" ? `${d.owner} · ${d.projectTitle}` : d.projectTitle,
+      destinationUrl: typeof d.projectUrl === "string" ? d.projectUrl : null,
+    };
+  }
+  if (conn.provider === "github" && typeof d.owner === "string" && typeof d.repo === "string") {
+    return {
+      provider: "github",
+      destinationLabel: `${d.owner}/${d.repo}`,
+      destinationUrl: typeof d.htmlUrl === "string" ? d.htmlUrl : null,
+    };
+  }
+  return { provider: conn.provider, destinationLabel: conn.provider, destinationUrl: null };
+}
+
 /* ────────────────────────────────────────────────────────────────────
- *  Hero — atmospheric lw-hero treatment scaled up, with a status pill
- *  on the right when a backlog is connected.
+ *  Hero
  * ──────────────────────────────────────────────────────────────────── */
 
 function ProjectHero({
@@ -122,9 +137,7 @@ function ProjectHero({
               style={{ fontSize: 10.5, letterSpacing: "0.2em" }}
             >
               <span>PROJECT</span>
-              <span aria-hidden className="opacity-40">
-                /
-              </span>
+              <span aria-hidden className="opacity-40">/</span>
               <span className="text-[var(--color-text-muted)]">{projectId}</span>
             </p>
             <h1
@@ -149,9 +162,7 @@ function ProjectHero({
                 {prettyHost(targetUrl)}
               </a>
             ) : (
-              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">
-                —
-              </span>
+              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">—</span>
             )}
           </MetaField>
           <MetaField label="Repo">
@@ -165,15 +176,11 @@ function ProjectHero({
                 {githubRepo}
               </a>
             ) : (
-              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">
-                —
-              </span>
+              <span className="font-mono text-[13px] text-[var(--color-text-faint)]">—</span>
             )}
           </MetaField>
           <MetaField label="Slug">
-            <span className="font-mono text-[13px] text-[var(--color-text-muted)]">
-              {projectId}
-            </span>
+            <span className="font-mono text-[13px] text-[var(--color-text-muted)]">{projectId}</span>
           </MetaField>
         </div>
       </div>
@@ -203,13 +210,7 @@ function StatusPill({ hasConnection }: { hasConnection: boolean }) {
   );
 }
 
-function MetaField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <span
@@ -223,17 +224,6 @@ function MetaField({
   );
 }
 
-/**
- * Default GitHub owner prefilled in the managed-board install form.
- * Derived from the project's github_repo binding when present (the
- * "owner/repo" string the PR-authoring wizard already uses), falling
- * back to "agiterra" — the alpha-stage hard-coded org.
- */
-function deriveDefaultOwner(githubRepo: string | null): string {
-  if (githubRepo && githubRepo.includes("/")) return githubRepo.split("/")[0];
-  return "agiterra";
-}
-
 function prettyHost(url: string): string {
   try {
     const u = new URL(url);
@@ -244,11 +234,77 @@ function prettyHost(url: string): string {
 }
 
 /* ────────────────────────────────────────────────────────────────────
- *  Cross-links — hairline-separated row, hover-reveal arrows.
+ *  Backlog status row — short summary + link to /settings
+ * ──────────────────────────────────────────────────────────────────── */
+
+function BacklogStatusCard({
+  projectId,
+  summary,
+}: {
+  projectId: string;
+  summary: ConnectionSummary | null;
+}) {
+  const settingsHref = `/projects/${encodeURIComponent(projectId)}/settings`;
+  return (
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6 flex items-center justify-between gap-6 flex-wrap">
+      <div className="flex flex-col gap-1.5 min-w-0">
+        <p
+          className="font-mono uppercase text-[var(--color-text-faint)]"
+          style={{ fontSize: 10.5, letterSpacing: "0.18em" }}
+        >
+          BACKLOG
+        </p>
+        {summary ? (
+          <p className="text-sm">
+            Findings flow to{" "}
+            {summary.destinationUrl ? (
+              <a
+                href={summary.destinationUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="font-medium underline decoration-dotted underline-offset-4 decoration-[var(--color-border-strong)] hover:decoration-[var(--color-accent)] transition-colors"
+              >
+                {summary.destinationLabel}
+              </a>
+            ) : (
+              <span className="font-medium">{summary.destinationLabel}</span>
+            )}
+            <span className="text-[var(--color-text-faint)]"> · {providerLabel(summary.provider)}</span>
+          </p>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            No external backlog connected yet. Findings stay in Rove.
+          </p>
+        )}
+      </div>
+      <Link
+        href={settingsHref}
+        className="focus-rove inline-flex items-center gap-2 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-panel-2)]/60 px-4 py-2 text-xs font-medium hover:bg-[var(--color-panel-2)] transition-colors"
+      >
+        {summary ? "Manage settings" : "Connect a backlog"}
+        <span aria-hidden className="text-[var(--color-text-faint)]">→</span>
+      </Link>
+    </section>
+  );
+}
+
+function providerLabel(p: ConnectionSummary["provider"]): string {
+  if (p === "github") return "GitHub Project v2";
+  if (p === "linear") return "Linear";
+  return "Dashboard only";
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Cross-links
  * ──────────────────────────────────────────────────────────────────── */
 
 function CrossLinks({ projectId }: { projectId: string }) {
   const items: { href: string; label: string; hint: string }[] = [
+    {
+      href: `/projects/${encodeURIComponent(projectId)}/settings`,
+      label: "Settings",
+      hint: "Backlog connection, sync policy",
+    },
     {
       href: `/projects/${encodeURIComponent(projectId)}/gaps`,
       label: "Affordance gaps",
@@ -266,20 +322,14 @@ function CrossLinks({ projectId }: { projectId: string }) {
     },
   ];
   return (
-    <nav aria-label="Project surfaces" className="path-crosslinks">
+    <nav aria-label="Project surfaces" className="path-crosslinks" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
       {items.map((it) => (
         <Link key={it.href} href={it.href} className="path-crosslink focus-rove">
           <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium text-[var(--color-text)]">
-              {it.label}
-            </span>
-            <span className="text-[11px] text-[var(--color-text-faint)]">
-              {it.hint}
-            </span>
+            <span className="text-sm font-medium text-[var(--color-text)]">{it.label}</span>
+            <span className="text-[11px] text-[var(--color-text-faint)]">{it.hint}</span>
           </span>
-          <span className="path-crosslink-arrow" aria-hidden>
-            →
-          </span>
+          <span className="path-crosslink-arrow" aria-hidden>→</span>
         </Link>
       ))}
     </nav>
