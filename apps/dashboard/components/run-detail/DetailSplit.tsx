@@ -6,6 +6,7 @@ import { highlightAriaTarget } from "./highlightAriaTarget";
 import { AffordanceInventory } from "./AffordanceInventory";
 import { PlanVsRealityInlineDiff } from "./PlanVsRealityInlineDiff";
 import type { StepView } from "./types";
+import type { ProjectBacklogConnectionSummary } from "@/lib/findings/resolve-backlog-connection";
 
 interface DetailSplitProps {
   step: StepView | null;
@@ -17,8 +18,10 @@ interface DetailSplitProps {
   liveVerb?: string;
   /** Caption target string for running steps. */
   liveTarget?: string;
-  /** Project's GitHub repo binding. Null disables the Send-to-issue button. */
-  githubRepo?: { owner: string; name: string } | null;
+  /** Project's active backlog connection. Drives the Send-to-backlog
+   * button on affordance-gap cards. Null when nothing's connected. */
+  projectId?: string;
+  backlogConnection?: ProjectBacklogConnectionSummary | null;
 }
 
 export function DetailSplit({
@@ -26,7 +29,8 @@ export function DetailSplit({
   inlineTankloop = false,
   liveVerb,
   liveTarget,
-  githubRepo = null,
+  projectId,
+  backlogConnection = null,
 }: DetailSplitProps) {
   if (!step) {
     return (
@@ -44,7 +48,11 @@ export function DetailSplit({
         <A11yTree step={step} liveTarget={liveTarget} />
       </div>
       <PlanVsRealityInlineDiff step={step} />
-      <AffordanceInventory step={step} githubRepo={githubRepo} />
+      <AffordanceInventory
+        step={step}
+        projectId={projectId ?? ""}
+        backlogConnection={backlogConnection}
+      />
     </div>
   );
 }

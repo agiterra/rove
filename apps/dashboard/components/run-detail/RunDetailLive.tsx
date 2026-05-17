@@ -16,6 +16,7 @@ import { RunFooter } from "./RunFooter";
 import { useLiveRun } from "./useLiveRun";
 import { formatElapsed } from "./adapters";
 import type { HeroView, RunDetailView } from "./types";
+import type { ProjectBacklogConnectionSummary } from "@/lib/findings/resolve-backlog-connection";
 
 interface RunDetailLiveProps {
   runId: string;
@@ -29,10 +30,11 @@ interface RunDetailLiveProps {
   initialSignedScreenshotUrls?: Record<string, string>;
   initialSignedFindingScreenshotUrls?: Record<string, string>;
   /**
-   * Project's GitHub repo binding for the "Send to GitHub issue" button on
-   * affordance-gap cards. Null disables the button with a tooltip.
+   * Active backlog destination for the project (Project v2, Linear, …).
+   * Null when the project hasn't connected one — the Send-to-backlog
+   * button renders a "Connect a backlog" link in that case.
    */
-  githubRepo?: { owner: string; name: string } | null;
+  backlogConnection?: ProjectBacklogConnectionSummary | null;
   /** Server-rendered ProjectSwitcher; forwarded to TopBar. */
   projectSwitcher?: React.ReactNode;
 }
@@ -55,7 +57,7 @@ export function RunDetailLive({
   initialView,
   initialSignedScreenshotUrls,
   initialSignedFindingScreenshotUrls,
-  githubRepo,
+  backlogConnection,
   projectSwitcher,
 }: RunDetailLiveProps) {
   const liveView = useLiveRun({
@@ -125,7 +127,11 @@ export function RunDetailLive({
           findingCount={view.findings.length}
         />
         {tab === "filmstrip" ? (
-          <DetailSplit step={selectedStep} githubRepo={githubRepo ?? null} />
+          <DetailSplit
+            step={selectedStep}
+            projectId={projectId}
+            backlogConnection={backlogConnection ?? null}
+          />
         ) : null}
         {tab === "steps" ? <StepsList view={view} onPick={onPickStep} selectedIndex={effectiveSelected} /> : null}
         {tab === "findings" ? (

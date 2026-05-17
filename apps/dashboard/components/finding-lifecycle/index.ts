@@ -1,5 +1,5 @@
 export { FindingSilenceButton } from "./FindingSilenceButton";
-export { FindingSendToIssueButton } from "./FindingSendToIssueButton";
+export { FindingSendToBacklogButton } from "./FindingSendToBacklogButton";
 export { FindingTrendChart } from "./FindingTrendChart";
 export { FindingEmptyState } from "./FindingEmptyState";
 export { FindingLoading } from "./FindingLoading";

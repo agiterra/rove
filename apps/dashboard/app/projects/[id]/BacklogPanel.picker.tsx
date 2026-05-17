@@ -1,9 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { installDashboardOnlyAction } from "./actions";
+import {
+  installConnectExistingGitHubAction,
+  installDashboardOnlyAction,
+} from "./actions";
+
+type PickedPath = "dashboard" | "existing" | null;
 
 export function InstallPicker({ projectId }: { projectId: string }) {
+  const [picked, setPicked] = useState<PickedPath>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -15,13 +21,28 @@ export function InstallPicker({ projectId }: { projectId: string }) {
     });
   }
 
+  function submitConnectExisting(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await installConnectExistingGitHubAction(projectId, fd);
+      if (!result.ok) setError(result.error);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PickerHeader />
 
       <div className="grid gap-4 md:grid-cols-3">
         <DashboardOnlyCard pending={pending} onChoose={chooseDashboard} />
-        <ConnectExistingCard />
+        <ConnectExistingCard
+          expanded={picked === "existing"}
+          pending={pending}
+          onToggle={() => setPicked(picked === "existing" ? null : "existing")}
+          onSubmit={submitConnectExisting}
+        />
         <ManagedBoardCard />
       </div>
 
@@ -109,7 +130,17 @@ function DashboardOnlyCard({
   );
 }
 
-function ConnectExistingCard() {
+function ConnectExistingCard({
+  expanded,
+  pending,
+  onToggle,
+  onSubmit,
+}: {
+  expanded: boolean;
+  pending: boolean;
+  onToggle: () => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}) {
   return (
     <article className="path-card path-card-recommended path-card-stagger-2">
       <div className="flex items-center gap-2">
@@ -130,23 +161,69 @@ function ConnectExistingCard() {
       <h3 className="path-card-title">GitHub Project v2 board</h3>
       <p className="path-card-body">
         Point Rove at the Project board your team already triages in. Findings
-        file there as draft items with severity, heuristic, persona, and a
+        land as draft items with severity, heuristic, persona, evidence, and a
         link back to the run.
       </p>
-      <div className="flex flex-col gap-2 pt-1">
-        <span className="path-lock" aria-disabled="true">
-          <LockIcon />
-          <span>
-            Coming in <span className="path-lock-mono">ALPHA.38C</span>
-          </span>
-        </span>
-        <p className="text-[11px] text-[var(--color-text-faint)] leading-snug">
-          Needs the Rove GitHub App permission grant
-          (<code className="font-mono">organization_projects</code>,{" "}
-          <code className="font-mono">projects_v2_item</code>) before we can
-          enumerate your boards.
-        </p>
-      </div>
+
+      {expanded ? (
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-col gap-2.5 pt-1"
+          aria-label="Connect a GitHub Project v2"
+        >
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
+              Project v2 URL
+            </span>
+            <input
+              name="projectUrl"
+              required
+              placeholder="https://github.com/orgs/agiterra/projects/3"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2 font-mono"
+              style={{ fontSize: 12 }}
+            />
+          </label>
+          <p className="text-[11px] text-[var(--color-text-faint)] leading-snug">
+            Accepts <code className="font-mono">orgs/&lt;org&gt;/projects/&lt;n&gt;</code> or{" "}
+            <code className="font-mono">users/&lt;user&gt;/projects/&lt;n&gt;</code> URLs.
+          </p>
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={onToggle}
+              disabled={pending}
+              className="text-[11px] text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="focus-rove rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--color-brand-cyan) 0%, var(--color-brand-navy) 100%)",
+                color: "white",
+              }}
+            >
+              {pending ? "Validating…" : "Connect"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="focus-rove inline-flex items-center gap-2 rounded-md border border-[rgba(63,201,203,0.4)] bg-[rgba(63,201,203,0.06)] px-3.5 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[rgba(63,201,203,0.12)] transition-colors"
+          >
+            Connect a Project v2
+            <span aria-hidden>→</span>
+          </button>
+        </div>
+      )}
     </article>
   );
 }

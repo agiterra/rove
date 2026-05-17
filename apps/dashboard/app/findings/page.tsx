@@ -5,7 +5,7 @@ import { createReadClient, createServiceRoleSupabase } from "../../lib/supabase/
 import { relativeTime } from "../../lib/format";
 import { EmptyState, SeverityBadge } from "../../components/page-header";
 import { resolveProjectId } from "../../lib/project-context";
-import { resolveProjectRepo } from "../../lib/findings/project-repo";
+import { resolveProjectBacklogConnection } from "../../lib/findings/resolve-backlog-connection";
 import { FindingDrawer } from "./drawer";
 
 export const dynamic = "force-dynamic";
@@ -118,7 +118,7 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
     }
   }
 
-  const githubRepo = await resolveProjectRepo(projectId);
+  const backlogConnection = await resolveProjectBacklogConnection(projectId);
 
   const sevCounts = findings.reduce(
     (acc, f) => {
@@ -242,7 +242,8 @@ export default async function FindingsPage({ searchParams: sp }: PageProps) {
           }}
           screenshots={drawerSignedUrls}
           closeHref={mergeSearch(searchParams, { open: undefined })}
-          githubRepo={githubRepo}
+          projectId={projectId}
+          backlogConnection={backlogConnection}
         />
       ) : null}
     </div>

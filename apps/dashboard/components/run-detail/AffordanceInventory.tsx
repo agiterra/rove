@@ -4,10 +4,11 @@ import {
   FindingEmptyState,
   FindingError,
   FindingLoading,
-  FindingSendToIssueButton,
+  FindingSendToBacklogButton,
   FindingSilenceButton,
 } from "@/components/finding-lifecycle";
 import type { LifecycleFinding } from "@/components/finding-lifecycle/types";
+import type { ProjectBacklogConnectionSummary } from "@/lib/findings/resolve-backlog-connection";
 import type {
   AffordanceGap,
   AffordanceGapSeverity,
@@ -23,10 +24,11 @@ interface AffordanceInventoryProps {
    */
   projectId?: string;
   /**
-   * Project's GitHub repo binding for the per-gap "Send to GitHub issue"
-   * button. Null disables the button with a connect-a-repo tooltip.
+   * Project's active backlog destination, drives the per-gap
+   * "Send to backlog" button. Null when nothing's connected — the
+   * button renders a "Connect a backlog" link to /projects/[id].
    */
-  githubRepo?: { owner: string; name: string } | null;
+  backlogConnection?: ProjectBacklogConnectionSummary | null;
   /** Surface-level error from upstream (adapter) — wires to FindingError shell. */
   error?: Error | null;
   /** Loading state — wired in case a future caller fetches gaps asynchronously. */
@@ -60,7 +62,7 @@ const KIND_LABEL: Record<AffordanceGap["kind"], string> = {
 export function AffordanceInventory({
   step,
   projectId = "tankloop",
-  githubRepo = null,
+  backlogConnection = null,
   error,
   loading,
   onRetry,
@@ -115,7 +117,8 @@ export function AffordanceInventory({
               gap={g}
               stepIndex={step.index}
               url={step.url}
-              githubRepo={githubRepo}
+              projectId={projectId}
+              backlogConnection={backlogConnection}
             />
           </li>
         ))}
@@ -187,12 +190,14 @@ function GapCard({
   gap,
   stepIndex,
   url,
-  githubRepo,
+  projectId,
+  backlogConnection,
 }: {
   gap: AffordanceGap;
   stepIndex: number;
   url: string;
-  githubRepo: { owner: string; name: string } | null;
+  projectId: string;
+  backlogConnection: ProjectBacklogConnectionSummary | null;
 }) {
   const heuristicId = `agent.affordance_gap.${gap.kind}`;
   const synthetic: LifecycleFinding = {
@@ -250,7 +255,11 @@ function GapCard({
         </div>
         <div className="flex items-center gap-2">
           <FindingSilenceButton finding={synthetic} />
-          <FindingSendToIssueButton finding={synthetic} repo={githubRepo} />
+          <FindingSendToBacklogButton
+            finding={synthetic}
+            projectId={projectId}
+            connection={backlogConnection}
+          />
         </div>
       </header>
       <p

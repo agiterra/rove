@@ -7,7 +7,7 @@ import {
   createServiceRoleSupabase,
 } from "../../../lib/supabase/server";
 import { resolveProjectId } from "../../../lib/project-context";
-import { resolveProjectRepo } from "../../../lib/findings/project-repo";
+import { resolveProjectBacklogConnection } from "../../../lib/findings/resolve-backlog-connection";
 import { ReflectionSection, FindingsSection } from "./parts";
 import { TrajectorySection } from "./trajectory";
 import {
@@ -144,7 +144,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
     workerStatus,
   });
 
-  const githubRepo = await resolveProjectRepo(projectId);
+  const backlogConnection = await resolveProjectBacklogConnection(projectId);
 
   return (
     <RunDetailLive
@@ -153,7 +153,7 @@ export default async function RunDetailPage({ params, searchParams }: PageProps)
       initialView={view}
       initialSignedScreenshotUrls={signedScreenshotUrls}
       initialSignedFindingScreenshotUrls={signedFindingScreenshotUrls}
-      githubRepo={githubRepo}
+      backlogConnection={backlogConnection}
       projectSwitcher={<ProjectSwitcher />}
     />
   );

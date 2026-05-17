@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { relativeTime, severityColor } from "../../lib/format";
 import type { LifecycleFinding } from "../../components/finding-lifecycle/types";
-import { FindingSendToIssueButton } from "../../components/finding-lifecycle";
+import { FindingSendToBacklogButton } from "../../components/finding-lifecycle";
+import type { ProjectBacklogConnectionSummary } from "@/lib/findings/resolve-backlog-connection";
 
 export interface DrawerFinding {
   id: string;
@@ -22,12 +23,14 @@ export function FindingDrawer({
   finding,
   screenshots,
   closeHref,
-  githubRepo,
+  projectId,
+  backlogConnection,
 }: {
   finding: DrawerFinding;
   screenshots: { storage_key: string; url: string; caption: string | null }[];
   closeHref: string;
-  githubRepo: { owner: string; name: string } | null;
+  projectId: string;
+  backlogConnection: ProjectBacklogConnectionSummary | null;
 }) {
   const lifecycleFinding: LifecycleFinding = {
     id: finding.id,
@@ -77,7 +80,11 @@ export function FindingDrawer({
         </div>
 
         <div className="px-6 pt-4 flex items-center justify-end gap-2">
-          <FindingSendToIssueButton finding={lifecycleFinding} repo={githubRepo} />
+          <FindingSendToBacklogButton
+            finding={lifecycleFinding}
+            projectId={projectId}
+            connection={backlogConnection}
+          />
         </div>
 
         <div className="px-6 py-5 space-y-6">

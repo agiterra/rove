@@ -57,24 +57,19 @@ export async function installDashboardOnlyAction(
   return { ok: true };
 }
 
-const GhRepoSchema = z.object({
-  owner: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[A-Za-z0-9_.-]+$/, "invalid GitHub owner"),
-  repo: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[A-Za-z0-9_.-]+$/, "invalid GitHub repo"),
-});
+const GhOwnerSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_.-]+$/, "invalid GitHub owner");
 
 /**
- * Accepts either separate owner+repo form fields OR a single repoUrl
- * field (e.g. "https://github.com/agiterra/tankloop" or "agiterra/tankloop").
- * Parses to {owner, repo}, validates the repo via the adapter (which hits
- * the Rove GitHub App), then persists the connection.
+ * Parses a GitHub Project v2 URL like:
+ *   https://github.com/orgs/agiterra/projects/3
+ *   https://github.com/users/somebody/projects/12
+ * Validates via the adapter (GraphQL Project v2 lookup against the
+ * Rove GitHub App), then persists the connection with the discovered
+ * project node id + title + url + Status field map.
  */
 export async function installConnectExistingGitHubAction(
   projectId: string,
@@ -88,14 +83,19 @@ export async function installConnectExistingGitHubAction(
     return { ok: false, error: "Not signed in." };
   }
 
-  const parsed = parseRepoFromForm(formData);
+  const parsed = parseProjectUrlFromForm(formData);
   if (!parsed.ok) return parsed;
 
   try {
     const adapter = await getBacklogAdapter("github");
     const { destination } = await adapter.installConnectExisting({
       projectId: parsedId.data,
-      pick: { kind: "repo_issues", owner: parsed.owner, repo: parsed.repo },
+      pick: {
+        kind: "project_v2",
+        ownerType: parsed.ownerType,
+        owner: parsed.owner,
+        number: parsed.number,
+      },
       secretRef: "github_app_installation",
     });
     await createConnection({
@@ -133,49 +133,46 @@ export async function disconnectBacklogAction(
   return { ok: true };
 }
 
-type ParseRepoResult =
-  | { ok: true; owner: string; repo: string }
+type ParseProjectUrlResult =
+  | { ok: true; ownerType: "organization" | "user"; owner: string; number: number }
   | { ok: false; error: string };
 
-function parseRepoFromForm(formData: FormData): ParseRepoResult {
-  const repoUrl = (formData.get("repoUrl") ?? "").toString().trim();
-  if (repoUrl) {
-    const fromUrl = parseRepoUrl(repoUrl);
-    if (!fromUrl) {
-      return {
-        ok: false,
-        error: "Couldn't parse owner/repo from that input. Try `agiterra/tankloop` or the GitHub URL.",
-      };
-    }
-    const parsed = GhRepoSchema.safeParse(fromUrl);
-    if (!parsed.success) return { ok: false, error: parsed.error.message };
-    return { ok: true, owner: parsed.data.owner, repo: parsed.data.repo };
+function parseProjectUrlFromForm(formData: FormData): ParseProjectUrlResult {
+  const projectUrl = (formData.get("projectUrl") ?? "").toString().trim();
+  if (!projectUrl) {
+    return { ok: false, error: "Project v2 URL is required." };
   }
-  const owner = (formData.get("owner") ?? "").toString().trim();
-  const repo = (formData.get("repo") ?? "").toString().trim();
-  const parsed = GhRepoSchema.safeParse({ owner, repo });
-  if (!parsed.success) {
+  const parsed = parseProjectV2Url(projectUrl);
+  if (!parsed) {
     return {
       ok: false,
-      error: "owner and repo are required (or paste a `owner/repo` shorthand into the URL field).",
+      error:
+        "Couldn't parse a Project v2 URL from that input. " +
+        "Try https://github.com/orgs/<org>/projects/<n> or .../users/<user>/projects/<n>.",
     };
   }
-  return { ok: true, owner: parsed.data.owner, repo: parsed.data.repo };
+  const ownerValidation = GhOwnerSchema.safeParse(parsed.owner);
+  if (!ownerValidation.success) return { ok: false, error: "invalid owner in URL" };
+  return parsed;
 }
 
-function parseRepoUrl(input: string): { owner: string; repo: string } | null {
-  const trimmed = input.replace(/\.git$/, "").trim();
-  // Shorthand: "owner/repo"
-  const shorthand = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(trimmed);
-  if (shorthand) return { owner: shorthand[1], repo: shorthand[2] };
-  // Full URL: "https://github.com/owner/repo" with optional trailing path.
+function parseProjectV2Url(
+  input: string,
+): { ok: true; ownerType: "organization" | "user"; owner: string; number: number } | null {
+  let url: URL;
   try {
-    const url = new URL(trimmed);
-    if (url.hostname !== "github.com" && url.hostname !== "www.github.com") return null;
-    const [, owner, repo] = url.pathname.split("/");
-    if (!owner || !repo) return null;
-    return { owner, repo: repo.replace(/\.git$/, "") };
+    url = new URL(input.trim());
   } catch {
     return null;
   }
+  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") return null;
+  // Expected paths:
+  //   /orgs/<owner>/projects/<n>[/...]
+  //   /users/<owner>/projects/<n>[/...]
+  const m = /^\/(orgs|users)\/([A-Za-z0-9_.-]+)\/projects\/(\d+)(?:\/|$)/.exec(url.pathname);
+  if (!m) return null;
+  const ownerType: "organization" | "user" = m[1] === "orgs" ? "organization" : "user";
+  const number = parseInt(m[3], 10);
+  if (!Number.isFinite(number) || number <= 0) return null;
+  return { ok: true, ownerType, owner: m[2], number };
 }
