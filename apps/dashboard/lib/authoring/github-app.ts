@@ -3,9 +3,15 @@
  * client component or this will leak the App private key into the browser
  * bundle.
  *
- * The App needs `contents:write` and `pull_requests:write` permissions on
- * the target repo. Registration is a one-time manual step; see the plan's
- * "GitHub App setup" section for the checklist.
+ * App permissions used today:
+ *   - contents: write          (PR-authoring wizard)
+ *   - pull_requests: write     (PR-authoring wizard)
+ *   - issues: write            (legacy send-to-issue, kept for back-compat)
+ *   - organization_projects: read+write   (backlog adapter, alpha.38c)
+ *
+ * Registration was a one-time manual step. After changing scopes at
+ * github.com/settings/apps, force a Vercel redeploy — cached installation
+ * tokens stay valid for their TTL (~1h) but don't include the new scopes.
  */
 import "server-only";
 import { createAppAuth } from "@octokit/auth-app";
