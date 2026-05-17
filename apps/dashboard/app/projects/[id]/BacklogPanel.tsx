@@ -8,11 +8,24 @@ interface Props {
   connection: ActiveConnection | null;
   /** Default org slug used to prefill the managed-board install form. */
   defaultOwner: string;
+  /** Optional Project v2 URL prefilled into the template field. */
+  defaultTemplateUrl: string;
 }
 
-export function BacklogPanel({ projectId, connection, defaultOwner }: Props) {
+export function BacklogPanel({
+  projectId,
+  connection,
+  defaultOwner,
+  defaultTemplateUrl,
+}: Props) {
   if (connection) {
     return <ConnectedShowpiece projectId={projectId} connection={connection} />;
   }
-  return <InstallPicker projectId={projectId} defaultOwner={defaultOwner} />;
+  return (
+    <InstallPicker
+      projectId={projectId}
+      defaultOwner={defaultOwner}
+      defaultTemplateUrl={defaultTemplateUrl}
+    />
+  );
 }

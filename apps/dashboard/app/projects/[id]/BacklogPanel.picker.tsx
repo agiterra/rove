@@ -12,9 +12,11 @@ type PickedPath = "dashboard" | "existing" | "managed" | null;
 export function InstallPicker({
   projectId,
   defaultOwner,
+  defaultTemplateUrl,
 }: {
   projectId: string;
   defaultOwner: string;
+  defaultTemplateUrl: string;
 }) {
   const [picked, setPicked] = useState<PickedPath>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function InstallPicker({
           expanded={picked === "managed"}
           pending={pending}
           defaultOwner={defaultOwner}
+          defaultTemplateUrl={defaultTemplateUrl}
           onToggle={() => setPicked(picked === "managed" ? null : "managed")}
           onSubmit={submitManagedBoard}
         />
@@ -255,12 +258,14 @@ function ManagedBoardCard({
   expanded,
   pending,
   defaultOwner,
+  defaultTemplateUrl,
   onToggle,
   onSubmit,
 }: {
   expanded: boolean;
   pending: boolean;
   defaultOwner: string;
+  defaultTemplateUrl: string;
   onToggle: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }) {
@@ -326,6 +331,7 @@ function ManagedBoardCard({
             </span>
             <input
               name="templateProjectUrl"
+              defaultValue={defaultTemplateUrl}
               placeholder="https://github.com/orgs/agiterra/projects/N"
               autoComplete="off"
               spellCheck={false}

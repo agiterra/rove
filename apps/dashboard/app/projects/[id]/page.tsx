@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createReadClient } from "@/lib/supabase/server";
 import { getActiveConnection } from "@/lib/backlog/connections";
+import { env } from "@/lib/env";
 import { BacklogPanel } from "./BacklogPanel";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,7 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
           projectId={projectId}
           connection={connectionForClient}
           defaultOwner={deriveDefaultOwner(project?.github_repo ?? null)}
+          defaultTemplateUrl={env.defaultBacklogTemplateUrl() ?? ""}
         />
       </section>
 

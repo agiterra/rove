@@ -88,6 +88,15 @@ export const env = {
    * same value and sends it in the Authorization header.
    */
   autoPushSecret: () => readEither("ROVE_AUTO_PUSH_SECRET", "EVAL_AUTO_PUSH_SECRET"),
+  /**
+   * Default Project v2 URL prefilled in the managed-board install form's
+   * template field. Optional — when unset the field starts blank.
+   * Override per-install in the form regardless. Set this to your team's
+   * canonical Rove template board to skip the copy-paste step every
+   * managed-board install.
+   */
+  defaultBacklogTemplateUrl: () =>
+    readEither("ROVE_BACKLOG_DEFAULT_TEMPLATE_URL", "EVAL_BACKLOG_DEFAULT_TEMPLATE_URL"),
 
   // ── Project scoping (Phase C-lite) ───────────────────────────────────────
   /**
