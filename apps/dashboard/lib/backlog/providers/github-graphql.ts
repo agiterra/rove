@@ -121,8 +121,19 @@ export async function fetchProjectV2(
     const fallback =
       input.ownerType === "organization" ? data.user?.projectV2 : data.organization?.projectV2;
     if (!fallback) {
+      // Both sides null. Two distinguishable cases:
+      //   - The owner itself came back null on BOTH branches → either the
+      //     owner doesn't exist OR the App lacks any visibility on it
+      //     (installation isn't on this account).
+      //   - The owner came back non-null but its projectV2 field is null
+      //     → owner is visible but the project number is invalid OR the
+      //     App lacks Projects scope.
+      const orgVisible = data.organization !== null && data.organization !== undefined;
+      const userVisible = data.user !== null && data.user !== undefined;
+      const visibility = orgVisible || userVisible ? "owner-visible" : "owner-invisible";
       throw new Error(
-        `Could not resolve Project v2 #${input.number} for ${input.owner}.`,
+        `GraphQL resolved no Project v2 #${input.number} on ${input.owner} ` +
+          `(visibility: ${visibility}; ownerType requested: ${input.ownerType}).`,
       );
     }
     return normalizeProject(fallback);
