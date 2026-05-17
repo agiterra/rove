@@ -114,6 +114,61 @@ export async function installConnectExistingGitHubAction(
   return { ok: true };
 }
 
+/**
+ * Managed-board install — Rove creates the Project v2 board itself
+ * (with the canonical custom fields, plus views inherited via the
+ * optional template). Templates are the workaround for the GitHub
+ * API limitation that views can't be created programmatically.
+ */
+export async function installManagedBoardGitHubAction(
+  projectId: string,
+  formData: FormData,
+): Promise<BacklogActionResult> {
+  const parsedId = ProjectIdSchema.safeParse(projectId);
+  if (!parsedId.success) return { ok: false, error: "invalid project id" };
+  try {
+    await requireTeamMember();
+  } catch {
+    return { ok: false, error: "Not signed in." };
+  }
+
+  const owner = (formData.get("owner") ?? "").toString().trim();
+  const boardName = (formData.get("boardName") ?? "").toString().trim();
+  const templateProjectUrl = (formData.get("templateProjectUrl") ?? "").toString().trim();
+
+  const ownerValid = GhOwnerSchema.safeParse(owner);
+  if (!ownerValid.success) return { ok: false, error: "GitHub owner is required" };
+  if (!boardName || boardName.length > 80) {
+    return { ok: false, error: "Board name is required (max 80 chars)" };
+  }
+
+  try {
+    const adapter = await getBacklogAdapter("github");
+    if (!adapter.installManagedBoard) {
+      return { ok: false, error: "Managed-board install not supported by adapter" };
+    }
+    const pickInput = {
+      projectId: parsedId.data,
+      boardName,
+      owner: ownerValid.data,
+      secretRef: "github_app_installation",
+      ...(templateProjectUrl ? { templateProjectUrl } : {}),
+    };
+    const { destination } = await adapter.installManagedBoard(pickInput as never);
+    await createConnection({
+      projectId: parsedId.data,
+      provider: "github",
+      destination,
+      installedVia: "managed_board",
+      secretRef: "github_app_installation",
+    });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  revalidatePath(`/projects/${parsedId.data}`);
+  return { ok: true };
+}
+
 const SyncPolicySchema = z.object({
   critical: z.enum(["auto", "manual"]),
   major: z.enum(["auto", "auto-canonical", "manual"]),

@@ -1,24 +1,38 @@
 /**
- * GitHub backlog adapter — alpha.38c + alpha.39a.
+ * GitHub backlog adapter — alpha.38c + alpha.39a + alpha.40.
  *
- * Connect-existing flow:
- *   - User pastes a Project v2 URL (org or user; any of the supported shapes).
- *   - Adapter parses owner / number, validates via GraphQL, captures the
- *     project node id + title + url + (if present) the Status single-select
- *     field id and its option map.
+ * Install paths:
+ *   - connect_existing → user pastes a Project v2 URL; adapter validates
+ *     via GraphQL, discovers canonical fields by name, persists destination.
+ *   - managed_board → adapter creates a new Project v2 (or clones a
+ *     template via copyProjectV2 to inherit views), provisions the
+ *     canonical Rove fields, persists destination.
  *
  * Outbound:
- *   - pushFinding → `addProjectV2DraftIssue` mutation. Title + rich body.
- *   - updateStatus → `updateProjectV2ItemFieldValue` if a Status field was
- *     discovered at install time and its options map onto the Rove
- *     lifecycle; otherwise no-op (the user owns the destination's columns).
+ *   - pushFinding → addProjectV2DraftIssue, then a single batched GraphQL
+ *     document of updateProjectV2ItemFieldValue calls for whichever
+ *     canonical fields the destination exposes.
+ *   - updateStatus → updateProjectV2ItemFieldValue against the discovered
+ *     Status single-select field; no-op when absent or option doesn't
+ *     match the Rove lifecycle synonyms.
  *
  * Inbound (alpha.39a):
- *   - parseStatusWebhook → HMAC-verifies a `projects_v2_item` webhook,
- *     reads the Status field change, maps the new option name back to a
- *     RoveLifecycle. Returns null when the payload isn't ours.
+ *   - parseStatusWebhook → HMAC-verifies a projects_v2_item webhook,
+ *     reads the Status field change, maps the new option name back to
+ *     a RoveLifecycle. Returns null when the payload isn't ours.
  *
- * Managed-board install (alpha.40), Linear (41) are separate ships.
+ * Size note: this file exceeds the 450-line hard ceiling from
+ * coding-standards.md. It's intentionally cohesive — the adapter class
+ * + the helpers it dispatches to share the ProjectV2Destination
+ * vocabulary tightly, and the natural splits (status mapping,
+ * webhook payload, managed-board provisioning) all individually
+ * traffic in private types from the adapter file. Splitting into
+ * sibling files would require widening the public API of each
+ * sub-module purely for the sake of line counts. Re-evaluate once
+ * Linear or a third provider lands and the destination vocabulary
+ * needs to generalize anyway.
+ *
+ * Linear adapter (alpha.41) is a separate ship.
  */
 
 import "server-only";
@@ -29,8 +43,15 @@ import { buildFindingBody } from "./github-body";
 import {
   fetchProjectV2,
   addProjectV2DraftIssue,
+  copyProjectV2,
+  createProjectV2,
+  createProjectV2Field,
+  resolveOwnerNodeId,
+  updateProjectV2ItemFieldValues,
   updateProjectV2SingleSelectField,
+  type FieldValueWrite,
   type ProjectV2Lookup,
+  type ProjectV2OptionColor,
 } from "./github-graphql";
 import type {
   BacklogAdapter,
@@ -57,7 +78,10 @@ interface ConnectProjectV2Pick {
 
 /**
  * Shape recorded in backlog_connections.destination after a successful
- * installConnectExisting. pushFinding + updateStatus read this back.
+ * install. pushFinding + updateStatus read this back. Optional fields
+ * are populated only when the corresponding canonical field exists on
+ * the destination board — pushFinding silently skips writes for any
+ * field the destination doesn't expose.
  */
 interface ProjectV2Destination {
   kind: "project_v2";
@@ -67,6 +91,8 @@ interface ProjectV2Destination {
   projectNodeId: string;
   projectTitle: string;
   projectUrl: string;
+  /** Set to "managed" when Rove created the board; "existing" for connect-existing. */
+  installVariant?: "existing" | "managed";
   /**
    * Status single-select field discovery, when found. Populated only if
    * the board has a field literally named "Status" with single-select
@@ -75,6 +101,23 @@ interface ProjectV2Destination {
   statusField?: {
     fieldId: string;
     options: { id: string; name: string }[];
+  };
+  /**
+   * Other canonical Rove fields we discovered on the board, mapped by
+   * canonical name. pushFinding populates each one it finds. Boards
+   * created via managed install get all six; connect-existing boards
+   * get whichever subset already exists by name match.
+   */
+  canonicalFields?: {
+    severity?: {
+      fieldId: string;
+      options: { id: string; name: string }[];
+    };
+    heuristic?: { fieldId: string; dataType: "TEXT" | "URL" };
+    persona?: { fieldId: string; dataType: "TEXT" | "URL" };
+    flow?: { fieldId: string; dataType: "TEXT" | "URL" };
+    runId?: { fieldId: string; dataType: "TEXT" | "URL" };
+    dashboardLink?: { fieldId: string; dataType: "TEXT" | "URL" };
   };
 }
 
@@ -106,7 +149,7 @@ export class GitHubBacklogAdapter implements BacklogAdapter {
     } catch (err) {
       throw rewritePermissionError(err, pick);
     }
-    const statusField = findStatusField(project);
+    const { statusField, canonicalFields } = discoverCanonicalFields(project);
     const destination: ProjectV2Destination = {
       kind: "project_v2",
       ownerType: pick.ownerType,
@@ -115,15 +158,108 @@ export class GitHubBacklogAdapter implements BacklogAdapter {
       projectNodeId: project.id,
       projectTitle: project.title,
       projectUrl: project.url,
+      installVariant: "existing",
       ...(statusField ? { statusField } : {}),
+      ...(canonicalFields ? { canonicalFields } : {}),
     };
     return { destination: destination as unknown as Record<string, unknown> };
   }
 
   async installManagedBoard(
-    _input: ManagedBoardInput,
+    input: ManagedBoardInput,
   ): Promise<{ destination: Record<string, unknown> }> {
-    throw new Error("GitHubBacklogAdapter.installManagedBoard: pending alpha.40");
+    // Optional `templateProjectUrl` (passed through input.boardName-adjacent
+    // fields by the action via a wider pick shape). When provided, clone
+    // the template via copyProjectV2 → preserves views + custom fields.
+    // Otherwise, create blank + add Rove's canonical fields manually.
+    const extra = input as unknown as {
+      templateProjectUrl?: string;
+    };
+
+    const octokit = getInstallationOctokit();
+
+    let ownerResolution: { id: string; ownerType: "organization" | "user" };
+    try {
+      ownerResolution = await resolveOwnerNodeId(octokit, input.owner);
+    } catch (err) {
+      throw rewritePermissionError(err, {
+        kind: "project_v2",
+        ownerType: "organization",
+        owner: input.owner,
+        number: 0,
+      });
+    }
+
+    const template = extra.templateProjectUrl
+      ? parseTemplateUrl(extra.templateProjectUrl)
+      : null;
+    if (extra.templateProjectUrl && !template) {
+      throw new Error(
+        "Couldn't parse template Project v2 URL. Use https://github.com/orgs/<org>/projects/<n> or .../users/<user>/projects/<n>.",
+      );
+    }
+
+    let project: ProjectV2Lookup;
+    if (template) {
+      // Fetch the source first so we can copy by node id (copyProjectV2
+      // requires source projectId, not number).
+      const source = await fetchProjectV2(octokit, template);
+      try {
+        project = await copyProjectV2(octokit, {
+          sourceProjectNodeId: source.id,
+          ownerNodeId: ownerResolution.id,
+          title: input.boardName,
+          includeDraftIssues: false,
+        });
+      } catch (err) {
+        throw rewritePermissionError(err, {
+          kind: "project_v2",
+          ownerType: ownerResolution.ownerType,
+          owner: input.owner,
+          number: source.number,
+        });
+      }
+    } else {
+      try {
+        project = await createProjectV2(octokit, {
+          ownerNodeId: ownerResolution.id,
+          title: input.boardName,
+        });
+      } catch (err) {
+        throw rewritePermissionError(err, {
+          kind: "project_v2",
+          ownerType: ownerResolution.ownerType,
+          owner: input.owner,
+          number: 0,
+        });
+      }
+      // Provision the canonical Rove fields. Skip silently if a field
+      // already exists (rare for a freshly-created project but possible
+      // if the user re-runs install). createProjectV2Field throws on
+      // duplicate-name; we ignore that specific error.
+      await provisionCanonicalFields(octokit, project.id);
+      // Re-fetch to get the newly-created field ids back.
+      project = await fetchProjectV2(octokit, {
+        ownerType: ownerResolution.ownerType,
+        owner: input.owner,
+        number: project.number,
+      });
+    }
+
+    const { statusField, canonicalFields } = discoverCanonicalFields(project);
+    const destination: ProjectV2Destination = {
+      kind: "project_v2",
+      ownerType: ownerResolution.ownerType,
+      owner: input.owner,
+      number: project.number,
+      projectNodeId: project.id,
+      projectTitle: project.title,
+      projectUrl: project.url,
+      installVariant: "managed",
+      ...(statusField ? { statusField } : {}),
+      ...(canonicalFields ? { canonicalFields } : {}),
+    };
+    return { destination: destination as unknown as Record<string, unknown> };
   }
 
   async pushFinding(
@@ -139,6 +275,29 @@ export class GitHubBacklogAdapter implements BacklogAdapter {
       title,
       body,
     });
+
+    // Populate canonical fields the destination exposes. Single
+    // GraphQL document with aliased mutations → one HTTP round-trip
+    // no matter how many fields we hit. Silently skip fields the
+    // destination doesn't have (connect-existing boards may expose
+    // a subset; legacy connections may have no canonicalFields at all).
+    const writes = buildFieldWrites(dest, finding);
+    if (writes.length > 0) {
+      try {
+        await updateProjectV2ItemFieldValues(octokit, {
+          projectNodeId: dest.projectNodeId,
+          itemId: item.id,
+          writes,
+        });
+      } catch (err) {
+        // Field-population failures shouldn't unmake the draft. Log
+        // and keep going — the card exists, the body is correct,
+        // engineer can populate fields manually if needed.
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`pushFinding(${finding.id}): field population partial — ${msg}`);
+      }
+    }
+
     const externalUrl = buildProjectItemUrl(dest);
     return {
       externalId: item.id,
@@ -259,16 +418,152 @@ function readDestination(conn: BacklogConnection): ProjectV2Destination {
   return d as ProjectV2Destination;
 }
 
-function findStatusField(project: ProjectV2Lookup): ProjectV2Destination["statusField"] {
-  const status = project.fields.find(
-    (f) =>
-      f.dataType === "SINGLE_SELECT" && f.name.trim().toLowerCase() === "status",
-  );
-  if (!status || !status.options || status.options.length === 0) return undefined;
+/**
+ * Sweep the project's fields once and identify each canonical Rove
+ * field by name (case-insensitive). Used by both installConnectExisting
+ * (best-effort match against whatever the user's board already has)
+ * and installManagedBoard (where Rove created the fields directly, so
+ * matches are guaranteed). Caller decides which subset to persist on
+ * the destination.
+ */
+function discoverCanonicalFields(project: ProjectV2Lookup): {
+  statusField?: ProjectV2Destination["statusField"];
+  canonicalFields?: NonNullable<ProjectV2Destination["canonicalFields"]>;
+} {
+  const byName = new Map<string, (typeof project.fields)[number]>();
+  for (const f of project.fields) byName.set(f.name.trim().toLowerCase(), f);
+
+  const status = byName.get("status");
+  const statusField =
+    status &&
+    status.dataType === "SINGLE_SELECT" &&
+    status.options &&
+    status.options.length > 0
+      ? {
+          fieldId: status.id,
+          options: status.options.map((o) => ({ id: o.id, name: o.name })),
+        }
+      : undefined;
+
+  const canonicalFields: NonNullable<ProjectV2Destination["canonicalFields"]> = {};
+
+  const severity = byName.get("severity");
+  if (severity && severity.dataType === "SINGLE_SELECT" && severity.options?.length) {
+    canonicalFields.severity = {
+      fieldId: severity.id,
+      options: severity.options.map((o) => ({ id: o.id, name: o.name })),
+    };
+  }
+
+  for (const [canonicalKey, columnNames] of [
+    ["heuristic", ["heuristic"]],
+    ["persona", ["persona"]],
+    ["flow", ["flow"]],
+    ["runId", ["run id", "run", "rove run"]],
+    ["dashboardLink", ["dashboard link", "dashboard", "rove link"]],
+  ] as const) {
+    for (const name of columnNames) {
+      const f = byName.get(name);
+      if (f && (f.dataType === "TEXT" || f.dataType === "URL")) {
+        canonicalFields[canonicalKey] = {
+          fieldId: f.id,
+          dataType: f.dataType as "TEXT" | "URL",
+        };
+        break;
+      }
+    }
+  }
+
   return {
-    fieldId: status.id,
-    options: status.options.map((o) => ({ id: o.id, name: o.name })),
+    statusField,
+    canonicalFields: Object.keys(canonicalFields).length > 0 ? canonicalFields : undefined,
   };
+}
+
+/**
+ * Parses a Project v2 URL the user pasted in the managed-board install
+ * form's "template" field. Same parser as the connect-existing path
+ * uses; lives here so the adapter doesn't import the route layer.
+ */
+function parseTemplateUrl(
+  input: string,
+): { ownerType: "organization" | "user"; owner: string; number: number } | null {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") return null;
+  const m = /^\/(orgs|users)\/([A-Za-z0-9_.-]+)\/projects\/(\d+)(?:\/|$)/.exec(url.pathname);
+  if (!m) return null;
+  return {
+    ownerType: m[1] === "orgs" ? "organization" : "user",
+    owner: m[2],
+    number: parseInt(m[3], 10),
+  };
+}
+
+const CANONICAL_FIELD_SPECS: {
+  name: string;
+  body:
+    | { dataType: "TEXT" | "NUMBER" | "DATE" }
+    | {
+        dataType: "SINGLE_SELECT";
+        options: { name: string; color: ProjectV2OptionColor; description?: string }[];
+      };
+}[] = [
+  {
+    name: "Severity",
+    body: {
+      dataType: "SINGLE_SELECT",
+      options: [
+        { name: "Critical", color: "RED", description: "Blocks the user from completing the goal" },
+        { name: "Major", color: "ORANGE", description: "Significant friction" },
+        { name: "Minor", color: "YELLOW", description: "Nuisance; doesn't block" },
+        { name: "Nit", color: "GRAY", description: "Stylistic / cosmetic" },
+      ],
+    },
+  },
+  { name: "Heuristic", body: { dataType: "TEXT" } },
+  { name: "Persona", body: { dataType: "TEXT" } },
+  { name: "Flow", body: { dataType: "TEXT" } },
+  { name: "Run ID", body: { dataType: "TEXT" } },
+  { name: "Dashboard link", body: { dataType: "TEXT" } },
+];
+
+/**
+ * Creates the canonical Rove fields on a freshly-created Project v2.
+ * Skips any field whose creation fails with a duplicate-name error
+ * (re-runs of install on a board the user already partially populated
+ * shouldn't blow up). Other errors propagate.
+ */
+async function provisionCanonicalFields(
+  octokit: ReturnType<typeof getInstallationOctokit>,
+  projectNodeId: string,
+): Promise<void> {
+  for (const spec of CANONICAL_FIELD_SPECS) {
+    try {
+      if (spec.body.dataType === "SINGLE_SELECT") {
+        await createProjectV2Field(octokit, projectNodeId, {
+          name: spec.name,
+          dataType: "SINGLE_SELECT",
+          options: spec.body.options,
+        });
+      } else {
+        await createProjectV2Field(octokit, projectNodeId, {
+          name: spec.name,
+          dataType: spec.body.dataType,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+      if (msg.includes("already exists") || msg.includes("name has already been taken")) {
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 /**
@@ -358,6 +653,55 @@ function verifyGitHubSignature(
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+/**
+ * Translate a BacklogFinding into the list of single-mutation field
+ * writes pushFinding will batch. Only emits writes for fields the
+ * destination actually has — order doesn't matter (each is an aliased
+ * mutation), but Severity goes first for readability in error logs.
+ */
+function buildFieldWrites(
+  dest: ProjectV2Destination,
+  finding: BacklogFinding,
+): FieldValueWrite[] {
+  const writes: FieldValueWrite[] = [];
+  const cf = dest.canonicalFields;
+  if (!cf) return writes;
+
+  if (cf.severity) {
+    const target = finding.severity.toLowerCase();
+    const opt = cf.severity.options.find(
+      (o) => o.name.trim().toLowerCase() === target,
+    );
+    if (opt) {
+      writes.push({
+        fieldId: cf.severity.fieldId,
+        kind: "single_select",
+        singleSelectOptionId: opt.id,
+      });
+    }
+  }
+  if (cf.heuristic && finding.heuristic) {
+    writes.push({ fieldId: cf.heuristic.fieldId, kind: "text", text: finding.heuristic });
+  }
+  if (cf.persona) {
+    writes.push({ fieldId: cf.persona.fieldId, kind: "text", text: finding.personaId });
+  }
+  if (cf.flow) {
+    writes.push({ fieldId: cf.flow.fieldId, kind: "text", text: finding.flowId });
+  }
+  if (cf.runId) {
+    writes.push({ fieldId: cf.runId.fieldId, kind: "text", text: finding.runId });
+  }
+  if (cf.dashboardLink && finding.dashboardRunUrl) {
+    writes.push({
+      fieldId: cf.dashboardLink.fieldId,
+      kind: "text",
+      text: finding.dashboardRunUrl,
+    });
+  }
+  return writes;
 }
 
 function buildFindingTitle(finding: BacklogFinding): string {

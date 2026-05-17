@@ -232,3 +232,290 @@ export async function updateProjectV2SingleSelectField(
     optionId: input.singleSelectOptionId,
   });
 }
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Owner resolution (managed-board install)
+ * ──────────────────────────────────────────────────────────────────── */
+
+const OWNER_LOOKUP_QUERY = /* GraphQL */ `
+  query LookupOwner($login: String!) {
+    organization(login: $login) { id login }
+    user(login: $login) { id login }
+  }
+`;
+
+interface OwnerLookupResponse {
+  organization?: { id: string; login: string } | null;
+  user?: { id: string; login: string } | null;
+}
+
+/**
+ * Resolve a login string to its owner node id, trying organization
+ * first. Splits org/user the same way fetchProjectV2 does so the
+ * "not resolvable as user" GraphQL errors don't blow up the call.
+ */
+export async function resolveOwnerNodeId(
+  octokit: Octokit,
+  login: string,
+): Promise<{ id: string; ownerType: "organization" | "user" }> {
+  try {
+    const data = await octokit.graphql<OwnerLookupResponse>(OWNER_LOOKUP_QUERY, { login });
+    if (data.organization?.id) {
+      return { id: data.organization.id, ownerType: "organization" };
+    }
+    if (data.user?.id) {
+      return { id: data.user.id, ownerType: "user" };
+    }
+  } catch (err) {
+    // Fall through to the split fallback below.
+    const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (!msg.includes("could not resolve")) throw err;
+  }
+  // Split fallback (same trick as fetchProjectV2). One side may error;
+  // the other might still resolve.
+  const asOrg = await safeOwnerLookup(octokit, login, "organization");
+  if (asOrg) return { id: asOrg, ownerType: "organization" };
+  const asUser = await safeOwnerLookup(octokit, login, "user");
+  if (asUser) return { id: asUser, ownerType: "user" };
+  throw new Error(`Could not resolve GitHub owner: ${login}`);
+}
+
+async function safeOwnerLookup(
+  octokit: Octokit,
+  login: string,
+  ownerType: "organization" | "user",
+): Promise<string | null> {
+  const q =
+    ownerType === "organization"
+      ? `query Q($login: String!) { organization(login: $login) { id } }`
+      : `query Q($login: String!) { user(login: $login) { id } }`;
+  try {
+    const data = await octokit.graphql<{
+      organization?: { id?: string } | null;
+      user?: { id?: string } | null;
+    }>(q, { login });
+    return (ownerType === "organization" ? data.organization?.id : data.user?.id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Create / copy Project v2 (managed-board install)
+ * ──────────────────────────────────────────────────────────────────── */
+
+const CREATE_PROJECT_MUTATION = /* GraphQL */ `
+  mutation CreateRoveProject($ownerId: ID!, $title: String!) {
+    createProjectV2(input: { ownerId: $ownerId, title: $title }) {
+      projectV2 { ...ProjectFields }
+    }
+  }
+  ${PROJECT_FIELDS_FRAGMENT}
+`;
+
+export async function createProjectV2(
+  octokit: Octokit,
+  input: { ownerNodeId: string; title: string },
+): Promise<ProjectV2Lookup> {
+  const data = await octokit.graphql<{
+    createProjectV2: { projectV2: RawProject };
+  }>(CREATE_PROJECT_MUTATION, { ownerId: input.ownerNodeId, title: input.title });
+  return normalizeProject(data.createProjectV2.projectV2);
+}
+
+const COPY_PROJECT_MUTATION = /* GraphQL */ `
+  mutation CopyRoveProject(
+    $projectId: ID!
+    $ownerId: ID!
+    $title: String!
+    $includeDraftIssues: Boolean!
+  ) {
+    copyProjectV2(
+      input: {
+        projectId: $projectId
+        ownerId: $ownerId
+        title: $title
+        includeDraftIssues: $includeDraftIssues
+      }
+    ) {
+      projectV2 { ...ProjectFields }
+    }
+  }
+  ${PROJECT_FIELDS_FRAGMENT}
+`;
+
+export async function copyProjectV2(
+  octokit: Octokit,
+  input: {
+    sourceProjectNodeId: string;
+    ownerNodeId: string;
+    title: string;
+    includeDraftIssues?: boolean;
+  },
+): Promise<ProjectV2Lookup> {
+  const data = await octokit.graphql<{
+    copyProjectV2: { projectV2: RawProject };
+  }>(COPY_PROJECT_MUTATION, {
+    projectId: input.sourceProjectNodeId,
+    ownerId: input.ownerNodeId,
+    title: input.title,
+    includeDraftIssues: input.includeDraftIssues ?? false,
+  });
+  return normalizeProject(data.copyProjectV2.projectV2);
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Create custom fields (managed-board fresh path)
+ * ──────────────────────────────────────────────────────────────────── */
+
+const CREATE_FIELD_MUTATION = /* GraphQL */ `
+  mutation CreateRoveField(
+    $projectId: ID!
+    $name: String!
+    $dataType: ProjectV2CustomFieldType!
+    $singleSelectOptions: [ProjectV2SingleSelectFieldOptionInput!]
+  ) {
+    createProjectV2Field(
+      input: {
+        projectId: $projectId
+        name: $name
+        dataType: $dataType
+        singleSelectOptions: $singleSelectOptions
+      }
+    ) {
+      projectV2Field {
+        __typename
+        ... on ProjectV2FieldCommon { id name dataType }
+        ... on ProjectV2SingleSelectField {
+          id
+          name
+          dataType
+          options { id name }
+        }
+      }
+    }
+  }
+`;
+
+export type CreateFieldInput =
+  | { name: string; dataType: "TEXT" | "NUMBER" | "DATE" }
+  | {
+      name: string;
+      dataType: "SINGLE_SELECT";
+      options: { name: string; color: ProjectV2OptionColor; description?: string }[];
+    };
+
+/**
+ * GitHub requires every single-select option to specify one of its
+ * accepted colors. Eight rotation values keep the brand legible while
+ * matching the dashboard's severity palette as closely as the API
+ * permits (Critical → RED, Major → ORANGE, Minor → YELLOW, Nit → GRAY).
+ */
+export type ProjectV2OptionColor =
+  | "GRAY"
+  | "BLUE"
+  | "GREEN"
+  | "YELLOW"
+  | "ORANGE"
+  | "RED"
+  | "PINK"
+  | "PURPLE";
+
+export async function createProjectV2Field(
+  octokit: Octokit,
+  projectNodeId: string,
+  input: CreateFieldInput,
+): Promise<ProjectV2Field> {
+  const variables: Record<string, unknown> = {
+    projectId: projectNodeId,
+    name: input.name,
+    dataType: input.dataType,
+  };
+  if (input.dataType === "SINGLE_SELECT") {
+    variables.singleSelectOptions = input.options.map((o) => ({
+      name: o.name,
+      color: o.color,
+      description: o.description ?? "",
+    }));
+  }
+  const data = await octokit.graphql<{
+    createProjectV2Field: { projectV2Field: RawField };
+  }>(CREATE_FIELD_MUTATION, variables);
+  const f = data.createProjectV2Field.projectV2Field;
+  if (!f.id || !f.name || !f.dataType) {
+    throw new Error(`createProjectV2Field: malformed response for ${input.name}`);
+  }
+  return { id: f.id, name: f.name, dataType: f.dataType, options: f.options };
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  Batched field-value updates (pushFinding fast path)
+ * ──────────────────────────────────────────────────────────────────── */
+
+export type FieldValueWrite =
+  | { fieldId: string; kind: "text"; text: string }
+  | { fieldId: string; kind: "number"; number: number }
+  | { fieldId: string; kind: "date"; date: string }
+  | { fieldId: string; kind: "single_select"; singleSelectOptionId: string };
+
+/**
+ * Issues N aliased updateProjectV2ItemFieldValue mutations in one GraphQL
+ * document — one network round-trip regardless of how many fields are
+ * being set. Caller is responsible for choosing the right `kind` per field.
+ *
+ * No-op when `writes` is empty.
+ */
+export async function updateProjectV2ItemFieldValues(
+  octokit: Octokit,
+  input: {
+    projectNodeId: string;
+    itemId: string;
+    writes: FieldValueWrite[];
+  },
+): Promise<void> {
+  if (input.writes.length === 0) return;
+
+  const variableDecls: string[] = ["$projectId: ID!", "$itemId: ID!"];
+  const variables: Record<string, unknown> = {
+    projectId: input.projectNodeId,
+    itemId: input.itemId,
+  };
+  const bodyChunks: string[] = [];
+
+  input.writes.forEach((w, i) => {
+    const alias = `u${i}`;
+    const fieldVar = `field_${i}`;
+    variableDecls.push(`$${fieldVar}: ID!`);
+    variables[fieldVar] = w.fieldId;
+
+    let valueClause = "";
+    if (w.kind === "text") {
+      const v = `text_${i}`;
+      variableDecls.push(`$${v}: String!`);
+      variables[v] = w.text;
+      valueClause = `value: { text: $${v} }`;
+    } else if (w.kind === "number") {
+      const v = `num_${i}`;
+      variableDecls.push(`$${v}: Float!`);
+      variables[v] = w.number;
+      valueClause = `value: { number: $${v} }`;
+    } else if (w.kind === "date") {
+      const v = `date_${i}`;
+      variableDecls.push(`$${v}: Date!`);
+      variables[v] = w.date;
+      valueClause = `value: { date: $${v} }`;
+    } else {
+      const v = `opt_${i}`;
+      variableDecls.push(`$${v}: String!`);
+      variables[v] = w.singleSelectOptionId;
+      valueClause = `value: { singleSelectOptionId: $${v} }`;
+    }
+
+    bodyChunks.push(
+      `${alias}: updateProjectV2ItemFieldValue(input: { projectId: $projectId, itemId: $itemId, fieldId: $${fieldVar}, ${valueClause} }) { projectV2Item { id } }`,
+    );
+  });
+
+  const query = `mutation BatchUpdateRoveFields(${variableDecls.join(", ")}) {\n  ${bodyChunks.join("\n  ")}\n}`;
+  await octokit.graphql(query, variables);
+}

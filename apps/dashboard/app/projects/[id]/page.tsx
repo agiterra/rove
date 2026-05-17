@@ -77,7 +77,11 @@ export default async function ProjectOverviewPage({ params, searchParams }: Page
       />
 
       <section>
-        <BacklogPanel projectId={projectId} connection={connectionForClient} />
+        <BacklogPanel
+          projectId={projectId}
+          connection={connectionForClient}
+          defaultOwner={deriveDefaultOwner(project?.github_repo ?? null)}
+        />
       </section>
 
       <CrossLinks projectId={projectId} />
@@ -215,6 +219,17 @@ function MetaField({
       {children}
     </div>
   );
+}
+
+/**
+ * Default GitHub owner prefilled in the managed-board install form.
+ * Derived from the project's github_repo binding when present (the
+ * "owner/repo" string the PR-authoring wizard already uses), falling
+ * back to "agiterra" — the alpha-stage hard-coded org.
+ */
+function deriveDefaultOwner(githubRepo: string | null): string {
+  if (githubRepo && githubRepo.includes("/")) return githubRepo.split("/")[0];
+  return "agiterra";
 }
 
 function prettyHost(url: string): string {

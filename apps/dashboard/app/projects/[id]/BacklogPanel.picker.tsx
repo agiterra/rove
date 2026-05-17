@@ -4,11 +4,18 @@ import { useState, useTransition } from "react";
 import {
   installConnectExistingGitHubAction,
   installDashboardOnlyAction,
+  installManagedBoardGitHubAction,
 } from "./actions";
 
-type PickedPath = "dashboard" | "existing" | null;
+type PickedPath = "dashboard" | "existing" | "managed" | null;
 
-export function InstallPicker({ projectId }: { projectId: string }) {
+export function InstallPicker({
+  projectId,
+  defaultOwner,
+}: {
+  projectId: string;
+  defaultOwner: string;
+}) {
   const [picked, setPicked] = useState<PickedPath>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -31,6 +38,16 @@ export function InstallPicker({ projectId }: { projectId: string }) {
     });
   }
 
+  function submitManagedBoard(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await installManagedBoardGitHubAction(projectId, fd);
+      if (!result.ok) setError(result.error);
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PickerHeader />
@@ -43,7 +60,13 @@ export function InstallPicker({ projectId }: { projectId: string }) {
           onToggle={() => setPicked(picked === "existing" ? null : "existing")}
           onSubmit={submitConnectExisting}
         />
-        <ManagedBoardCard />
+        <ManagedBoardCard
+          expanded={picked === "managed"}
+          pending={pending}
+          defaultOwner={defaultOwner}
+          onToggle={() => setPicked(picked === "managed" ? null : "managed")}
+          onSubmit={submitManagedBoard}
+        />
       </div>
 
       {error ? (
@@ -228,9 +251,21 @@ function ConnectExistingCard({
   );
 }
 
-function ManagedBoardCard() {
+function ManagedBoardCard({
+  expanded,
+  pending,
+  defaultOwner,
+  onToggle,
+  onSubmit,
+}: {
+  expanded: boolean;
+  pending: boolean;
+  defaultOwner: string;
+  onToggle: () => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}) {
   return (
-    <article className="path-card path-card-veiled path-card-stagger-3" aria-disabled>
+    <article className="path-card path-card-stagger-3">
       <CardMark>
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path
@@ -247,17 +282,99 @@ function ManagedBoardCard() {
       <p className="path-card-spec">OPTION 03 · MANAGED BOARD</p>
       <h3 className="path-card-title">Set up a Rove board</h3>
       <p className="path-card-body">
-        Rove auto-creates a Project v2 board in your org — custom fields,
-        per-project views, webhook subscription. One install, zero config.
+        Rove creates a new Project v2 in your org with the canonical
+        Severity / Heuristic / Persona / Flow fields. Optionally clone
+        a template board to inherit its views.
       </p>
-      <div className="pt-1">
-        <span className="path-lock" aria-disabled="true">
-          <LockIcon />
-          <span>
-            Coming in <span className="path-lock-mono">ALPHA.40</span>
-          </span>
-        </span>
-      </div>
+
+      {expanded ? (
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-col gap-2.5 pt-1"
+          aria-label="Set up a Rove-managed Project v2"
+        >
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
+              GitHub owner
+            </span>
+            <input
+              name="owner"
+              defaultValue={defaultOwner}
+              required
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2 font-mono"
+              style={{ fontSize: 12 }}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
+              Board name
+            </span>
+            <input
+              name="boardName"
+              defaultValue="Rove agent-readiness"
+              required
+              autoComplete="off"
+              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2"
+              style={{ fontSize: 12 }}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--color-text-faint)]">
+              Template URL <span className="opacity-60">(optional)</span>
+            </span>
+            <input
+              name="templateProjectUrl"
+              placeholder="https://github.com/orgs/agiterra/projects/N"
+              autoComplete="off"
+              spellCheck={false}
+              className="w-full rounded-md bg-[var(--color-panel)] border border-[var(--color-border-strong)] focus-rove px-3 py-2 font-mono"
+              style={{ fontSize: 12 }}
+            />
+          </label>
+          <p className="text-[11px] text-[var(--color-text-faint)] leading-snug">
+            GitHub's API can't create custom views programmatically.
+            Cloning a template board is the only way to inherit views.
+            Leave blank for fields-only.
+          </p>
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={onToggle}
+              disabled={pending}
+              className="text-[11px] text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="focus-rove rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--color-brand-cyan) 0%, var(--color-brand-navy) 100%)",
+                color: "white",
+              }}
+            >
+              {pending ? "Creating…" : "Create board"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="focus-rove inline-flex items-center gap-2 rounded-md border border-[var(--color-border-strong)] bg-[var(--color-panel-2)] px-3.5 py-1.5 text-xs font-medium hover:bg-[var(--color-panel-2)]/70 transition-colors"
+          >
+            Create a board
+            <span aria-hidden className="text-[var(--color-text-faint)]">
+              →
+            </span>
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -266,30 +383,3 @@ function CardMark({ children }: { children: React.ReactNode }) {
   return <span className="path-card-mark">{children}</span>;
 }
 
-function LockIcon() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 16 16"
-      fill="none"
-      aria-hidden
-      className="opacity-70"
-    >
-      <rect
-        x="3"
-        y="7"
-        width="10"
-        height="7"
-        rx="1.5"
-        stroke="currentColor"
-        strokeWidth="1.3"
-      />
-      <path
-        d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
-        stroke="currentColor"
-        strokeWidth="1.3"
-      />
-    </svg>
-  );
-}

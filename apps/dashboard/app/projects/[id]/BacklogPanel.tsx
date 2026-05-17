@@ -6,11 +6,13 @@ import { ConnectedShowpiece, type ActiveConnection } from "./BacklogPanel.connec
 interface Props {
   projectId: string;
   connection: ActiveConnection | null;
+  /** Default org slug used to prefill the managed-board install form. */
+  defaultOwner: string;
 }
 
-export function BacklogPanel({ projectId, connection }: Props) {
+export function BacklogPanel({ projectId, connection, defaultOwner }: Props) {
   if (connection) {
     return <ConnectedShowpiece projectId={projectId} connection={connection} />;
   }
-  return <InstallPicker projectId={projectId} />;
+  return <InstallPicker projectId={projectId} defaultOwner={defaultOwner} />;
 }
