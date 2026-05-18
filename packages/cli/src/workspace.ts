@@ -12,6 +12,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
+import { loadEnvRove } from "./auto-env.js";
 import { loadRoveConfig } from "./config.js";
 
 export interface ResolvedWorkspace {
@@ -29,6 +30,8 @@ export async function resolveWorkspace(
   startDir: string = process.cwd(),
 ): Promise<ResolvedWorkspace> {
   const { config, projectRoot } = await loadRoveConfig(startDir);
+
+  loadEnvRove(projectRoot);
 
   const flowsDir = isAbsolute(config.flowsDir)
     ? config.flowsDir
