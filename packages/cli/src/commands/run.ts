@@ -154,8 +154,8 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   const liveStepWrites = await maybePrepareLiveStepWrites({
     runId,
     projectId: config.projectId,
-    flowId: flow.flowId,
-    personaId: persona.id,
+    flow,
+    persona,
     personaPolicy: persona.constraints.native_dialog_policy ?? "perceive_and_act",
     dispatcherId: opts.dispatcher,
     sinks: opts.sinks,
@@ -347,8 +347,8 @@ async function maybeFailRun(
 async function maybePrepareLiveStepWrites(input: {
   runId: string;
   projectId: string;
-  flowId: string;
-  personaId: string;
+  flow: FlowInfo;
+  persona: Persona;
   personaPolicy: "perceive_and_act" | "perceive_blind" | "dismiss_silently";
   dispatcherId: DispatcherId;
   sinks: SinkId[];
@@ -371,10 +371,18 @@ async function maybePrepareLiveStepWrites(input: {
   const { SupabaseStore } = await import("../supabase/store.js");
   const store = new SupabaseStore(getSupabaseClient(), input.projectId);
   try {
+    // Upsert persona + flow first so the run's FKs resolve. Without this,
+    // a freshly-authored flow YAML that hasn't been `rove sync`-ed yet
+    // would cause createRun to fail with a FK violation — and the live-
+    // writes path would silently fall back to post-walk batch sync
+    // (which fails the same way at the end). The post-walk sink does the
+    // same upsert; doing it here closes the pre-walk gap.
+    await store.upsertPersona(input.persona);
+    await store.upsertFlow(input.flow);
     await store.createRun({
       runId: input.runId,
-      flowId: input.flowId,
-      personaId: input.personaId,
+      flowId: input.flow.flowId,
+      personaId: input.persona.id,
       dispatcher: input.dispatcherId,
       commitSha: input.commitSha,
       branch: input.branch,
@@ -392,7 +400,7 @@ async function maybePrepareLiveStepWrites(input: {
     projectId: input.projectId,
     supabaseUrl: env.url,
     supabaseServiceRoleKey: env.serviceRoleKey,
-    personaId: input.personaId,
+    personaId: input.persona.id,
     personaPolicy: input.personaPolicy,
   };
 }
