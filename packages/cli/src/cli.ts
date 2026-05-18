@@ -77,9 +77,10 @@ program
 
 program
   .command("personas")
-  .description("List built-in personas")
-  .action(() => {
-    process.exit(runPersonasCommand());
+  .description("List built-in + project-custom personas")
+  .action(async () => {
+    const ws = await resolveWorkspace();
+    process.exit(await runPersonasCommand(ws));
   });
 
 program

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { discoverFlows } from "@agiterra/rove-core";
 import type { PreflightCheck } from "@agiterra/rove-core";
 import { ClaudeCodeCliDispatcher } from "../dispatchers/claude-code-cli.js";
-import { userDataDir, type AuthRole } from "../auth-state.js";
+import { isAuthProfileStale, userDataDir, type AuthRole } from "../auth-state.js";
 import { readEvalSupabaseEnv } from "../supabase/env.js";
 import type { ResolvedWorkspace } from "../workspace.js";
 
@@ -38,7 +38,7 @@ export async function runDoctorCommand(ws: ResolvedWorkspace): Promise<number> {
 
   // Per-role auth profiles (warn — only the role being walked needs one)
   for (const role of AUTH_ROLES) {
-    checks.push(checkAuthProfile(role));
+    checks.push(await checkAuthProfile(role));
   }
 
   // Eval Supabase store (warn — only needed when --sink supabase is used)
@@ -91,17 +91,25 @@ async function checkDashboardEnv(rootDir: string): Promise<PreflightCheck> {
   return { name: "apps/dashboard/.env.local has required keys", status: "ok" };
 }
 
-function checkAuthProfile(role: AuthRole): PreflightCheck {
+async function checkAuthProfile(role: AuthRole): Promise<PreflightCheck> {
   const dir = userDataDir(role);
-  if (existsSync(dir)) {
-    return { name: `auth profile (${role})`, status: "ok", detail: dir };
+  if (!existsSync(dir)) {
+    return {
+      name: `auth profile (${role})`,
+      status: "warn",
+      detail: `missing — only needed if you walk a ${role}-category persona`,
+      remedy: `rove auth-setup --role ${role}`,
+    };
   }
-  return {
-    name: `auth profile (${role})`,
-    status: "warn",
-    detail: `missing — only needed if you walk a ${role}-category persona`,
-    remedy: `rove auth-setup --role ${role}`,
-  };
+  if (await isAuthProfileStale(role)) {
+    return {
+      name: `auth profile (${role})`,
+      status: "warn",
+      detail: `${dir} — cookies older than the Supabase session lifetime; walks may bounce to /signin`,
+      remedy: `rove auth-setup --role ${role}`,
+    };
+  }
+  return { name: `auth profile (${role})`, status: "ok", detail: dir };
 }
 
 async function checkEvalSupabase(): Promise<PreflightCheck> {

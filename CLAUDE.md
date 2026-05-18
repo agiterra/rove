@@ -525,10 +525,32 @@ Defined in `packages/core/src/types.ts` (`Persona`, `PersonaCategory`, `PersonaC
 ### Authoring a new persona
 
 1. Add an entry to `BUILT_IN_PERSONAS` if it's project-agnostic and useful to everyone.
-2. For project-specific personas, drop a `*.personas.yaml` in the consumer project's `flowsDir`. `rove sync` picks them up.
-3. `promptAddendum` is the most important field — it's what the agent reads as its character brief. Write it in the second person ("You are…") and be specific about constraints.
-4. For agent personas, pick `agent_runtime` accurately (`claude_computer_use` / `chatgpt_operator` / `browser_use` / `playwright_codegen`). The prompt builder branches on this.
-5. Never duplicate an existing persona for cosmetic reasons. If you need a variant, change the `constraints` and `promptAddendum`, not the schema.
+2. For project-specific personas, drop a `*.personas.yaml` in the consumer project's `flowsDir`. `rove sync` picks them up and `rove personas` lists them alongside the built-ins.
+3. The YAML key is `prompt_addendum` (snake_case), NOT `promptAddendum`. The schema is `.strict()` — unknown fields error loudly with the file path + the bad key. See `examples/flows/dogfood.personas.yaml` for the canonical shape.
+4. `prompt_addendum` is the most important field — it's what the agent reads as its character brief. Write it in the second person ("You are…") and be specific about constraints.
+5. For agent personas, pick `agent_runtime` accurately (`claude_computer_use` / `chatgpt_operator` / `browser_use` / `playwright_codegen`). The prompt builder branches on this.
+6. Never duplicate an existing persona for cosmetic reasons. If you need a variant, change the `constraints` and `prompt_addendum`, not the schema.
+
+#### Minimal persona YAML shape
+
+```yaml
+# rove/flows/<anything>.personas.yaml
+personas:
+  my_persona_id:                       # snake_case, matches PERSONA_ID_PATTERN
+    label: "Short display name"
+    description: "One-sentence persona summary."
+    category: end-user                 # end-user | internal-user | admin | mobile | accessibility | agent | custom
+    expertise: novice                  # novice | intermediate | expert
+    icon: "🌱"                         # optional, max 8 chars
+    constraints:
+      shortcuts_allowed: false
+      hovers_allowed: false
+      retries_per_step: 1
+      native_dialog_policy: perceive_and_act
+      # agent_runtime: claude_computer_use   # required only when category=agent
+    prompt_addendum: |
+      You are <character brief, second person, specific constraints>.
+```
 
 ## Flow
 

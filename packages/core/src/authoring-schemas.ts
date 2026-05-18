@@ -153,3 +153,64 @@ export const flowDraftWithPriorOverridesSchema = flowDraftSchema.extend({
   prior_overrides: priorOverridesSchema.optional(),
 });
 export type FlowDraftWithPriorOverrides = z.infer<typeof flowDraftWithPriorOverridesSchema>;
+
+// ── Workspace persona YAML (consumer project's *.personas.yaml) ─────────────
+// Shape consumed by `rove sync` to upsert custom personas alongside the
+// built-ins. `.strict()` so an unknown field errors loudly instead of being
+// silently dropped — agents trying to author personas should get told
+// when they mistype `prompt_addendum` as `promptAddendum`.
+
+const personaCategorySchema = z.enum([
+  "end-user",
+  "internal-user",
+  "admin",
+  "mobile",
+  "accessibility",
+  "agent",
+  "custom",
+]);
+
+const personaExpertiseSchema = z.enum(["novice", "intermediate", "expert"]);
+
+const agentRuntimeSchema = z.enum([
+  "claude_computer_use",
+  "chatgpt_operator",
+  "browser_use",
+  "playwright_codegen",
+]);
+
+const personaConstraintsYamlSchema = z
+  .object({
+    shortcuts_allowed: z.boolean(),
+    hovers_allowed: z.boolean(),
+    keyboard_navigation_only: z.boolean().optional(),
+    retries_per_step: z.number().int().min(0).max(5),
+    agent_runtime: agentRuntimeSchema.optional(),
+    native_dialog_policy: z
+      .enum(["perceive_and_act", "perceive_blind", "dismiss_silently"])
+      .optional(),
+    prior_archetype: archetypeIdSchema.optional(),
+  })
+  .strict();
+
+export const personaYamlEntrySchema = z
+  .object({
+    label: z.string().min(2).max(80),
+    description: z.string().min(8).max(280),
+    category: personaCategorySchema,
+    expertise: personaExpertiseSchema,
+    icon: z.string().max(8).optional(),
+    constraints: personaConstraintsYamlSchema,
+    prompt_addendum: z.string().min(8).max(2000),
+  })
+  .strict();
+
+export type PersonaYamlEntry = z.infer<typeof personaYamlEntrySchema>;
+
+export const personaYamlFileSchema = z
+  .object({
+    personas: z.record(z.string().regex(PERSONA_ID_PATTERN), personaYamlEntrySchema),
+  })
+  .strict();
+
+export type PersonaYamlFile = z.infer<typeof personaYamlFileSchema>;

@@ -105,6 +105,9 @@ importers:
       playwright:
         specifier: 1.60.0-alpha-2026-05-06
         version: 1.60.0-alpha-2026-05-06
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: 'catalog:'
         version: 4.3.6

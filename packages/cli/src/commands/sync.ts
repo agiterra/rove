@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { BUILT_IN_PERSONAS, discoverFlows, type FlowInfo, type Persona } from "@agiterra/rove-core";
 import { loadRoveConfig } from "../config.js";
+import { loadCustomPersonas } from "../personas/load-custom.js";
 import { getSupabaseClient } from "../supabase/client.js";
 import { SupabaseStore } from "../supabase/store.js";
 import type { ResolvedWorkspace } from "../workspace.js";
@@ -30,10 +31,21 @@ export async function runSyncCommand(ws: ResolvedWorkspace, opts: SyncOptions): 
   const store = new SupabaseStore(db, config.projectId);
 
   const flows = await discoverFlows(ws.flowsDir);
-  console.log(`Discovered ${BUILT_IN_PERSONAS.length} personas + ${flows.length} flows.`);
+  const { personas: customPersonas, errors: personaYamlErrors } = await loadCustomPersonas(
+    ws.flowsDir,
+  );
+  console.log(
+    `Discovered ${BUILT_IN_PERSONAS.length} built-in + ${customPersonas.length} custom ` +
+      `personas, ${flows.length} flows.`,
+  );
 
   let written = 0;
   let errors = 0;
+
+  for (const e of personaYamlErrors) {
+    errors++;
+    console.error(`✗ persona YAML ${e.file}: ${e.message}`);
+  }
 
   // Project-level binding: mirror `github.repo` from rove.config.ts into
   // `projects.github_repo` so the dashboard's "Send to GitHub issue"
@@ -56,11 +68,13 @@ export async function runSyncCommand(ws: ResolvedWorkspace, opts: SyncOptions): 
     );
   }
 
-  for (const persona of BUILT_IN_PERSONAS) {
+  const allPersonas: Persona[] = [...BUILT_IN_PERSONAS, ...customPersonas];
+  for (const persona of allPersonas) {
     try {
       const sha = personaSha(persona);
+      const tag = persona.isBuiltIn ? "" : " (custom)";
       if (opts.dryRun) {
-        console.log(`[dry-run] persona ${persona.id} (sha=${sha.slice(0, 12)}…)`);
+        console.log(`[dry-run] persona ${persona.id}${tag} (sha=${sha.slice(0, 12)}…)`);
       } else {
         await store.upsertPersonaWithYaml(persona, sha);
         written++;

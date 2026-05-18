@@ -16,6 +16,7 @@ import { isAuthProfileStale, roleForPersonaCategory, userDataDir } from "../auth
 import { ensureFreshAuthProfile } from "../auth-mint.js";
 import { loadRoveConfig } from "../config.js";
 import { createDispatcher, createSinks, type DispatcherId, type SinkId } from "../factories.js";
+import { loadCustomPersonas } from "../personas/load-custom.js";
 import { renderSinkResult, routeToSinks } from "../sinks/route.js";
 import type { ResolvedWorkspace } from "../workspace.js";
 
@@ -54,7 +55,7 @@ export interface RunOptions {
 export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Promise<number> {
   const flow = await resolveFlow(ws, opts.flowId);
   if (!flow) return 1;
-  const persona = resolvePersona(opts.personaId);
+  const persona = await resolvePersona(ws, opts.personaId);
   if (!persona) return 1;
 
   let authProfilePath: string | undefined;
@@ -66,18 +67,30 @@ export async function runRunCommand(ws: ResolvedWorkspace, opts: RunOptions): Pr
   if (effectivelyAuthenticated) {
     const role = roleForPersonaCategory(persona.category);
     const candidate = userDataDir(role);
-    if (existsSync(candidate)) {
-      authProfilePath = candidate;
-      // Auto-re-mint if the cookies are older than the Supabase session
-      // lifetime — keeps dogfood walks from silently bouncing to /signin
-      // after the first hour.
-      await ensureFreshAuthProfile(role, isAuthProfileStale);
-    } else {
-      const setupCommand = isAgent
-        ? "rove dashboard-auth-setup --role dispatcher"
-        : `rove auth-setup --role ${role}`;
+    const setupCommand = isAgent
+      ? "rove dashboard-auth-setup --role dispatcher"
+      : `rove auth-setup --role ${role}`;
+
+    if (!existsSync(candidate)) {
       console.error(
         `✗ No auth profile for role=${role} at ${candidate}. Run \`${setupCommand}\` first, ` +
+          `or pass --no-auth to walk anonymously.`,
+      );
+      return 1;
+    }
+    authProfilePath = candidate;
+
+    // Auto-re-mint if the cookies are older than the Supabase session
+    // lifetime — keeps dogfood walks from silently bouncing to /signin
+    // after the first hour. If the env doesn't permit auto-mint (e.g.
+    // local CLI in a consumer project with no service-role key) AND the
+    // cookies are stale, fail fast instead of dispatching a walk that
+    // will land on /auth/login.
+    const freshness = await ensureFreshAuthProfile(role, isAuthProfileStale);
+    if (freshness === "stale-no-env") {
+      console.error(
+        `✗ Auth profile for role=${role} is older than the Supabase session lifetime ` +
+          `and no auto-mint env is available. Run \`${setupCommand}\` to refresh, ` +
           `or pass --no-auth to walk anonymously.`,
       );
       return 1;
@@ -257,13 +270,26 @@ async function resolveFlow(ws: ResolvedWorkspace, flowId: string): Promise<FlowI
   return match ?? null;
 }
 
-function resolvePersona(personaId: string): Persona | null {
-  const match = BUILT_IN_PERSONAS.find((p) => p.id === personaId);
-  if (!match) {
-    console.error(`✗ Persona not found: ${personaId}`);
-    console.error(`Available: ${BUILT_IN_PERSONAS.map((p) => p.id).join(", ")}`);
+async function resolvePersona(ws: ResolvedWorkspace, personaId: string): Promise<Persona | null> {
+  const builtIn = BUILT_IN_PERSONAS.find((p) => p.id === personaId);
+  if (builtIn) return builtIn;
+
+  const { personas: custom, errors } = await loadCustomPersonas(ws.flowsDir);
+  for (const e of errors) {
+    console.error(`⚠ persona YAML ${e.file}: ${e.message}`);
   }
-  return match ?? null;
+  const custMatch = custom.find((p) => p.id === personaId);
+  if (custMatch) return custMatch;
+
+  console.error(`✗ Persona not found: ${personaId}`);
+  const allIds = [...BUILT_IN_PERSONAS.map((p) => p.id), ...custom.map((p) => p.id)];
+  console.error(`Available: ${allIds.join(", ") || "(none)"}`);
+  if (custom.length === 0) {
+    console.error(
+      `Custom personas live in ${ws.flowsDir}/*.personas.yaml — run \`rove sync\` after editing.`,
+    );
+  }
+  return null;
 }
 
 function readGitContext(cwd: string): { commitSha?: string; branch?: string } {

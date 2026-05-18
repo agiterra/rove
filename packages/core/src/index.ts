@@ -63,6 +63,10 @@ export {
   PERSONA_ID_PATTERN,
   flowDraftSchema,
   personaDraftSchema,
+  personaYamlEntrySchema,
+  personaYamlFileSchema,
   type FlowDraft,
   type PersonaDraft,
+  type PersonaYamlEntry,
+  type PersonaYamlFile,
 } from "./authoring-schemas.js";
