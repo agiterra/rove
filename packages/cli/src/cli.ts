@@ -108,7 +108,7 @@ program
     "--timeout-seconds <n>",
     "Wall-clock timeout for the dispatcher",
     (s) => parseInt(s, 10),
-    600,
+    1200,
   )
   .option(
     "--dispatcher <id>",
